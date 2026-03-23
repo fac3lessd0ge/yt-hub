@@ -15,4 +15,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx nx build yt-downloader
-      - run: npx nx run-many -t test,typecheck
+      - run: npx nx run-many -t lint,test,typecheck
