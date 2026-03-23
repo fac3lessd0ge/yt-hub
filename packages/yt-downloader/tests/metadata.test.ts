@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { HttpMetadataFetcher, MetadataError } from "~/metadata";

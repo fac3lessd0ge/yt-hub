@@ -1,0 +1,30 @@
+{
+  "name": "yt-downloader",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "yt-downloader": "./cli.ts"
+  },
+  "scripts": {
+    "download": "tsx cli.ts",
+    "download:song": "tsx cli.ts --format mp3",
+    "download:video": "tsx cli.ts --format mp4",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "prompt-sync": "^4.2.0",
+    "which": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/prompt-sync": "^4.2.3",
+    "@types/which": "^3.0.4",
+    "msw": "^2.12.14",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
+  }
+}

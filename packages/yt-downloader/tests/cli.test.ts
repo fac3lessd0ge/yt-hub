@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { CliInputReader } from "~/input";
 import type { IDownloadBackend } from "~/download";
 import type { IPrompter } from "~/input";

@@ -1,21 +1,8 @@
 {
-  "name": "yt-downloader",
-  "version": "1.0.0",
-  "main": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "bin": {
-    "yt-downloader": "./cli.ts"
-  },
-  "scripts": {
-    "download": "bun run cli.ts",
-    "download:song": "bun run cli.ts --format mp3",
-    "download:video": "bun run cli.ts --format mp4",
-    "test": "bun test"
-  },
+  "name": "yt-hub",
+  "private": true,
+  "workspaces": ["packages/*"],
   "devDependencies": {
-    "@types/bun": "^1.3.11",
-    "msw": "^2.12.14"
+    "nx": "^22.6.1"
   }
 }

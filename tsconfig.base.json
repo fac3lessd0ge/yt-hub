@@ -3,10 +3,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "baseUrl": ".",
-    "paths": {
-      "~/*": ["src/*"]
-    },
-    "types": ["bun-types"]
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   }
 }
