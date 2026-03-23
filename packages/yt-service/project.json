@@ -24,6 +24,13 @@
         "command": "npx tsc --noEmit",
         "cwd": "packages/yt-service"
       }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx biome check .",
+        "cwd": "packages/yt-service"
+      }
     }
   }
 }

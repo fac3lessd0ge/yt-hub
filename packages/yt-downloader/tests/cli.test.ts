@@ -1,12 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CliInputReader } from "~/input";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IDownloadBackend } from "~/download";
 import type { IPrompter } from "~/input";
+import { CliInputReader } from "~/input";
 
 function fakeBackend(): IDownloadBackend {
   return {
     name: "test",
-    supportedFormats: () => [{ id: "mp3", label: "MP3" }, { id: "mp4", label: "MP4" }],
+    supportedFormats: () => [
+      { id: "mp3", label: "MP3" },
+      { id: "mp4", label: "MP4" },
+    ],
     requiredDependencies: () => [],
     download: async () => {},
   };
@@ -46,7 +49,14 @@ describe("CliInputReader", () => {
   }
 
   it("parses --link, --name, --format from argv", () => {
-    setArgv("--link", "https://youtube.com/watch?v=abc", "--name", "test", "--format", "mp3");
+    setArgv(
+      "--link",
+      "https://youtube.com/watch?v=abc",
+      "--name",
+      "test",
+      "--format",
+      "mp3",
+    );
     const input = reader.read();
     expect(input.link).toBe("https://youtube.com/watch?v=abc");
     expect(input.name).toBe("test");
@@ -55,17 +65,42 @@ describe("CliInputReader", () => {
   });
 
   it("parses --destination from argv", () => {
-    setArgv("--link", "https://youtube.com/watch?v=abc", "--name", "test", "--format", "mp3", "--destination", "/tmp/downloads");
+    setArgv(
+      "--link",
+      "https://youtube.com/watch?v=abc",
+      "--name",
+      "test",
+      "--format",
+      "mp3",
+      "--destination",
+      "/tmp/downloads",
+    );
     expect(reader.read().destination).toBe("/tmp/downloads");
   });
 
   it("parses --backend from argv", () => {
-    setArgv("--link", "https://youtube.com/watch?v=abc", "--name", "test", "--format", "mp3", "--backend", "cobalt");
+    setArgv(
+      "--link",
+      "https://youtube.com/watch?v=abc",
+      "--name",
+      "test",
+      "--format",
+      "mp3",
+      "--backend",
+      "cobalt",
+    );
     expect(reader.read().backend).toBe("cobalt");
   });
 
   it("does not prompt for destination or backend when missing", () => {
-    setArgv("--link", "https://youtube.com/watch?v=abc", "--name", "test", "--format", "mp3");
+    setArgv(
+      "--link",
+      "https://youtube.com/watch?v=abc",
+      "--name",
+      "test",
+      "--format",
+      "mp3",
+    );
     const input = reader.read();
     expect(input.destination).toBeUndefined();
     expect(input.backend).toBeUndefined();

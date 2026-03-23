@@ -1,7 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { resolve } from "path";
-import { InputValidator, YOUTUBE_PATTERNS, DEFAULT_DESTINATION, ValidationError } from "~/input";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { IDownloadBackend } from "~/download";
+import {
+  DEFAULT_DESTINATION,
+  InputValidator,
+  ValidationError,
+  YOUTUBE_PATTERNS,
+} from "~/input";
 
 function fakeBackend(): IDownloadBackend {
   return {
@@ -22,7 +27,11 @@ function createValidator() {
 describe("InputValidator", () => {
   it("returns ValidatedInput for valid input", () => {
     const validator = createValidator();
-    const result = validator.validate({ link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", name: "test", format: "mp3" });
+    const result = validator.validate({
+      link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      name: "test",
+      format: "mp3",
+    });
     expect(result.link).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     expect(result.name).toBe("test");
     expect(result.formatId).toBe("mp3");
@@ -30,52 +39,102 @@ describe("InputValidator", () => {
   });
 
   it("accepts youtu.be short links", () => {
-    const result = createValidator().validate({ link: "https://youtu.be/dQw4w9WgXcQ", name: "test", format: "mp4" });
+    const result = createValidator().validate({
+      link: "https://youtu.be/dQw4w9WgXcQ",
+      name: "test",
+      format: "mp4",
+    });
     expect(result.formatId).toBe("mp4");
   });
 
   it("accepts youtube shorts links", () => {
-    const result = createValidator().validate({ link: "https://www.youtube.com/shorts/abc123", name: "test", format: "mp3" });
+    const result = createValidator().validate({
+      link: "https://www.youtube.com/shorts/abc123",
+      name: "test",
+      format: "mp3",
+    });
     expect(result.link).toContain("shorts");
   });
 
   it("throws ValidationError on missing link", () => {
-    expect(() => createValidator().validate({ name: "test", format: "mp3" })).toThrow(ValidationError);
+    expect(() =>
+      createValidator().validate({ name: "test", format: "mp3" }),
+    ).toThrow(ValidationError);
   });
 
   it("throws ValidationError on missing name", () => {
-    expect(() => createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", format: "mp3" })).toThrow(ValidationError);
+    expect(() =>
+      createValidator().validate({
+        link: "https://www.youtube.com/watch?v=abc",
+        format: "mp3",
+      }),
+    ).toThrow(ValidationError);
   });
 
   it("throws ValidationError on missing format", () => {
-    expect(() => createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test" })).toThrow(ValidationError);
+    expect(() =>
+      createValidator().validate({
+        link: "https://www.youtube.com/watch?v=abc",
+        name: "test",
+      }),
+    ).toThrow(ValidationError);
   });
 
   it("throws ValidationError on unsupported format", () => {
-    expect(() => createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "wav" })).toThrow(ValidationError);
+    expect(() =>
+      createValidator().validate({
+        link: "https://www.youtube.com/watch?v=abc",
+        name: "test",
+        format: "wav",
+      }),
+    ).toThrow(ValidationError);
   });
 
   it("throws ValidationError on non-YouTube URL", () => {
-    expect(() => createValidator().validate({ link: "https://vimeo.com/12345", name: "test", format: "mp3" })).toThrow(ValidationError);
+    expect(() =>
+      createValidator().validate({
+        link: "https://vimeo.com/12345",
+        name: "test",
+        format: "mp3",
+      }),
+    ).toThrow(ValidationError);
   });
 
   it("normalizes format to lowercase", () => {
-    const result = createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "MP3" });
+    const result = createValidator().validate({
+      link: "https://www.youtube.com/watch?v=abc",
+      name: "test",
+      format: "MP3",
+    });
     expect(result.formatId).toBe("mp3");
   });
 
   it("uses provided destination", () => {
-    const result = createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "mp3", destination: "/tmp/downloads" });
+    const result = createValidator().validate({
+      link: "https://www.youtube.com/watch?v=abc",
+      name: "test",
+      format: "mp3",
+      destination: "/tmp/downloads",
+    });
     expect(result.destination).toBe("/tmp/downloads");
   });
 
   it("resolves relative destination to absolute path", () => {
-    const result = createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "mp3", destination: "./my-downloads" });
+    const result = createValidator().validate({
+      link: "https://www.youtube.com/watch?v=abc",
+      name: "test",
+      format: "mp3",
+      destination: "./my-downloads",
+    });
     expect(result.destination).toBe(resolve("./my-downloads"));
   });
 
   it("uses default destination when not provided", () => {
-    const result = createValidator().validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "mp3" });
+    const result = createValidator().validate({
+      link: "https://www.youtube.com/watch?v=abc",
+      name: "test",
+      format: "mp3",
+    });
     expect(result.destination).toBe(DEFAULT_DESTINATION);
   });
 
@@ -86,7 +145,13 @@ describe("InputValidator", () => {
       requiredDependencies: () => [],
       download: async () => {},
     };
-    expect(() => new InputValidator(limitedBackend).validate({ link: "https://www.youtube.com/watch?v=abc", name: "test", format: "mp3" })).toThrow(ValidationError);
+    expect(() =>
+      new InputValidator(limitedBackend).validate({
+        link: "https://www.youtube.com/watch?v=abc",
+        name: "test",
+        format: "mp3",
+      }),
+    ).toThrow(ValidationError);
   });
 });
 

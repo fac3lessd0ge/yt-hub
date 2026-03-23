@@ -1,8 +1,8 @@
 import type {
-  VideoMetadata,
-  FormatInfo,
   DownloadProgress,
   DownloadResult,
+  FormatInfo,
+  VideoMetadata,
 } from "yt-downloader";
 
 export class ResponseMapper {

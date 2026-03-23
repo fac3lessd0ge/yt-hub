@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { ResponseMapper } from "~/mapping";
+import { describe, expect, it } from "vitest";
 import type {
-  VideoMetadata,
-  FormatInfo,
   DownloadProgress,
   DownloadResult,
+  FormatInfo,
+  VideoMetadata,
 } from "yt-downloader";
+import { ResponseMapper } from "~/mapping";
 
 describe("ResponseMapper", () => {
   const mapper = new ResponseMapper();

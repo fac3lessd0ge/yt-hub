@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { DownloadService } from "yt-downloader";
 import { FormatsHandler } from "~/handlers";
 import { ResponseMapper } from "~/mapping";
-import type { DownloadService } from "yt-downloader";
 
 function fakeDownloadService(): DownloadService {
   return {
@@ -16,7 +16,7 @@ describe("FormatsHandler", () => {
   it("returns mapped formats list", async () => {
     const handler = new FormatsHandler(
       fakeDownloadService(),
-      new ResponseMapper()
+      new ResponseMapper(),
     );
     const result = await handler.handle();
     expect(result).toEqual({

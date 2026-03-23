@@ -1,15 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { DownloadService, ProgressCallback } from "yt-downloader";
+import { ValidationError } from "yt-downloader";
 import { DownloadHandler } from "~/handlers";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
-import { ValidationError } from "yt-downloader";
-import type { DownloadService, ProgressCallback } from "yt-downloader";
 
 function fakeDownloadService(options?: {
   progressUpdates?: { percent: number; speed: string; eta: string }[];
   throwError?: Error;
 }): DownloadService {
   return {
-    download: async (params: any, onProgress?: ProgressCallback) => {
+    download: async (_params: any, onProgress?: ProgressCallback) => {
       if (options?.throwError) throw options.throwError;
 
       if (options?.progressUpdates && onProgress) {
@@ -36,13 +36,13 @@ describe("DownloadHandler", () => {
     const handler = new DownloadHandler(
       fakeDownloadService({ progressUpdates }),
       new ErrorMapper(),
-      new ResponseMapper()
+      new ResponseMapper(),
     );
 
     const messages: any[] = [];
     await handler.handle(
       { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" },
-      (msg) => messages.push(msg)
+      (msg) => messages.push(msg),
     );
 
     expect(messages).toHaveLength(3);
@@ -67,13 +67,12 @@ describe("DownloadHandler", () => {
     const handler = new DownloadHandler(
       fakeDownloadService({ throwError: new ValidationError("bad link") }),
       new ErrorMapper(),
-      new ResponseMapper()
+      new ResponseMapper(),
     );
 
     const messages: any[] = [];
-    await handler.handle(
-      { link: "bad", format: "mp3", name: "test" },
-      (msg) => messages.push(msg)
+    await handler.handle({ link: "bad", format: "mp3", name: "test" }, (msg) =>
+      messages.push(msg),
     );
 
     expect(messages).toHaveLength(1);
@@ -86,13 +85,13 @@ describe("DownloadHandler", () => {
     const handler = new DownloadHandler(
       fakeDownloadService(),
       new ErrorMapper(),
-      new ResponseMapper()
+      new ResponseMapper(),
     );
 
     const messages: any[] = [];
     await handler.handle(
       { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" },
-      (msg) => messages.push(msg)
+      (msg) => messages.push(msg),
     );
 
     expect(messages).toHaveLength(1);

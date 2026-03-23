@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { BackendsHandler } from "~/handlers";
+import { describe, expect, it } from "vitest";
 import type { DownloadService } from "yt-downloader";
+import { BackendsHandler } from "~/handlers";
 
 function fakeDownloadService(): DownloadService {
   return {

@@ -1,17 +1,19 @@
-import { mkdirSync } from "fs";
-import { resolve } from "path";
-import { homedir } from "os";
-import type { IDownloadBackend, FormatInfo, ProgressCallback } from "~/download";
-import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import type { IBinaryResolver } from "~/dependencies";
-import { DependencyChecker } from "~/dependencies";
-import { OutputPathBuilder } from "~/output";
+import { DependencyChecker, NodeBinaryResolver } from "~/dependencies";
+import type {
+  FormatInfo,
+  IDownloadBackend,
+  ProgressCallback,
+} from "~/download";
 import { BackendRegistry, YtDlpBackend } from "~/download";
+import { ValidationError, YOUTUBE_PATTERNS } from "~/input";
+import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
+import { OutputPathBuilder } from "~/output";
 import { NodeProcessSpawner } from "~/process";
-import { NodeBinaryResolver } from "~/dependencies";
-import { YOUTUBE_PATTERNS } from "~/input";
-import { ValidationError } from "~/input";
 
 export interface DownloadParams {
   link: string;
@@ -36,16 +38,18 @@ export class DownloadService {
   private dependencyChecker: DependencyChecker;
   private outputPathBuilder: OutputPathBuilder;
 
-  constructor(options: {
-    backend?: string;
-    binaryResolver?: IBinaryResolver;
-    metadataFetcher?: IMetadataFetcher;
-    backends?: BackendRegistry;
-  } = {}) {
+  constructor(
+    options: {
+      backend?: string;
+      binaryResolver?: IBinaryResolver;
+      metadataFetcher?: IMetadataFetcher;
+      backends?: BackendRegistry;
+    } = {},
+  ) {
     this.backends = options.backends ?? DownloadService.defaultBackends();
     this.metadataFetcher = options.metadataFetcher ?? new HttpMetadataFetcher();
     this.dependencyChecker = new DependencyChecker(
-      options.binaryResolver ?? new NodeBinaryResolver()
+      options.binaryResolver ?? new NodeBinaryResolver(),
     );
     this.outputPathBuilder = new OutputPathBuilder();
 
@@ -53,7 +57,7 @@ export class DownloadService {
     const backend = this.backends.get(backendName);
     if (!backend) {
       throw new Error(
-        `Unknown backend "${backendName}". Available: ${this.backends.names().join(", ")}`
+        `Unknown backend "${backendName}". Available: ${this.backends.names().join(", ")}`,
       );
     }
     this.activeBackend = backend;
@@ -61,7 +65,7 @@ export class DownloadService {
 
   async download(
     params: DownloadParams,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
   ): Promise<DownloadResult> {
     this.validateParams(params);
 
@@ -79,14 +83,14 @@ export class DownloadService {
     const outputPath = this.outputPathBuilder.build(
       params.name,
       params.format.toLowerCase(),
-      destination
+      destination,
     );
 
     await this.activeBackend.download(
       params.link,
       outputPath,
       params.format.toLowerCase(),
-      onProgress
+      onProgress,
     );
 
     return { outputPath, metadata, format };
@@ -117,7 +121,7 @@ export class DownloadService {
     const supportedIds = this.activeBackend.supportedFormats().map((f) => f.id);
     if (!supportedIds.includes(formatId)) {
       throw new ValidationError(
-        `Unsupported format "${params.format}". Use ${supportedIds.join(" or ")}.`
+        `Unsupported format "${params.format}". Use ${supportedIds.join(" or ")}.`,
       );
     }
 

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { DownloadService } from "yt-downloader";
 import { MetadataHandler } from "~/handlers";
 import { ResponseMapper } from "~/mapping";
-import type { DownloadService } from "yt-downloader";
 
 function fakeDownloadService(): DownloadService {
   return {
@@ -16,9 +16,11 @@ describe("MetadataHandler", () => {
   it("returns mapped metadata response", async () => {
     const handler = new MetadataHandler(
       fakeDownloadService(),
-      new ResponseMapper()
+      new ResponseMapper(),
     );
-    const result = await handler.handle({ link: "https://www.youtube.com/watch?v=abc" });
+    const result = await handler.handle({
+      link: "https://www.youtube.com/watch?v=abc",
+    });
     expect(result).toEqual({
       title: "Test Video",
       author_name: "Test Author",

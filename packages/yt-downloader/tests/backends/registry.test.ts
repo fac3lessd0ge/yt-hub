@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { BackendRegistry } from "~/download";
+import { describe, expect, it } from "vitest";
 import type { IDownloadBackend } from "~/download";
+import { BackendRegistry } from "~/download";
 
 function fakeBackend(name: string): IDownloadBackend {
   return {
