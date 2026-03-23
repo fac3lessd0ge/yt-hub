@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import { DependencyChecker, DependencyError } from "~/dependencies";
 import type { IBinaryResolver } from "~/dependencies";
 

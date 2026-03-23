@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import { resolve } from "path";
 import { InputValidator, YOUTUBE_PATTERNS, DEFAULT_DESTINATION, ValidationError } from "~/input";
 import type { IDownloadBackend } from "~/download";

@@ -8,8 +8,8 @@ import { DependencyChecker } from "~/dependencies";
 import { OutputPathBuilder } from "~/output";
 import { BackendRegistry, YtDlpBackend } from "~/download";
 import { HttpMetadataFetcher } from "~/metadata";
-import { BunProcessSpawner } from "~/process";
-import { BunBinaryResolver } from "~/dependencies";
+import { NodeProcessSpawner } from "~/process";
+import { NodeBinaryResolver } from "~/dependencies";
 import { YOUTUBE_PATTERNS } from "~/input";
 import { ValidationError } from "~/input";
 
@@ -53,7 +53,7 @@ export class DownloadService {
     this.backends = options.backends ?? DownloadService.defaultBackends();
     this.metadataFetcher = options.metadataFetcher ?? new HttpMetadataFetcher();
     this.dependencyChecker = new DependencyChecker(
-      options.binaryResolver ?? new BunBinaryResolver()
+      options.binaryResolver ?? new NodeBinaryResolver()
     );
     this.outputPathBuilder = new OutputPathBuilder();
 
@@ -128,7 +128,7 @@ export class DownloadService {
 
   private static defaultBackends(): BackendRegistry {
     const registry = new BackendRegistry();
-    registry.register(new YtDlpBackend(new BunProcessSpawner()));
+    registry.register(new YtDlpBackend(new NodeProcessSpawner()));
     return registry;
   }
 }

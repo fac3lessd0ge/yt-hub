@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, beforeEach, beforeAll, afterEach, afterAll } from "bun:test";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { Application } from "~/Application";
@@ -57,32 +57,35 @@ function createApp(overrides: { reader?: IInputReader; resolver?: IBinaryResolve
 }
 
 describe("Application", () => {
-  let exitSpy: ReturnType<typeof spyOn>;
-  beforeEach(() => { exitSpy = spyOn(process, "exit").mockImplementation(() => { throw new Error("process.exit called"); }); });
+  beforeEach(() => {
+    vi.spyOn(process, "exit").mockImplementation((code?: number | string | null | undefined): never => {
+      throw new Error("process.exit called");
+    });
+  });
 
   it("runs full happy path without errors", async () => {
     await createApp().run();
-    expect(exitSpy).not.toHaveBeenCalled();
+    expect(process.exit).not.toHaveBeenCalled();
   });
 
   it("exits with 1 on validation error", async () => {
     try { await createApp({ reader: fakeInputReader({ link: "https://bad-url.com", name: "test", format: "mp3" }) }).run(); } catch {}
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("exits with 1 on missing dependency", async () => {
     try { await createApp({ resolver: { resolve: () => null } }).run(); } catch {}
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("exits with download error exit code on failure", async () => {
     try { await createApp({ backend: fakeBackend(2) }).run(); } catch {}
-    expect(exitSpy).toHaveBeenCalledWith(2);
+    expect(process.exit).toHaveBeenCalledWith(2);
   });
 
   it("exits with 1 on metadata fetch failure", async () => {
     server.use(http.get(OEMBED_URL, () => new HttpResponse(null, { status: 404 })));
     try { await createApp().run(); } catch {}
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

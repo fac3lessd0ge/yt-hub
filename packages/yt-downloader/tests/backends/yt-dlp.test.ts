@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import { YtDlpBackend, DownloadError } from "~/download";
 import type { IProcessSpawner, SpawnResult } from "~/process";
 
