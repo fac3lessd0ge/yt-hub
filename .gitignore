@@ -1,4 +1,6 @@
 node_modules/
+dist/
 bun.lock
 .DS_Store
 Downloads/
+.nx/

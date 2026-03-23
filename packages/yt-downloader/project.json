@@ -1,0 +1,35 @@
+{
+  "name": "yt-downloader",
+  "projectType": "library",
+  "sourceRoot": "packages/yt-downloader/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsup",
+        "cwd": "packages/yt-downloader"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run",
+        "cwd": "packages/yt-downloader"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc --noEmit",
+        "cwd": "packages/yt-downloader"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx biome check .",
+        "cwd": "packages/yt-downloader"
+      }
+    }
+  }
+}

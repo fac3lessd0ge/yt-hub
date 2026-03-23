@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package yt_service;
+
+service YtService {
+  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
+  rpc ListFormats(ListFormatsRequest) returns (ListFormatsResponse);
+  rpc ListBackends(ListBackendsRequest) returns (ListBackendsResponse);
+  rpc Download(DownloadRequest) returns (stream DownloadResponse);
+}
+
+message GetMetadataRequest {
+  string link = 1;
+}
+
+message GetMetadataResponse {
+  string title = 1;
+  string author_name = 2;
+}
+
+message ListFormatsRequest {}
+
+message ListFormatsResponse {
+  repeated FormatInfo formats = 1;
+}
+
+message FormatInfo {
+  string id = 1;
+  string label = 2;
+}
+
+message ListBackendsRequest {}
+
+message ListBackendsResponse {
+  repeated string backends = 1;
+}
+
+message DownloadRequest {
+  string link = 1;
+  string format = 2;
+  string name = 3;
+  optional string destination = 4;
+  optional string backend = 5;
+}
+
+message DownloadResponse {
+  oneof payload {
+    DownloadProgress progress = 1;
+    DownloadComplete complete = 2;
+    DownloadError error = 3;
+  }
+}
+
+message DownloadProgress {
+  float percent = 1;
+  string speed = 2;
+  string eta = 3;
+}
+
+message DownloadComplete {
+  string output_path = 1;
+  string title = 2;
+  string author_name = 3;
+  string format_id = 4;
+  string format_label = 5;
+}
+
+message DownloadError {
+  string code = 1;
+  string message = 2;
+}

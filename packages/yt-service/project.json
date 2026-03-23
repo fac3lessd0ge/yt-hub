@@ -1,0 +1,36 @@
+{
+  "name": "yt-service",
+  "projectType": "application",
+  "sourceRoot": "packages/yt-service/src",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "npx tsx src/index.ts",
+        "cwd": "packages/yt-service"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run",
+        "cwd": "packages/yt-service"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc --noEmit",
+        "cwd": "packages/yt-service"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx biome check .",
+        "cwd": "packages/yt-service"
+      }
+    }
+  }
+}
