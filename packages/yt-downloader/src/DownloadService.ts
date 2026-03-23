@@ -1,7 +1,7 @@
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 import { homedir } from "os";
-import type { IDownloadBackend, FormatInfo } from "~/download";
+import type { IDownloadBackend, FormatInfo, ProgressCallback } from "~/download";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import type { IBinaryResolver } from "~/dependencies";
 import { DependencyChecker } from "~/dependencies";
@@ -26,14 +26,6 @@ export interface DownloadResult {
   metadata: VideoMetadata;
   format: FormatInfo;
 }
-
-export interface DownloadProgress {
-  percent: number;
-  speed: string;
-  eta: string;
-}
-
-export type ProgressCallback = (progress: DownloadProgress) => void;
 
 const DEFAULT_DESTINATION = resolve(homedir(), "Downloads", "yt-downloader");
 
@@ -67,7 +59,10 @@ export class DownloadService {
     this.activeBackend = backend;
   }
 
-  async download(params: DownloadParams): Promise<DownloadResult> {
+  async download(
+    params: DownloadParams,
+    onProgress?: ProgressCallback
+  ): Promise<DownloadResult> {
     this.validateParams(params);
 
     this.dependencyChecker.check(this.activeBackend.requiredDependencies());
@@ -87,7 +82,12 @@ export class DownloadService {
       destination
     );
 
-    await this.activeBackend.download(params.link, outputPath, params.format.toLowerCase());
+    await this.activeBackend.download(
+      params.link,
+      outputPath,
+      params.format.toLowerCase(),
+      onProgress
+    );
 
     return { outputPath, metadata, format };
   }

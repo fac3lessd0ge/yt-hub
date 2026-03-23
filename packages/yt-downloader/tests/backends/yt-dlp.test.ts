@@ -1,12 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { YtDlpBackend, DownloadError } from "~/download";
-import type { IProcessSpawner, SpawnResult } from "~/process";
+import type { IProcessSpawner, SpawnOptions, SpawnResult } from "~/process";
 
 function fakeSpawner(exitCode: number = 0) {
-  const calls: { args: string[]; options: any }[] = [];
+  const calls: { args: string[]; options: SpawnOptions }[] = [];
   const spawner: IProcessSpawner = {
     async spawn(args, options): Promise<SpawnResult> {
       calls.push({ args, options });
+      return { exitCode };
+    },
+  };
+  return { spawner, getCalls: () => calls };
+}
+
+function fakeSpawnerWithProgress(lines: string[], exitCode: number = 0) {
+  const calls: { args: string[]; options: SpawnOptions }[] = [];
+  const spawner: IProcessSpawner = {
+    async spawn(args, options): Promise<SpawnResult> {
+      calls.push({ args, options });
+      if (options.onStdout) {
+        for (const line of lines) {
+          options.onStdout(line);
+        }
+      }
       return { exitCode };
     },
   };
@@ -94,5 +110,61 @@ describe("YtDlpBackend", () => {
     const backend = new YtDlpBackend(spawner);
     await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
     expect(getCalls()[0].args).toContain("--progress");
+  });
+
+  it("uses inherited stdio when no onProgress callback", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+    const options = getCalls()[0].options;
+    expect(options.stdout).toBe("inherit");
+    expect(options.stderr).toBe("inherit");
+    expect(options.onStdout).toBeUndefined();
+  });
+
+  it("uses piped stdio when onProgress callback is provided", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      () => {}
+    );
+    const options = getCalls()[0].options;
+    expect(options.stdout).toBe("pipe");
+    expect(options.stderr).toBe("pipe");
+    expect(options.onStdout).toBeDefined();
+  });
+
+  it("calls onProgress with parsed progress from yt-dlp output", async () => {
+    const lines = [
+      "[info] Extracting URL",
+      "[download]  25.0% of  10.00MiB at  2.00MiB/s ETA 00:04",
+      "[download]  75.5% of  10.00MiB at  3.00MiB/s ETA 00:01",
+      "[download] 100% of   10.00MiB in 00:03",
+    ];
+    const { spawner } = fakeSpawnerWithProgress(lines);
+    const backend = new YtDlpBackend(spawner);
+    const progressUpdates: any[] = [];
+
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      (progress) => progressUpdates.push(progress)
+    );
+
+    expect(progressUpdates).toHaveLength(2);
+    expect(progressUpdates[0]).toEqual({
+      percent: 25.0,
+      speed: "2.00MiB/s",
+      eta: "00:04",
+    });
+    expect(progressUpdates[1]).toEqual({
+      percent: 75.5,
+      speed: "3.00MiB/s",
+      eta: "00:01",
+    });
   });
 });
