@@ -2,9 +2,13 @@
   "name": "yt-downloader",
   "version": "1.0.0",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "bin": {
     "yt-downloader": "./cli.ts"
@@ -13,6 +17,7 @@
     "download": "tsx cli.ts",
     "download:song": "tsx cli.ts --format mp3",
     "download:video": "tsx cli.ts --format mp4",
+    "build": "tsup",
     "test": "vitest run"
   },
   "dependencies": {
@@ -24,6 +29,7 @@
     "@types/prompt-sync": "^4.2.3",
     "@types/which": "^3.0.4",
     "msw": "^2.12.14",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "vitest": "^3.0.0"
