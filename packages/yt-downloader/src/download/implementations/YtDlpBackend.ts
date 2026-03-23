@@ -1,8 +1,8 @@
-import type { IDownloadBackend, FormatInfo } from "../types/IDownloadBackend";
-import type { ProgressCallback } from "../types/DownloadProgress";
-import type { IProcessSpawner } from "~/process";
 import type { Dependency } from "~/dependencies";
+import type { IProcessSpawner } from "~/process";
 import { DownloadError } from "../errors/DownloadError";
+import type { ProgressCallback } from "../types/DownloadProgress";
+import type { FormatInfo, IDownloadBackend } from "../types/IDownloadBackend";
 import { YtDlpProgressParser } from "./YtDlpProgressParser";
 
 const FORMAT_ARGS: Record<string, string[]> = {
@@ -41,7 +41,7 @@ export class YtDlpBackend implements IDownloadBackend {
     link: string,
     outputPath: string,
     formatId: string,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
   ): Promise<void> {
     const formatArgs = FORMAT_ARGS[formatId];
     if (!formatArgs) {

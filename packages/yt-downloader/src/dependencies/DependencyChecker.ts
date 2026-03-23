@@ -1,6 +1,6 @@
-import type { IBinaryResolver } from "./types/IBinaryResolver";
-import type { Dependency } from "./types/Dependency";
 import { DependencyError } from "./errors/DependencyError";
+import type { Dependency } from "./types/Dependency";
+import type { IBinaryResolver } from "./types/IBinaryResolver";
 
 export class DependencyChecker {
   constructor(private resolver: IBinaryResolver) {}

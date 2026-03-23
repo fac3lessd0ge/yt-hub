@@ -1,21 +1,23 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
+  type handleServerStreamingCall,
+  type handleUnaryCall,
   Server,
   ServerCredentials,
-  type ServerWritableStream,
-  type handleUnaryCall,
-  type handleServerStreamingCall,
-  type sendUnaryData,
   type ServerUnaryCall,
+  type ServerWritableStream,
+  type sendUnaryData,
 } from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import type { IGrpcServer } from "../types/IGrpcServer";
-import type { MetadataHandler } from "~/handlers";
-import type { FormatsHandler } from "~/handlers";
-import type { BackendsHandler } from "~/handlers";
-import type { DownloadHandler } from "~/handlers";
+import type {
+  BackendsHandler,
+  DownloadHandler,
+  FormatsHandler,
+  MetadataHandler,
+} from "~/handlers";
 import { ServerError } from "../errors/ServerError";
+import type { IGrpcServer } from "../types/IGrpcServer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROTO_PATH = resolve(__dirname, "../../../proto/yt_service.proto");
@@ -27,7 +29,7 @@ export class GrpcServer implements IGrpcServer {
     private metadataHandler: MetadataHandler,
     private formatsHandler: FormatsHandler,
     private backendsHandler: BackendsHandler,
-    private downloadHandler: DownloadHandler
+    private downloadHandler: DownloadHandler,
   ) {
     this.server = new Server();
   }
@@ -62,7 +64,7 @@ export class GrpcServer implements IGrpcServer {
             return;
           }
           resolvePromise();
-        }
+        },
       );
     });
   }
@@ -76,7 +78,7 @@ export class GrpcServer implements IGrpcServer {
   private createGetMetadata(): handleUnaryCall<any, any> {
     return async (
       call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>
+      callback: sendUnaryData<any>,
     ) => {
       try {
         const result = await this.metadataHandler.handle(call.request);
@@ -89,8 +91,8 @@ export class GrpcServer implements IGrpcServer {
 
   private createListFormats(): handleUnaryCall<any, any> {
     return async (
-      call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>
+      _call: ServerUnaryCall<any, any>,
+      callback: sendUnaryData<any>,
     ) => {
       try {
         const result = await this.formatsHandler.handle();
@@ -103,8 +105,8 @@ export class GrpcServer implements IGrpcServer {
 
   private createListBackends(): handleUnaryCall<any, any> {
     return async (
-      call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>
+      _call: ServerUnaryCall<any, any>,
+      callback: sendUnaryData<any>,
     ) => {
       try {
         const result = await this.backendsHandler.handle();

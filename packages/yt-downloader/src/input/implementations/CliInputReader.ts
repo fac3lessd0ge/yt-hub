@@ -1,12 +1,12 @@
-import { parseArgs } from "util";
+import { parseArgs } from "node:util";
+import type { IDownloadBackend } from "~/download";
 import type { IInputReader, RawInput } from "../types/IInputReader";
 import type { IPrompter } from "../types/IPrompter";
-import type { IDownloadBackend } from "~/download";
 
 export class CliInputReader implements IInputReader {
   constructor(
     private backend: IDownloadBackend,
-    private prompter: IPrompter
+    private prompter: IPrompter,
   ) {}
 
   read(): RawInput {

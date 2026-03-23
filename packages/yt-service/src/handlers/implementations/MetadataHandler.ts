@@ -1,11 +1,11 @@
 import type { DownloadService } from "yt-downloader";
+import type { ResponseMapper } from "~/mapping";
 import type { IUnaryHandler } from "../types/IHandler";
-import { ResponseMapper } from "~/mapping";
 
 export class MetadataHandler implements IUnaryHandler<{ link: string }, any> {
   constructor(
     private downloadService: DownloadService,
-    private responseMapper: ResponseMapper
+    private responseMapper: ResponseMapper,
   ) {}
 
   async handle(request: { link: string }) {

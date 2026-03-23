@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { ErrorMapper } from "~/mapping";
+import { describe, expect, it } from "vitest";
 import { DownloadError, ValidationError } from "yt-downloader";
+import { ErrorMapper } from "~/mapping";
 
 class MetadataError extends Error {
   constructor(message: string) {

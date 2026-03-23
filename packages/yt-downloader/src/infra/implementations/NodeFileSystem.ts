@@ -1,4 +1,4 @@
-import { mkdirSync } from "fs";
+import { mkdirSync } from "node:fs";
 import type { IFileSystem } from "../types/IFileSystem";
 
 export class NodeFileSystem implements IFileSystem {

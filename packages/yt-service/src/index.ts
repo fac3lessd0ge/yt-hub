@@ -1,11 +1,11 @@
 import { DownloadService } from "yt-downloader";
-import { ErrorMapper, ResponseMapper } from "~/mapping";
 import {
-  DownloadHandler,
-  MetadataHandler,
-  FormatsHandler,
   BackendsHandler,
+  DownloadHandler,
+  FormatsHandler,
+  MetadataHandler,
 } from "~/handlers";
+import { ErrorMapper, ResponseMapper } from "~/mapping";
 import { GrpcServer } from "~/server";
 
 const HOST = process.env.GRPC_HOST ?? "0.0.0.0";
@@ -21,14 +21,14 @@ const backendsHandler = new BackendsHandler(downloadService);
 const downloadHandler = new DownloadHandler(
   downloadService,
   errorMapper,
-  responseMapper
+  responseMapper,
 );
 
 const server = new GrpcServer(
   metadataHandler,
   formatsHandler,
   backendsHandler,
-  downloadHandler
+  downloadHandler,
 );
 
 server

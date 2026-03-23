@@ -1,12 +1,12 @@
-import { parseArgs } from "util";
+import { parseArgs } from "node:util";
 import { Application } from "~/Application";
 import { DependencyChecker, NodeBinaryResolver } from "~/dependencies";
-import { InputValidator, CliInputReader, ConsolePrompter } from "~/input";
-import { OutputPathBuilder } from "~/output";
 import { BackendRegistry, YtDlpBackend } from "~/download";
-import { NodeProcessSpawner } from "~/process";
+import { ConsoleLogger, NodeFileSystem } from "~/infra";
+import { CliInputReader, ConsolePrompter, InputValidator } from "~/input";
 import { HttpMetadataFetcher } from "~/metadata";
-import { NodeFileSystem, ConsoleLogger } from "~/infra";
+import { OutputPathBuilder } from "~/output";
+import { NodeProcessSpawner } from "~/process";
 
 const logger = new ConsoleLogger();
 
@@ -20,12 +20,13 @@ const { values } = parseArgs({
   options: { backend: { type: "string" } },
   strict: false,
 });
-const backendName = typeof values.backend === "string" ? values.backend : "yt-dlp";
+const backendName =
+  typeof values.backend === "string" ? values.backend : "yt-dlp";
 const backend = backends.get(backendName);
 
 if (!backend) {
   logger.error(
-    `Error: Unknown backend "${backendName}". Available: ${backends.names().join(", ")}`
+    `Error: Unknown backend "${backendName}". Available: ${backends.names().join(", ")}`,
   );
   process.exit(1);
 }
@@ -38,7 +39,7 @@ const app = new Application(
   backend,
   new OutputPathBuilder(),
   new NodeFileSystem(),
-  logger
+  logger,
 );
 
 app.run();

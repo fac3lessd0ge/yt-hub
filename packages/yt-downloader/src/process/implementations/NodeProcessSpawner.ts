@@ -1,5 +1,5 @@
-import { spawn } from "child_process";
-import { createInterface } from "readline";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import type {
   IProcessSpawner,
   SpawnOptions,
@@ -20,7 +20,7 @@ export class NodeProcessSpawner implements IProcessSpawner {
 
       if (isPiped && options.onStdout && proc.stdout) {
         const rl = createInterface({ input: proc.stdout });
-        rl.on("line", (line) => options.onStdout!(line));
+        rl.on("line", (line) => options.onStdout?.(line));
       }
 
       proc.on("close", (code) => {

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { YtDlpBackend, DownloadError } from "~/download";
+import { describe, expect, it } from "vitest";
+import { DownloadError, YtDlpBackend } from "~/download";
 import type { IProcessSpawner, SpawnOptions, SpawnResult } from "~/process";
 
 function fakeSpawner(exitCode: number = 0) {
@@ -41,8 +41,8 @@ describe("YtDlpBackend", () => {
     const ids = formats.map((f) => f.id);
     expect(ids).toContain("mp3");
     expect(ids).toContain("mp4");
-    expect(formats.find((f) => f.id === "mp3")!.label).toBe("MP3 audio");
-    expect(formats.find((f) => f.id === "mp4")!.label).toBe("MP4 video");
+    expect(formats.find((f) => f.id === "mp3")?.label).toBe("MP3 audio");
+    expect(formats.find((f) => f.id === "mp4")?.label).toBe("MP4 video");
   });
 
   it("requiredDependencies returns yt-dlp and ffmpeg", () => {
@@ -56,7 +56,11 @@ describe("YtDlpBackend", () => {
   it("download spawns yt-dlp with mp3 args", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
-    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+    );
     const args = getCalls()[0].args;
     expect(args[0]).toBe("yt-dlp");
     expect(args).toContain("-x");
@@ -71,7 +75,11 @@ describe("YtDlpBackend", () => {
   it("download spawns yt-dlp with mp4 args", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
-    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp4", "mp4");
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp4",
+      "mp4",
+    );
     const args = getCalls()[0].args;
     expect(args).toContain("--merge-output-format");
     expect(args).toContain("mp4");
@@ -82,7 +90,11 @@ describe("YtDlpBackend", () => {
   it("uses inherited stdout and stderr", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
-    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+    );
     const options = getCalls()[0].options;
     expect(options.stdout).toBe("inherit");
     expect(options.stderr).toBe("inherit");
@@ -91,14 +103,24 @@ describe("YtDlpBackend", () => {
   it("throws DownloadError on non-zero exit code", async () => {
     const { spawner } = fakeSpawner(1);
     const backend = new YtDlpBackend(spawner);
-    await expect(backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3")).rejects.toThrow(DownloadError);
+    await expect(
+      backend.download(
+        "https://www.youtube.com/watch?v=abc",
+        "/tmp/test.mp3",
+        "mp3",
+      ),
+    ).rejects.toThrow(DownloadError);
   });
 
   it("DownloadError contains exit code", async () => {
     const { spawner } = fakeSpawner(2);
     const backend = new YtDlpBackend(spawner);
     try {
-      await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+      await backend.download(
+        "https://www.youtube.com/watch?v=abc",
+        "/tmp/test.mp3",
+        "mp3",
+      );
     } catch (e) {
       expect(e).toBeInstanceOf(DownloadError);
       expect((e as DownloadError).exitCode).toBe(2);
@@ -108,14 +130,22 @@ describe("YtDlpBackend", () => {
   it("includes --progress flag", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
-    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+    );
     expect(getCalls()[0].args).toContain("--progress");
   });
 
   it("uses inherited stdio when no onProgress callback", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
-    await backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3");
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+    );
     const options = getCalls()[0].options;
     expect(options.stdout).toBe("inherit");
     expect(options.stderr).toBe("inherit");
@@ -129,7 +159,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
-      () => {}
+      () => {},
     );
     const options = getCalls()[0].options;
     expect(options.stdout).toBe("pipe");
@@ -152,7 +182,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
-      (progress) => progressUpdates.push(progress)
+      (progress) => progressUpdates.push(progress),
     );
 
     expect(progressUpdates).toHaveLength(2);

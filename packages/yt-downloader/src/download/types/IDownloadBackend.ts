@@ -14,6 +14,6 @@ export interface IDownloadBackend {
     link: string,
     outputPath: string,
     formatId: string,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
   ): Promise<void>;
 }

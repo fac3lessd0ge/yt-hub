@@ -1,14 +1,12 @@
-import type { IInputReader } from "~/input";
-import type { IMetadataFetcher } from "~/metadata";
-import type { IFileSystem, ILogger } from "~/infra";
+import { type DependencyChecker, DependencyError } from "~/dependencies";
 import type { IDownloadBackend } from "~/download";
-import { DependencyChecker } from "~/dependencies";
-import { InputValidator } from "~/input";
-import { OutputPathBuilder } from "~/output";
 import { DownloadError } from "~/download";
-import { ValidationError } from "~/input";
-import { DependencyError } from "~/dependencies";
+import type { IFileSystem, ILogger } from "~/infra";
+import type { IInputReader } from "~/input";
+import { type InputValidator, ValidationError } from "~/input";
+import type { IMetadataFetcher } from "~/metadata";
 import { MetadataError } from "~/metadata";
+import type { OutputPathBuilder } from "~/output";
 
 export class Application {
   constructor(
@@ -19,7 +17,7 @@ export class Application {
     private backend: IDownloadBackend,
     private outputPathBuilder: OutputPathBuilder,
     private fileSystem: IFileSystem,
-    private logger: ILogger
+    private logger: ILogger,
   ) {}
 
   async run(): Promise<void> {
@@ -30,9 +28,7 @@ export class Application {
       const input = this.validator.validate(raw);
 
       const metadata = await this.metadataFetcher.fetch(input.link);
-      this.logger.info(
-        `Found: "${metadata.title}" by ${metadata.authorName}`
-      );
+      this.logger.info(`Found: "${metadata.title}" by ${metadata.authorName}`);
 
       const formatInfo = this.backend
         .supportedFormats()
@@ -41,7 +37,7 @@ export class Application {
       const outputPath = this.outputPathBuilder.build(
         input.name,
         input.formatId,
-        input.destination
+        input.destination,
       );
 
       this.logger.info(`Downloading as ${formatInfo.label}: ${input.link}`);

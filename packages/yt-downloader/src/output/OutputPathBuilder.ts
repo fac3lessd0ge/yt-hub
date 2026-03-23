@@ -1,4 +1,4 @@
-import { resolve, extname } from "path";
+import { extname, resolve } from "node:path";
 
 export class OutputPathBuilder {
   build(name: string, formatId: string, destination: string): string {

@@ -1,8 +1,11 @@
 {
   "name": "yt-hub",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "nx": "^22.6.1"
   }
 }

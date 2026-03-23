@@ -1,7 +1,11 @@
-export type { IInputReader, RawInput } from "./types/IInputReader";
-export type { IPrompter } from "./types/IPrompter";
 export { ValidationError } from "./errors/ValidationError";
+export type { ValidatedInput } from "./InputValidator";
+export {
+  DEFAULT_DESTINATION,
+  InputValidator,
+  YOUTUBE_PATTERNS,
+} from "./InputValidator";
 export { CliInputReader } from "./implementations/CliInputReader";
 export { ConsolePrompter } from "./implementations/ConsolePrompter";
-export { InputValidator, YOUTUBE_PATTERNS, DEFAULT_DESTINATION } from "./InputValidator";
-export type { ValidatedInput } from "./InputValidator";
+export type { IInputReader, RawInput } from "./types/IInputReader";
+export type { IPrompter } from "./types/IPrompter";

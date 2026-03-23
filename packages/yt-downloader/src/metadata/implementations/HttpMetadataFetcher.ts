@@ -1,5 +1,8 @@
-import type { IMetadataFetcher, VideoMetadata } from "../types/IMetadataFetcher";
 import { MetadataError } from "../errors/MetadataError";
+import type {
+  IMetadataFetcher,
+  VideoMetadata,
+} from "../types/IMetadataFetcher";
 
 export class HttpMetadataFetcher implements IMetadataFetcher {
   private static readonly OEMBED_URL = "https://www.youtube.com/oembed";
@@ -19,7 +22,7 @@ export class HttpMetadataFetcher implements IMetadataFetcher {
         response.status === 404
           ? "Video not found. Check the URL and try again."
           : `Failed to fetch video metadata (HTTP ${response.status})`,
-        response.status
+        response.status,
       );
     }
 

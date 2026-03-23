@@ -1,12 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import { GrpcServer } from "~/server";
-import { MetadataHandler, FormatsHandler, BackendsHandler, DownloadHandler } from "~/handlers";
-import { ErrorMapper, ResponseMapper } from "~/mapping";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DownloadService, ProgressCallback } from "yt-downloader";
+import {
+  BackendsHandler,
+  DownloadHandler,
+  FormatsHandler,
+  MetadataHandler,
+} from "~/handlers";
+import { ErrorMapper, ResponseMapper } from "~/mapping";
+import { GrpcServer } from "~/server";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROTO_PATH = resolve(__dirname, "../proto/yt_service.proto");
@@ -22,14 +27,17 @@ function fakeDownloadService(): DownloadService {
       { id: "mp4", label: "MP4 video" },
     ],
     listBackends: () => ["yt-dlp"],
-    download: async (params: any, onProgress?: ProgressCallback) => {
+    download: async (_params: any, onProgress?: ProgressCallback) => {
       if (onProgress) {
         onProgress({ percent: 50, speed: "1.00MiB/s", eta: "00:02" });
         onProgress({ percent: 100, speed: "1.00MiB/s", eta: "00:00" });
       }
       return {
         outputPath: "/tmp/integration.mp3",
-        metadata: { title: "Integration Video", authorName: "Integration Author" },
+        metadata: {
+          title: "Integration Video",
+          authorName: "Integration Author",
+        },
         format: { id: "mp3", label: "MP3 audio" },
       };
     },
@@ -49,7 +57,7 @@ beforeAll(async () => {
     new MetadataHandler(service, responseMapper),
     new FormatsHandler(service, responseMapper),
     new BackendsHandler(service),
-    new DownloadHandler(service, errorMapper, responseMapper)
+    new DownloadHandler(service, errorMapper, responseMapper),
   );
 
   // Use port 0 to let the OS assign a random available port
@@ -67,7 +75,7 @@ beforeAll(async () => {
   const proto = grpc.loadPackageDefinition(packageDefinition) as any;
   client = new proto.yt_service.YtService(
     `127.0.0.1:${port}`,
-    grpc.credentials.createInsecure()
+    grpc.credentials.createInsecure(),
   );
 });
 

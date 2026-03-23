@@ -1,7 +1,4 @@
-import {
-  DownloadError,
-  ValidationError,
-} from "yt-downloader";
+import { DownloadError, ValidationError } from "yt-downloader";
 
 export interface MappedError {
   code: string;
