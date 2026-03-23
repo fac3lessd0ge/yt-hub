@@ -1,0 +1,226 @@
+# yt-downloader
+
+A YouTube downloader that works as both a **CLI tool** and an **importable TypeScript/JavaScript library**. Built on [Bun](https://bun.sh) and powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+
+## Features
+
+- Download YouTube videos as **MP3** (audio) or **MP4** (video)
+- Use as a **CLI** with interactive prompts or flags
+- Import as a **library** in your TypeScript/JavaScript projects
+- Pluggable backend architecture (yt-dlp by default, extensible)
+- Fetches video metadata before downloading
+- Supports YouTube watch pages, short links (`youtu.be`), and Shorts
+
+## Prerequisites
+
+### Bun
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+### yt-dlp
+
+```bash
+brew install yt-dlp
+```
+
+Or see [yt-dlp installation docs](https://github.com/yt-dlp/yt-dlp#installation) for other platforms.
+
+### ffmpeg
+
+```bash
+brew install ffmpeg
+```
+
+Required for audio extraction (MP3) and video merging (MP4).
+
+## Installation
+
+```bash
+git clone <repo-url>
+cd yt-downloader
+bun install
+```
+
+## CLI Usage
+
+### Quick commands
+
+```bash
+# Download as MP3 (prompts for link and name)
+bun run download:song
+
+# Download as MP4 (prompts for link and name)
+bun run download:video
+
+# Fully interactive (prompts for everything)
+bun run download
+```
+
+### With flags
+
+```bash
+bun run download:song --link https://www.youtube.com/watch?v=dQw4w9WgXcQ --name rickroll
+
+bun run download:video --link https://youtu.be/dQw4w9WgXcQ --name rickroll --destination ~/Videos
+```
+
+### All flags
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--link` | Yes* | Prompts interactively | YouTube URL |
+| `--name` | Yes* | Prompts interactively | Output filename (extension added automatically) |
+| `--format` | Yes* | Prompts interactively | `mp3` or `mp4` |
+| `--destination` | No | `~/Downloads/yt-downloader` | Output directory |
+| `--backend` | No | `yt-dlp` | Download backend to use |
+
+*Required flags prompt interactively if not provided.
+
+### Supported URL formats
+
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+
+## Library Usage
+
+The package exports a `DownloadService` class that can be imported and used programmatically.
+
+### Basic example
+
+```typescript
+import { DownloadService } from "yt-downloader";
+
+const service = new DownloadService();
+
+// Download a video as MP3
+const result = await service.download({
+  link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  format: "mp3",
+  name: "rickroll",
+});
+
+console.log(result.outputPath);      // /Users/.../Downloads/yt-downloader/rickroll.mp3
+console.log(result.metadata.title);  // "Rick Astley - Never Gonna Give You Up"
+```
+
+### Fetch metadata only
+
+```typescript
+const metadata = await service.getMetadata("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+console.log(metadata.title);       // Video title
+console.log(metadata.authorName);  // Channel name
+```
+
+### List available formats and backends
+
+```typescript
+service.listFormats();   // [{ id: "mp3", label: "MP3 audio" }, { id: "mp4", label: "MP4 video" }]
+service.listBackends();  // ["yt-dlp"]
+```
+
+### Custom destination
+
+```typescript
+await service.download({
+  link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  format: "mp4",
+  name: "video",
+  destination: "/tmp/my-downloads",
+});
+```
+
+### Error handling
+
+```typescript
+import { DownloadService, ValidationError, DownloadError } from "yt-downloader";
+
+const service = new DownloadService();
+
+try {
+  await service.download({ link: "...", format: "mp3", name: "test" });
+} catch (error) {
+  if (error instanceof ValidationError) {
+    // Invalid input (bad URL, unsupported format, missing fields)
+  }
+  if (error instanceof DownloadError) {
+    // yt-dlp process failed — error.exitCode has the exit code
+  }
+}
+```
+
+### API Reference
+
+#### `new DownloadService(options?)`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `backend` | `string` | `"yt-dlp"` | Backend to use for downloads |
+| `binaryResolver` | `IBinaryResolver` | `BunBinaryResolver` | Custom binary resolver (for DI/testing) |
+| `metadataFetcher` | `IMetadataFetcher` | `HttpMetadataFetcher` | Custom metadata fetcher (for DI/testing) |
+| `backends` | `BackendRegistry` | Default registry | Custom backend registry |
+
+#### `service.download(params): Promise<DownloadResult>`
+
+**Params:**
+
+```typescript
+interface DownloadParams {
+  link: string;          // YouTube URL
+  format: string;        // "mp3" or "mp4"
+  name: string;          // Output filename (no extension)
+  destination?: string;  // Output directory (default: ~/Downloads/yt-downloader)
+}
+```
+
+**Returns:**
+
+```typescript
+interface DownloadResult {
+  outputPath: string;        // Full path to the downloaded file
+  metadata: VideoMetadata;   // { title: string, authorName: string }
+  format: FormatInfo;        // { id: string, label: string }
+}
+```
+
+#### `service.getMetadata(link): Promise<VideoMetadata>`
+
+Fetches video metadata via YouTube's oEmbed API without downloading.
+
+#### `service.listFormats(): FormatInfo[]`
+
+Returns formats supported by the active backend.
+
+#### `service.listBackends(): string[]`
+
+Returns names of all registered backends.
+
+## Exported Types
+
+```typescript
+import type {
+  DownloadParams,
+  DownloadResult,
+  DownloadProgress,
+  ProgressCallback,
+  VideoMetadata,
+  FormatInfo,
+  IDownloadBackend,
+} from "yt-downloader";
+```
+
+## Development
+
+```bash
+# Run tests
+bun test
+
+# Type check
+bunx tsc --noEmit
+```
+
+## License
+
+MIT
