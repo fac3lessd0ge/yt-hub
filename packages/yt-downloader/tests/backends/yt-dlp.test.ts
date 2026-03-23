@@ -91,7 +91,7 @@ describe("YtDlpBackend", () => {
   it("throws DownloadError on non-zero exit code", async () => {
     const { spawner } = fakeSpawner(1);
     const backend = new YtDlpBackend(spawner);
-    expect(backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3")).rejects.toThrow(DownloadError);
+    await expect(backend.download("https://www.youtube.com/watch?v=abc", "/tmp/test.mp3", "mp3")).rejects.toThrow(DownloadError);
   });
 
   it("DownloadError contains exit code", async () => {

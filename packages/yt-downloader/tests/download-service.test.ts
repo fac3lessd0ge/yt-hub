@@ -86,14 +86,14 @@ describe("DownloadService", () => {
 
   it("throws ValidationError on missing link", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({ link: "", format: "mp3", name: "test" })
     ).rejects.toThrow(ValidationError);
   });
 
   it("throws ValidationError on non-YouTube URL", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({
         link: "https://vimeo.com/123",
         format: "mp3",
@@ -104,7 +104,7 @@ describe("DownloadService", () => {
 
   it("throws ValidationError on unsupported format", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({
         link: "https://www.youtube.com/watch?v=abc",
         format: "wav",
