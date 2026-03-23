@@ -29,17 +29,17 @@ describe("HttpMetadataFetcher", () => {
   });
 
   it("throws MetadataError on 404", async () => {
-    expect(fetcher.fetch("https://www.youtube.com/watch?v=not-found")).rejects.toThrow(MetadataError);
-    expect(fetcher.fetch("https://www.youtube.com/watch?v=not-found")).rejects.toThrow("Video not found");
+    await expect(fetcher.fetch("https://www.youtube.com/watch?v=not-found")).rejects.toThrow(MetadataError);
+    await expect(fetcher.fetch("https://www.youtube.com/watch?v=not-found")).rejects.toThrow("Video not found");
   });
 
   it("throws MetadataError on network error", async () => {
     server.use(http.get(OEMBED_URL, () => HttpResponse.error()));
-    expect(fetcher.fetch("https://www.youtube.com/watch?v=abc")).rejects.toThrow(MetadataError);
+    await expect(fetcher.fetch("https://www.youtube.com/watch?v=abc")).rejects.toThrow(MetadataError);
   });
 
   it("throws MetadataError on server error (500)", async () => {
     server.use(http.get(OEMBED_URL, () => new HttpResponse(null, { status: 500 })));
-    expect(fetcher.fetch("https://www.youtube.com/watch?v=abc")).rejects.toThrow("Failed to fetch video metadata");
+    await expect(fetcher.fetch("https://www.youtube.com/watch?v=abc")).rejects.toThrow("Failed to fetch video metadata");
   });
 });

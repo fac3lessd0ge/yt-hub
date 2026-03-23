@@ -1,7 +1,9 @@
 import type { IDownloadBackend, FormatInfo } from "../types/IDownloadBackend";
+import type { ProgressCallback } from "../types/DownloadProgress";
 import type { IProcessSpawner } from "~/process";
 import type { Dependency } from "~/dependencies";
 import { DownloadError } from "../errors/DownloadError";
+import { YtDlpProgressParser } from "./YtDlpProgressParser";
 
 const FORMAT_ARGS: Record<string, string[]> = {
   mp3: ["-x", "--audio-format", "mp3", "--audio-quality", "0"],
@@ -20,6 +22,7 @@ const FORMAT_LABELS: Record<string, string> = {
 
 export class YtDlpBackend implements IDownloadBackend {
   readonly name = "yt-dlp";
+  private progressParser = new YtDlpProgressParser();
 
   constructor(private spawner: IProcessSpawner) {}
 
@@ -37,7 +40,8 @@ export class YtDlpBackend implements IDownloadBackend {
   async download(
     link: string,
     outputPath: string,
-    formatId: string
+    formatId: string,
+    onProgress?: ProgressCallback
   ): Promise<void> {
     const formatArgs = FORMAT_ARGS[formatId];
     if (!formatArgs) {
@@ -54,9 +58,17 @@ export class YtDlpBackend implements IDownloadBackend {
       link,
     ];
 
+    const usePipe = !!onProgress;
+
     const result = await this.spawner.spawn(args, {
-      stdout: "inherit",
-      stderr: "inherit",
+      stdout: usePipe ? "pipe" : "inherit",
+      stderr: usePipe ? "pipe" : "inherit",
+      onStdout: onProgress
+        ? (line) => {
+            const progress = this.progressParser.parseLine(line);
+            if (progress) onProgress(progress);
+          }
+        : undefined,
     });
 
     if (result.exitCode !== 0) {

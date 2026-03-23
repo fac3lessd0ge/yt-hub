@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { DownloadService } from "../src";
@@ -6,6 +6,7 @@ import { BackendRegistry } from "~/download";
 import { ValidationError } from "~/input";
 import { HttpMetadataFetcher } from "~/metadata";
 import type { IDownloadBackend } from "~/download";
+import type { ProgressCallback } from "~/download";
 
 const OEMBED_URL = "https://www.youtube.com/oembed";
 const server = setupServer(
@@ -18,7 +19,9 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function fakeBackend(): IDownloadBackend {
+function fakeBackend(
+  onDownload?: (onProgress?: ProgressCallback) => void
+): IDownloadBackend {
   return {
     name: "fake",
     supportedFormats: () => [
@@ -26,7 +29,9 @@ function fakeBackend(): IDownloadBackend {
       { id: "mp4", label: "MP4 video" },
     ],
     requiredDependencies: () => [],
-    download: async () => {},
+    download: async (_link, _path, _format, onProgress?) => {
+      onDownload?.(onProgress);
+    },
   };
 }
 
@@ -81,14 +86,14 @@ describe("DownloadService", () => {
 
   it("throws ValidationError on missing link", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({ link: "", format: "mp3", name: "test" })
     ).rejects.toThrow(ValidationError);
   });
 
   it("throws ValidationError on non-YouTube URL", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({
         link: "https://vimeo.com/123",
         format: "mp3",
@@ -99,7 +104,7 @@ describe("DownloadService", () => {
 
   it("throws ValidationError on unsupported format", async () => {
     const service = createService();
-    expect(
+    await expect(
       service.download({
         link: "https://www.youtube.com/watch?v=abc",
         format: "wav",
@@ -118,5 +123,43 @@ describe("DownloadService", () => {
           backends,
         })
     ).toThrow("Unknown backend");
+  });
+
+  it("forwards onProgress callback to backend", async () => {
+    let receivedCallback: ProgressCallback | undefined;
+    const backend = fakeBackend((onProgress) => {
+      receivedCallback = onProgress;
+    });
+    const service = createService({ backend });
+    const progressFn: ProgressCallback = () => {};
+
+    await service.download(
+      {
+        link: "https://www.youtube.com/watch?v=abc",
+        format: "mp3",
+        name: "test-song",
+        destination: "/tmp/yt-test",
+      },
+      progressFn
+    );
+
+    expect(receivedCallback).toBe(progressFn);
+  });
+
+  it("does not pass callback when none provided", async () => {
+    let receivedCallback: ProgressCallback | undefined = undefined;
+    const backend = fakeBackend((onProgress) => {
+      receivedCallback = onProgress;
+    });
+    const service = createService({ backend });
+
+    await service.download({
+      link: "https://www.youtube.com/watch?v=abc",
+      format: "mp3",
+      name: "test-song",
+      destination: "/tmp/yt-test",
+    });
+
+    expect(receivedCallback).toBeUndefined();
   });
 });
