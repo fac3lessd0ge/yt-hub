@@ -4,3 +4,7 @@ bun.lock
 .DS_Store
 Downloads/
 .nx/
+.fingerprint
+deps
+incremental
+build
