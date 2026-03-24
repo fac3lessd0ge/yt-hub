@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchMetadata, fetchFormats, fetchBackends } from "@/lib/apiClient";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchBackends, fetchFormats, fetchMetadata } from "@/lib/apiClient";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -33,7 +33,9 @@ describe("fetchMetadata", () => {
     await fetchMetadata("https://www.youtube.com/watch?v=abc&t=10");
 
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url).toContain(encodeURIComponent("https://www.youtube.com/watch?v=abc&t=10"));
+    expect(url).toContain(
+      encodeURIComponent("https://www.youtube.com/watch?v=abc&t=10"),
+    );
   });
 
   it("throws on HTTP error", async () => {
@@ -43,9 +45,9 @@ describe("fetchMetadata", () => {
       json: async () => ({ error: "Video not found" }),
     });
 
-    await expect(fetchMetadata("https://www.youtube.com/watch?v=bad")).rejects.toThrow(
-      "Video not found",
-    );
+    await expect(
+      fetchMetadata("https://www.youtube.com/watch?v=bad"),
+    ).rejects.toThrow("Video not found");
   });
 });
 

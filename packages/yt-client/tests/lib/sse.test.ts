@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { streamDownload } from "@/lib/sse";
 
 const mockFetch = vi.fn();
@@ -26,8 +26,8 @@ function createMockStream(chunks: string[]) {
 describe("streamDownload", () => {
   it("dispatches progress and complete events", async () => {
     const stream = createMockStream([
-      "event: progress\ndata: {\"percent\":50,\"speed\":\"2.00MiB/s\",\"eta\":\"00:03\"}\n\n",
-      "event: complete\ndata: {\"output_path\":\"/tmp/test.mp3\",\"title\":\"Test\",\"author_name\":\"Author\",\"format_id\":\"mp3\",\"format_label\":\"MP3 audio\"}\n\n",
+      'event: progress\ndata: {"percent":50,"speed":"2.00MiB/s","eta":"00:03"}\n\n',
+      'event: complete\ndata: {"output_path":"/tmp/test.mp3","title":"Test","author_name":"Author","format_id":"mp3","format_label":"MP3 audio"}\n\n',
     ]);
 
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
@@ -57,7 +57,7 @@ describe("streamDownload", () => {
 
   it("dispatches error event", async () => {
     const stream = createMockStream([
-      "event: error\ndata: {\"code\":\"VALIDATION\",\"message\":\"bad link\"}\n\n",
+      'event: error\ndata: {"code":"VALIDATION","message":"bad link"}\n\n',
     ]);
 
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
@@ -98,7 +98,7 @@ describe("streamDownload", () => {
 
   it("handles multiple progress events in a single chunk", async () => {
     const stream = createMockStream([
-      "event: progress\ndata: {\"percent\":25,\"speed\":\"1.00MiB/s\",\"eta\":\"00:06\"}\n\nevent: progress\ndata: {\"percent\":75,\"speed\":\"3.00MiB/s\",\"eta\":\"00:01\"}\n\n",
+      'event: progress\ndata: {"percent":25,"speed":"1.00MiB/s","eta":"00:06"}\n\nevent: progress\ndata: {"percent":75,"speed":"3.00MiB/s","eta":"00:01"}\n\n',
     ]);
 
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
