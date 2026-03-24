@@ -32,7 +32,8 @@ export class Application {
 
       const formatInfo = this.backend
         .supportedFormats()
-        .find((f) => f.id === input.formatId)!;
+        .find((f) => f.id === input.formatId);
+      if (!formatInfo) throw new Error(`Unknown format: ${input.formatId}`);
       this.fileSystem.mkdirRecursive(input.destination);
       const outputPath = this.outputPathBuilder.build(
         input.name,

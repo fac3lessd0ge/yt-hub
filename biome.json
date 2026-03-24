@@ -15,7 +15,7 @@
         "noExplicitAny": "off"
       },
       "style": {
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "error"
       }
     }
   },
@@ -25,6 +25,6 @@
     "indentWidth": 2
   },
   "files": {
-    "includes": ["**", "!**/dist/**"]
+    "includes": ["**/*.ts", "**/*.tsx", "**/*.json", "!**/dist/**", "!**/.vite/**", "!**/out/**"]
   }
 }
