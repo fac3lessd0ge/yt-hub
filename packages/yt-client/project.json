@@ -1,0 +1,49 @@
+{
+  "name": "yt-client",
+  "projectType": "application",
+  "sourceRoot": "packages/yt-client/src",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx electron-forge start",
+        "cwd": "packages/yt-client"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx electron-forge make",
+        "cwd": "packages/yt-client"
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx electron-forge package",
+        "cwd": "packages/yt-client"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run",
+        "cwd": "packages/yt-client"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc --noEmit",
+        "cwd": "packages/yt-client"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx biome check .",
+        "cwd": "packages/yt-client"
+      }
+    }
+  }
+}

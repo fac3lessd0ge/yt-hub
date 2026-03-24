@@ -75,7 +75,8 @@ export class DownloadService {
 
     const format = this.activeBackend
       .supportedFormats()
-      .find((f) => f.id === params.format.toLowerCase())!;
+      .find((f) => f.id === params.format.toLowerCase());
+    if (!format) throw new ValidationError(`Unknown format: ${params.format}`);
 
     const destination = resolve(params.destination ?? DEFAULT_DESTINATION);
     mkdirSync(destination, { recursive: true });
