@@ -14,7 +14,7 @@ export function useDownload() {
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [result, setResult] = useState<DownloadComplete | null>(null);
   const [error, setError] = useState<DownloadError | null>(null);
-  const abortRef = useRef<AbortController>();
+  const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(async (request: DownloadRequest) => {
     setState("downloading");

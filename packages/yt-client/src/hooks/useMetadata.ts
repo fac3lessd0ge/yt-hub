@@ -6,7 +6,7 @@ export function useMetadata(link: string) {
   const [metadata, setMetadata] = useState<MetadataResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMetadata(null);
@@ -14,7 +14,7 @@ export function useMetadata(link: string) {
 
     if (!link) return;
 
-    clearTimeout(timeoutRef.current);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setLoading(true);
       fetchMetadata(link)
@@ -23,7 +23,9 @@ export function useMetadata(link: string) {
         .finally(() => setLoading(false));
     }, 500);
 
-    return () => clearTimeout(timeoutRef.current);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [link]);
 
   return { metadata, loading, error };
