@@ -26,16 +26,22 @@ yt-client (Electron/React) → HTTP → yt-api (Rust/Axum) → gRPC → yt-servi
 ## Quick Start
 
 ```bash
-# Install dependencies
 npm install
+npm run dev
+```
 
-# Build yt-downloader (yt-service depends on the built output)
-npx nx build yt-downloader
+This single command builds yt-downloader, then starts yt-service, yt-api, and yt-client in the correct order — waiting for each service to be ready before starting the next. Output is color-coded by service. Press `Ctrl+C` to shut everything down.
 
-# Start the full stack (each in a separate terminal)
-npx nx serve yt-service    # gRPC server on :50051
-npx nx serve yt-api        # REST API on :3000
-npx nx serve yt-client     # Electron desktop app
+### Manual startup
+
+If you prefer to run services individually (each in a separate terminal):
+
+```bash
+npm install
+npx nx build yt-downloader    # must be built first
+npx nx serve yt-service       # gRPC server on :50051
+npx nx serve yt-api           # REST API on :3000 (needs yt-service)
+npx nx serve yt-client        # Electron desktop app (needs yt-api)
 ```
 
 ## Development
@@ -89,6 +95,7 @@ yt-hub/
 │   ├── yt-service/       # gRPC microservice (Node.js)
 │   ├── yt-api/           # REST API (Rust/Axum)
 │   └── yt-client/        # Desktop app (Electron/React)
+├── scripts/              # Dev orchestration (npm run dev)
 ├── .github/workflows/    # CI pipeline
 ├── biome.json            # Linting and formatting config
 ├── nx.json               # Nx task orchestration config
