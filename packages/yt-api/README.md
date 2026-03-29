@@ -121,6 +121,40 @@ Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAI
 - **Format**: must be one of the supported format IDs (`mp3`, `mp4`)
 - **Name**: non-empty, max 255 characters, no path separators
 
+## Observability
+
+### Structured Logging
+
+yt-api uses `tower-http` TraceLayer for structured JSON logging. Every log line is JSON with fields like `target`, `span`, `level`, and `timestamp`.
+
+Log level is controlled by the `LOG_LEVEL` environment variable (also accepts `RUST_LOG` for fine-grained per-crate filtering). Valid levels: `trace`, `debug`, `info`, `warn`, `error`.
+
+### Request IDs
+
+Every incoming request is assigned a UUID v4 request ID. The ID is:
+
+- Generated automatically if not present in the incoming request
+- Returned in the `x-request-id` response header
+- Propagated as `x-request-id` metadata in gRPC calls to yt-service
+- Included in all log entries for the request span
+
+### Metrics
+
+yt-api exposes a Prometheus-compatible `/metrics` endpoint.
+
+```bash
+curl localhost:3000/metrics
+```
+
+Available metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `http_requests_total` | Counter | `method`, `path`, `status` | Total HTTP requests |
+| `http_request_duration_seconds` | Histogram | `method`, `path` | Request latency distribution |
+| `downloads_active` | Gauge | — | Currently active downloads |
+| `grpc_calls_total` | Counter | `method`, `status` | Total gRPC calls to yt-service |
+
 ## Docker
 
 ```bash
@@ -129,6 +163,27 @@ docker compose up --build yt-api
 ```
 
 The Dockerfile uses a multi-stage build with [cargo-chef](https://github.com/LukeMathWalker/cargo-chef) for dependency caching. Build context is the monorepo root (required because `build.rs` references proto files from `../yt-service/proto/`).
+
+## Testing
+
+yt-api has 47 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
+
+```bash
+# Run all tests
+cargo test
+
+# Or via Nx
+npx nx test yt-api
+```
+
+Tests use a `GrpcClientTrait` abstraction extracted from the concrete gRPC client, allowing route handlers to be tested with mock clients via `tower::ServiceExt::oneshot` (no running server needed).
+
+Test breakdown:
+
+- **Error mapping tests (9)**: verify AppError to HTTP status code mapping
+- **Validation tests (22)**: URL format, format ID, filename rules
+- **Integration tests (9)**: all routes using tower oneshot with mock gRPC client
+- **SSE stream tests (7)**: stream lifecycle, progress events, completion, error propagation
 
 ## Development
 

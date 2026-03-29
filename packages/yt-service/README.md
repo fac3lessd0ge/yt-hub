@@ -124,6 +124,16 @@ Download RPCs support client-initiated cancellation. When a client cancels the g
 | `REQUEST_TIMEOUT` | `DEADLINE_EXCEEDED` |
 | `CANCELLED` | `CANCELLED` |
 
+## Logging
+
+yt-service uses [Pino](https://getpino.io/) for structured JSON logging, replacing all `console.log`/`console.error` calls.
+
+- **Structured JSON output**: every log line is machine-parsable JSON with `level`, `time`, `msg`, and contextual fields
+- **Request ID propagation**: extracts the `x-request-id` value from incoming gRPC metadata and creates a child logger scoped to that request, so all logs for a single request share the same `requestId` field
+- **PinoLoggerAdapter**: implements the `ILogger` interface from yt-downloader, bridging Pino into the download library's logging system
+
+Log level is controlled by the `LOG_LEVEL` environment variable (`debug`, `info`, `warn`, `error`).
+
 ## Rust Client Example
 
 Using tonic with the proto file:
@@ -165,6 +175,24 @@ To override the yt-dlp version at build time:
 ```bash
 docker compose build --build-arg YT_DLP_VERSION=2025.01.15 yt-service
 ```
+
+## Testing
+
+yt-service has 15+ tests covering request validation, error propagation, and server lifecycle.
+
+```bash
+# Run all tests
+npx vitest run
+
+# Or via Nx
+npx nx test yt-service
+```
+
+Test breakdown:
+
+- **RequestValidator tests (6)**: URL format, format/name field validation
+- **Error propagation tests (4)**: yt-downloader errors mapped correctly to gRPC status codes
+- **Server lifecycle tests (5)**: port binding, graceful shutdown, port conflict detection
 
 ## Development
 

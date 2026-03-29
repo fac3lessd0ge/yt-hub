@@ -5,7 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-03-29
+
+### Added
+
+- Structured JSON logging across all services (tower-http TraceLayer in yt-api, Pino in yt-service)
+- Request ID propagation: UUID v4 generated per request, passed via x-request-id gRPC metadata
+- Prometheus metrics endpoint (/metrics) in yt-api: request counts, latency histograms, active downloads, gRPC errors
+- Monitoring stack: docker-compose.monitoring.yml with Prometheus, Grafana, Loki, Promtail
+- Pre-built Grafana dashboards: service overview, download metrics, log volume
+- ConsoleLogger upgrade in yt-downloader: log levels, ISO timestamps
+- PinoLoggerAdapter in yt-service implementing ILogger interface
+- 47 new Rust tests for yt-api (error mapping, validation, route handlers, SSE streams)
+- GrpcClientTrait extraction for testable yt-api architecture
+- 15 new tests for yt-service (RequestValidator, error scenarios, server lifecycle)
+- 40+ new tests for yt-client (React component tests, hook tests)
+- Integration tests for yt-downloader with real yt-dlp (INTEGRATION=1)
+- React Testing Library + jsdom test infrastructure for yt-client
+
+### Changed
+
+- yt-api AppState is now generic over GrpcClientTrait (backward-compatible with default type parameter)
+- yt-api download stream uses DownloadStream type alias for mockability
+- yt-service uses Pino instead of console.log/console.error
 
 ## [0.2.0] - 2026-03-29
 
