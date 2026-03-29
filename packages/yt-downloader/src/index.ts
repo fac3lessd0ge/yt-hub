@@ -14,3 +14,4 @@ export { CancellationError, DownloadError } from "./download";
 export { ValidationError } from "./input";
 // Re-export shared types for consumers
 export type { VideoMetadata } from "./metadata";
+export type { ILogger } from "./infra";

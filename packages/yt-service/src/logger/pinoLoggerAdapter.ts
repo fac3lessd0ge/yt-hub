@@ -1,4 +1,4 @@
-import type { ILogger } from "yt-downloader/infra";
+import type { ILogger } from "yt-downloader";
 import type { Logger } from "./pinoLogger";
 
 export class PinoLoggerAdapter implements ILogger {
