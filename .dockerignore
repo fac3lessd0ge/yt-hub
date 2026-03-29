@@ -1,0 +1,43 @@
+# Version control
+.git
+.gitignore
+
+# Node
+node_modules
+packages/*/node_modules
+
+# Rust build artifacts
+target
+packages/yt-api/target
+
+# Built outputs (rebuilt in Docker)
+packages/yt-downloader/dist
+
+# Frontend client (not needed for backend containers)
+packages/yt-client
+
+# Nx cache
+.nx
+
+# IDE / editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (avoid recursive context)
+docker-compose.yml
+.dockerignore
+
+# Env files (secrets should not be baked in)
+.env
+.env.local
+
+# Docs and misc
+*.md
+LICENSE

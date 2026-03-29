@@ -105,6 +105,15 @@ data: {"code":"VALIDATION","message":"URL does not look like a YouTube link."}
 
 Error codes: `VALIDATION`, `DOWNLOAD`, `METADATA`, `DEPENDENCY`, `GRPC_ERROR`
 
+## Docker
+
+```bash
+# Build and run via Docker Compose (from monorepo root)
+docker compose up --build yt-api
+```
+
+The Dockerfile uses a multi-stage build with [cargo-chef](https://github.com/LukeMathWalker/cargo-chef) for dependency caching. Build context is the monorepo root (required because `build.rs` references proto files from `../yt-service/proto/`).
+
 ## Development
 
 ```bash

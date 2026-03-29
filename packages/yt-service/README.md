@@ -125,6 +125,20 @@ while let Some(response) = stream.message().await? {
 }
 ```
 
+## Docker
+
+```bash
+# Build and run via Docker Compose (from monorepo root)
+docker compose up --build yt-service
+```
+
+The Dockerfile uses a multi-stage build: installs workspace dependencies, builds yt-downloader, then creates a slim runtime image with `ffmpeg` and a pinned version of `yt-dlp`. Downloads are stored in a persistent Docker volume.
+
+To override the yt-dlp version at build time:
+```bash
+docker compose build --build-arg YT_DLP_VERSION=2025.01.15 yt-service
+```
+
 ## Development
 
 ```bash
