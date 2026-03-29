@@ -1,4 +1,5 @@
 import { DownloadService } from "yt-downloader";
+import { loadConfig } from "~/config";
 import {
   BackendsHandler,
   DownloadHandler,
@@ -8,8 +9,7 @@ import {
 import { ErrorMapper, ResponseMapper } from "~/mapping";
 import { GrpcServer } from "~/server";
 
-const HOST = process.env.GRPC_HOST ?? "0.0.0.0";
-const PORT = Number(process.env.GRPC_PORT ?? 50051);
+const config = loadConfig();
 
 const downloadService = new DownloadService();
 const errorMapper = new ErrorMapper();
@@ -29,6 +29,7 @@ const server = new GrpcServer(
   formatsHandler,
   backendsHandler,
   downloadHandler,
+  { maxMessageSize: config.maxMessageSize },
 );
 
 let isShuttingDown = false;
@@ -53,8 +54,8 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 server
-  .start(HOST, PORT)
-  .then(() => console.log(`gRPC server listening on ${HOST}:${PORT}`))
+  .start(config.host, config.port)
+  .then(() => console.log(`gRPC server listening on ${config.host}:${config.port}`))
   .catch((err) => {
     console.error("Failed to start server:", err);
     process.exit(1);

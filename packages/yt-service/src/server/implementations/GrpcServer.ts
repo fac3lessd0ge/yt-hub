@@ -25,6 +25,10 @@ const PROTO_PATH = resolve(__dirname, "../../../proto/yt_service.proto");
 
 const SHUTDOWN_TIMEOUT_MS = 8000;
 
+export interface GrpcServerOptions {
+  maxMessageSize?: number;
+}
+
 export class GrpcServer implements IGrpcServer {
   private server: Server;
   private _shuttingDown: boolean = false;
@@ -35,8 +39,15 @@ export class GrpcServer implements IGrpcServer {
     private formatsHandler: FormatsHandler,
     private backendsHandler: BackendsHandler,
     private downloadHandler: DownloadHandler,
+    options: GrpcServerOptions = {},
   ) {
-    this.server = new Server();
+    const serverOptions: Record<string, unknown> = {};
+    if (options.maxMessageSize !== undefined) {
+      serverOptions["grpc.max_receive_message_length"] =
+        options.maxMessageSize;
+      serverOptions["grpc.max_send_message_length"] = options.maxMessageSize;
+    }
+    this.server = new Server(serverOptions);
   }
 
   get isShuttingDown(): boolean {
