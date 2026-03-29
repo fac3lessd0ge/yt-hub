@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 
+use axum::Extension;
 use axum::Json;
 use axum::extract::State;
 use axum::response::sse::{Event, Sse};
@@ -8,6 +9,7 @@ use tokio_stream::StreamExt;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::middleware::RequestId;
 use crate::models::requests::DownloadRequestBody;
 use crate::models::responses::{DownloadComplete, DownloadProgress};
 use crate::proto;
@@ -26,6 +28,7 @@ fn serialization_error_event(err: axum::Error) -> Event {
 
 pub async fn download(
     State(state): State<AppState>,
+    Extension(req_id): Extension<RequestId>,
     Json(body): Json<DownloadRequestBody>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>>, AppError> {
     validation::validate_youtube_url(&body.link).map_err(AppError::Validation)?;
@@ -36,7 +39,7 @@ pub async fn download(
     }
 
     let grpc_request: proto::DownloadRequest = body.into();
-    let stream = state.grpc_client.download(grpc_request).await?;
+    let stream = state.grpc_client.download(grpc_request, Some(&req_id.0)).await?;
 
     let sse_stream = stream.map(|result| {
         let event = match result {

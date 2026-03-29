@@ -17,6 +17,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 tokio-stream = "0.1"
 url = "2"
+uuid = { version = "1", features = ["v4"] }
 
 [build-dependencies]
 tonic-build = "0.13"

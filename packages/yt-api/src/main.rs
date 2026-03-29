@@ -1,6 +1,7 @@
 mod config;
 mod error;
 mod grpc;
+mod middleware;
 mod models;
 mod routes;
 mod validation;
@@ -91,6 +92,7 @@ async fn main() {
     let app = routes::router()
         .with_state(state)
         .layer(TraceLayer::new_for_http())
+        .layer(axum::middleware::from_fn(middleware::request_id::request_id_middleware))
         .layer(CorsLayer::permissive());
 
     let addr = config.addr();
