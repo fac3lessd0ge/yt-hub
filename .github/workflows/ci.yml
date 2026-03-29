@@ -20,3 +20,28 @@ jobs:
       - run: npm ci
       - run: npx nx build yt-downloader
       - run: npx nx run-many -t lint,test,typecheck
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check for Docker-related changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docker:
+              - '**/Dockerfile'
+              - 'packages/yt-api/Cargo.toml'
+              - 'packages/yt-api/Cargo.lock'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'packages/*/package.json'
+              - 'packages/yt-service/proto/**'
+              - 'docker-compose.yml'
+      - name: Build yt-api Docker image
+        if: steps.filter.outputs.docker == 'true'
+        run: docker build -f packages/yt-api/Dockerfile .
+      - name: Build yt-service Docker image
+        if: steps.filter.outputs.docker == 'true'
+        run: docker build -f packages/yt-service/Dockerfile .
