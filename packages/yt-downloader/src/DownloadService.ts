@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import type { YtDlpConfig } from "~/config";
 import type { IBinaryResolver } from "~/dependencies";
 import { DependencyChecker, NodeBinaryResolver } from "~/dependencies";
 import type {
@@ -44,9 +45,11 @@ export class DownloadService {
       binaryResolver?: IBinaryResolver;
       metadataFetcher?: IMetadataFetcher;
       backends?: BackendRegistry;
+      ytDlpConfig?: YtDlpConfig;
     } = {},
   ) {
-    this.backends = options.backends ?? DownloadService.defaultBackends();
+    this.backends =
+      options.backends ?? DownloadService.defaultBackends(options.ytDlpConfig);
     this.metadataFetcher = options.metadataFetcher ?? new HttpMetadataFetcher();
     this.dependencyChecker = new DependencyChecker(
       options.binaryResolver ?? new NodeBinaryResolver(),
@@ -131,9 +134,9 @@ export class DownloadService {
     }
   }
 
-  private static defaultBackends(): BackendRegistry {
+  private static defaultBackends(ytDlpConfig?: YtDlpConfig): BackendRegistry {
     const registry = new BackendRegistry();
-    registry.register(new YtDlpBackend(new NodeProcessSpawner()));
+    registry.register(new YtDlpBackend(new NodeProcessSpawner(), ytDlpConfig));
     return registry;
   }
 }
