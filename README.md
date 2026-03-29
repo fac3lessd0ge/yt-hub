@@ -34,6 +34,12 @@ docker compose up --build
 
 This builds and starts both backend services (yt-api on `:3000`, yt-service on `:50051`) with proper health checks and startup ordering. Downloads are persisted in a Docker volume.
 
+To also start the monitoring stack (Prometheus, Grafana, Loki):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+```
+
 ### Local development
 
 ```bash
@@ -107,6 +113,44 @@ GitHub Actions runs on every pull request to `main` or `dev`:
 - Tag-triggered (`v*.*.*`) workflow publishes Docker images to GHCR
 - Dependabot keeps npm, Cargo, and GitHub Actions dependencies up to date (weekly, targeting `dev`)
 - Weekly security scanning via `npm audit` and `cargo audit` (also runs on PRs)
+
+## Monitoring
+
+The monitoring stack is defined in `docker-compose.monitoring.yml` and runs alongside the main services:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **Grafana** | `3001` | Dashboards and log explorer. Default login: `admin`/`admin` |
+| **Prometheus** | `9090` | Metrics collection and queries |
+| **Loki** | `3100` | Log aggregation backend |
+| **Promtail** | — | Ships container logs to Loki |
+
+yt-api exposes a Prometheus-compatible `/metrics` endpoint at `http://localhost:3000/metrics`.
+
+Pre-built Grafana dashboards are included: service overview, download metrics, and log volume.
+
+```bash
+# Start everything including monitoring
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+```
+
+## Testing
+
+Each package has its own test suite:
+
+```bash
+# Run all tests across the monorepo
+npx nx run-many -t test
+
+# Per-package
+npx nx test yt-api           # 47 Rust tests (cargo test)
+npx nx test yt-service       # Vitest (npx vitest run)
+npx nx test yt-client        # Vitest + React Testing Library (jsdom)
+npx nx test yt-downloader    # Bun test
+
+# Integration tests for yt-downloader (requires yt-dlp on PATH)
+INTEGRATION=1 npx nx test yt-downloader
+```
 
 ## Configuration
 
