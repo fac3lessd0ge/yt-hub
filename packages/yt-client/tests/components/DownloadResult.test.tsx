@@ -43,9 +43,7 @@ describe("DownloadResult", () => {
     const user = userEvent.setup();
     render(<DownloadResult result={mockResult} onReset={onReset} />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Download Another" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Download Another" }));
 
     expect(onReset).toHaveBeenCalledOnce();
   });

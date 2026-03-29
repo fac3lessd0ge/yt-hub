@@ -24,7 +24,11 @@ describe("useDownload", () => {
     const { result } = renderHook(() => useDownload());
 
     act(() => {
-      result.current.start({ link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" });
+      result.current.start({
+        link: "https://youtube.com/watch?v=abc",
+        format: "mp3",
+        name: "test",
+      });
     });
 
     await waitFor(() => {
@@ -165,7 +169,7 @@ describe("useDownload", () => {
 
   it("returns to idle state when abort occurs", async () => {
     mockStreamDownload.mockImplementation(
-      async (_request: any, _callbacks: any, signal: AbortSignal) => {
+      async (_request: any, _callbacks: any, _signal: AbortSignal) => {
         const abortError = new Error("Aborted");
         abortError.name = "AbortError";
         throw abortError;

@@ -26,9 +26,7 @@ describe("useMetadata", () => {
   });
 
   it("does not fetch immediately due to debounce", () => {
-    renderHook(() =>
-      useMetadata("https://www.youtube.com/watch?v=abc"),
-    );
+    renderHook(() => useMetadata("https://www.youtube.com/watch?v=abc"));
 
     // fetchMetadata should not be called before the debounce delay
     expect(mockFetchMetadata).not.toHaveBeenCalled();
@@ -83,10 +81,9 @@ describe("useMetadata", () => {
       author_name: "Author",
     });
 
-    const { result, rerender } = renderHook(
-      ({ link }) => useMetadata(link),
-      { initialProps: { link: "https://www.youtube.com/watch?v=abc" } },
-    );
+    const { result, rerender } = renderHook(({ link }) => useMetadata(link), {
+      initialProps: { link: "https://www.youtube.com/watch?v=abc" },
+    });
 
     await vi.advanceTimersByTimeAsync(500);
 
