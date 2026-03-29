@@ -35,6 +35,42 @@ jobs:
       - name: Nx affected lint, test, typecheck
         run: npx nx affected -t lint,test,typecheck --base=origin/dev --head=HEAD
 
+  proto-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check for proto changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            proto:
+              - 'packages/yt-service/proto/**'
+      # Proto compatibility: tonic-build (yt-api) and proto-loader (yt-service) must both compile
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.filter.outputs.proto == 'true'
+      - name: Install protobuf compiler
+        if: steps.filter.outputs.proto == 'true'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Validate proto with tonic-build (yt-api)
+        if: steps.filter.outputs.proto == 'true'
+        run: cargo build
+        working-directory: packages/yt-api
+      - uses: actions/setup-node@v4
+        if: steps.filter.outputs.proto == 'true'
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        if: steps.filter.outputs.proto == 'true'
+        run: npm ci
+      - name: Build yt-downloader (prerequisite)
+        if: steps.filter.outputs.proto == 'true'
+        run: npx nx build yt-downloader
+      - name: Validate proto with proto-loader (yt-service typecheck)
+        if: steps.filter.outputs.proto == 'true'
+        run: npx nx typecheck yt-service
+
   docker-build:
     runs-on: ubuntu-latest
     steps:
