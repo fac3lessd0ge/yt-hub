@@ -1,0 +1,8 @@
+# Default owner for everything in the repo
+* @fac3lessd0ge
+
+# Package-specific ownership
+/packages/yt-downloader/ @fac3lessd0ge
+/packages/yt-service/ @fac3lessd0ge
+/packages/yt-api/ @fac3lessd0ge
+/packages/yt-client/ @fac3lessd0ge
