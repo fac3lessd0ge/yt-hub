@@ -1,1 +1,1 @@
-export { OutputPathBuilder } from "./OutputPathBuilder";
+export { OutputPathBuilder, sanitizeFilename } from "./OutputPathBuilder";
