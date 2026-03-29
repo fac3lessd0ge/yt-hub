@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMetadata } from "@/hooks/useMetadata";
 
@@ -28,7 +28,6 @@ describe("useMetadata", () => {
   it("does not fetch immediately due to debounce", () => {
     renderHook(() => useMetadata("https://www.youtube.com/watch?v=abc"));
 
-    // fetchMetadata should not be called before the debounce delay
     expect(mockFetchMetadata).not.toHaveBeenCalled();
   });
 
@@ -42,11 +41,8 @@ describe("useMetadata", () => {
       useMetadata("https://www.youtube.com/watch?v=abc"),
     );
 
-    // Advance past the debounce delay
-    await vi.advanceTimersByTimeAsync(500);
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
     });
 
     expect(mockFetchMetadata).toHaveBeenCalledWith(
@@ -56,6 +52,7 @@ describe("useMetadata", () => {
       title: "Test Video",
       author_name: "Test Author",
     });
+    expect(result.current.loading).toBe(false);
   });
 
   it("sets error when fetch fails", async () => {
@@ -65,14 +62,13 @@ describe("useMetadata", () => {
       useMetadata("https://www.youtube.com/watch?v=bad"),
     );
 
-    await vi.advanceTimersByTimeAsync(500);
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
     });
 
     expect(result.current.error).toBe("Not found");
     expect(result.current.metadata).toBeNull();
+    expect(result.current.loading).toBe(false);
   });
 
   it("resets metadata when link changes", async () => {
@@ -85,13 +81,12 @@ describe("useMetadata", () => {
       initialProps: { link: "https://www.youtube.com/watch?v=abc" },
     });
 
-    await vi.advanceTimersByTimeAsync(500);
-
-    await waitFor(() => {
-      expect(result.current.metadata).not.toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
     });
 
-    // Change the link - metadata should reset
+    expect(result.current.metadata).not.toBeNull();
+
     rerender({ link: "https://www.youtube.com/watch?v=def" });
 
     expect(result.current.metadata).toBeNull();
