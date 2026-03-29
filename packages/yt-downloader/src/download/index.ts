@@ -1,4 +1,5 @@
 export { BackendRegistry } from "./BackendRegistry";
+export { CancellationError } from "./errors/CancellationError";
 export { DownloadError } from "./errors/DownloadError";
 export { YtDlpBackend } from "./implementations/YtDlpBackend";
 export { YtDlpProgressParser } from "./implementations/YtDlpProgressParser";

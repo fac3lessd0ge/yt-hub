@@ -42,7 +42,7 @@ describe("fetchMetadata", () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 404,
-      json: async () => ({ error: "Video not found" }),
+      json: async () => ({ message: "Video not found" }),
     });
 
     await expect(

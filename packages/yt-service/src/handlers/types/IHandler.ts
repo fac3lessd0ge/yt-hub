@@ -3,5 +3,9 @@ export interface IUnaryHandler<Req, Res> {
 }
 
 export interface IStreamHandler<Req, Res> {
-  handle(request: Req, write: (msg: Res) => void): Promise<void>;
+  handle(
+    request: Req,
+    write: (msg: Res) => void,
+    signal?: AbortSignal,
+  ): Promise<void>;
 }

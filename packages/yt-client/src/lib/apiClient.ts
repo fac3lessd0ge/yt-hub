@@ -10,7 +10,7 @@ async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${response.status}`);
+    throw new Error(body.message || `HTTP ${response.status}`);
   }
   return response.json();
 }

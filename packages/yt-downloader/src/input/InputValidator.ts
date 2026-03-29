@@ -4,12 +4,6 @@ import type { IDownloadBackend } from "~/download";
 import { ValidationError } from "./errors/ValidationError";
 import type { RawInput } from "./types/IInputReader";
 
-export const YOUTUBE_PATTERNS = [
-  "youtube.com/watch",
-  "youtu.be/",
-  "youtube.com/shorts/",
-];
-
 export const DEFAULT_DESTINATION = resolve(
   homedir(),
   "Downloads",
@@ -21,6 +15,28 @@ export interface ValidatedInput {
   name: string;
   formatId: string;
   destination: string;
+}
+
+function isValidYouTubeUrl(input: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname.replace(/^(www\.|m\.)/, "");
+  if (host === "youtube.com") {
+    if (url.pathname === "/watch" && url.searchParams.get("v")) return true;
+    if (
+      url.pathname.startsWith("/shorts/") &&
+      url.pathname.length > "/shorts/".length
+    )
+      return true;
+    return false;
+  }
+  if (host === "youtu.be") return url.pathname.length > 1;
+  return false;
 }
 
 export class InputValidator {
@@ -46,7 +62,7 @@ export class InputValidator {
       );
     }
 
-    if (!YOUTUBE_PATTERNS.some((pattern) => raw.link?.includes(pattern))) {
+    if (!isValidYouTubeUrl(raw.link)) {
       throw new ValidationError("URL does not look like a YouTube link.");
     }
 

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { CancellationError } from "~/download/errors/CancellationError";
 import type {
   IProcessSpawner,
   SpawnOptions,
@@ -11,12 +12,28 @@ export class NodeProcessSpawner implements IProcessSpawner {
     const [command, ...rest] = args;
     const isPiped = options.stdout === "pipe";
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const proc = spawn(command, rest, {
         stdio: isPiped
           ? ["ignore", "pipe", "pipe"]
           : [options.stdout, options.stdout, options.stderr],
       });
+
+      if (options.signal) {
+        if (options.signal.aborted) {
+          proc.kill("SIGTERM");
+          reject(new CancellationError());
+          return;
+        }
+        options.signal.addEventListener(
+          "abort",
+          () => {
+            proc.kill("SIGTERM");
+            reject(new CancellationError());
+          },
+          { once: true },
+        );
+      }
 
       if (isPiped && options.onStdout && proc.stdout) {
         const rl = createInterface({ input: proc.stdout });

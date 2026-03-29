@@ -53,6 +53,7 @@ export class YtDlpBackend implements IDownloadBackend {
     outputPath: string,
     formatId: string,
     onProgress?: ProgressCallback,
+    signal?: AbortSignal,
   ): Promise<void> {
     const audioQuality = this.config?.audioQuality ?? DEFAULT_AUDIO_QUALITY;
     const formatArgsMap = buildFormatArgs(audioQuality);
@@ -93,6 +94,7 @@ export class YtDlpBackend implements IDownloadBackend {
     const result = await this.spawner.spawn(args, {
       stdout: usePipe ? "pipe" : "inherit",
       stderr: usePipe ? "pipe" : "inherit",
+      signal,
       onStdout: onProgress
         ? (line) => {
             const progress = this.progressParser.parseLine(line);
