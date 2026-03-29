@@ -10,6 +10,9 @@ A YouTube downloader that works as both a **CLI tool** and an **importable TypeS
 - Pluggable backend architecture (yt-dlp by default, extensible)
 - Fetches video metadata before downloading
 - Supports YouTube watch pages, short links (`youtu.be`), and Shorts
+- Download cancellation via `AbortSignal`
+- URL hostname validation and filename sanitization with path traversal protection
+- Metadata retry with exponential backoff (3 attempts, 10s timeout)
 
 ## Prerequisites
 
@@ -135,7 +138,7 @@ await service.download({
 ### Error handling
 
 ```typescript
-import { DownloadService, ValidationError, DownloadError } from "yt-downloader";
+import { DownloadService, ValidationError, DownloadError, CancellationError } from "yt-downloader";
 
 const service = new DownloadService();
 
@@ -147,6 +150,9 @@ try {
   }
   if (error instanceof DownloadError) {
     // yt-dlp process failed — error.exitCode has the exit code
+  }
+  if (error instanceof CancellationError) {
+    // Download was cancelled via AbortSignal
   }
 }
 ```
@@ -210,6 +216,36 @@ import type {
   IDownloadBackend,
 } from "yt-downloader";
 ```
+
+## Configuration
+
+The yt-dlp backend accepts a `YtDlpConfig` object:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `audioQuality` | `string` | `"0"` | Audio quality (0 = best) |
+| `customArgs` | `string[]` | `[]` | Extra args passed to yt-dlp |
+| `proxy` | `string` | — | Proxy URL |
+| `cookiesFile` | `string` | — | Path to cookies file |
+| `socketTimeout` | `number` | `30` | Socket timeout in seconds |
+
+### URL Validation
+
+URLs are parsed and validated against allowed hostnames:
+
+- `www.youtube.com`, `youtube.com`, `m.youtube.com`
+- `youtu.be`
+- `www.youtube-nocookie.com`
+
+Invalid hostnames or malformed URLs throw a `ValidationError`.
+
+### Filename Sanitization
+
+Output filenames are sanitized to prevent path traversal attacks. Characters like `/`, `\`, `..`, and control characters are stripped or replaced.
+
+### Metadata Retry
+
+Metadata fetching retries up to 3 times with exponential backoff and a 10-second timeout per attempt.
 
 ## Development
 
