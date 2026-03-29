@@ -12,7 +12,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protobuf compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Rust clippy lint (yt-api)
+        run: cargo clippy -- -D warnings
+        working-directory: packages/yt-api
       - uses: actions/setup-node@v4
         with:
           node-version: 20
