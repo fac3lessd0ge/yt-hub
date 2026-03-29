@@ -55,7 +55,9 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 server
   .start(config.host, config.port)
-  .then(() => console.log(`gRPC server listening on ${config.host}:${config.port}`))
+  .then(() =>
+    console.log(`gRPC server listening on ${config.host}:${config.port}`),
+  )
   .catch((err) => {
     console.error("Failed to start server:", err);
     process.exit(1);

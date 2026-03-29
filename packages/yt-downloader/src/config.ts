@@ -11,9 +11,7 @@ export function loadYtDlpConfig(): YtDlpConfig {
 
   return {
     audioQuality: process.env.YT_DLP_AUDIO_QUALITY ?? "0",
-    customArgs: customArgsRaw
-      ? customArgsRaw.split(/\s+/).filter(Boolean)
-      : [],
+    customArgs: customArgsRaw ? customArgsRaw.split(/\s+/).filter(Boolean) : [],
     proxy: process.env.YT_DLP_PROXY || undefined,
     cookiesFile: process.env.YT_DLP_COOKIES_FILE || undefined,
     socketTimeout: Number(process.env.YT_DLP_SOCKET_TIMEOUT ?? 30),

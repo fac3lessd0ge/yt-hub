@@ -86,14 +86,6 @@ impl Config {
         );
     }
 
-    pub fn host(&self) -> &str {
-        &self.yt_api_host
-    }
-
-    pub fn port(&self) -> u16 {
-        self.yt_api_port
-    }
-
     pub fn addr(&self) -> String {
         format!("{}:{}", self.yt_api_host, self.yt_api_port)
     }

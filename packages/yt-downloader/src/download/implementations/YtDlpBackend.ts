@@ -54,8 +54,7 @@ export class YtDlpBackend implements IDownloadBackend {
     formatId: string,
     onProgress?: ProgressCallback,
   ): Promise<void> {
-    const audioQuality =
-      this.config?.audioQuality ?? DEFAULT_AUDIO_QUALITY;
+    const audioQuality = this.config?.audioQuality ?? DEFAULT_AUDIO_QUALITY;
     const formatArgsMap = buildFormatArgs(audioQuality);
     const formatArgs = formatArgsMap[formatId];
     if (!formatArgs) {

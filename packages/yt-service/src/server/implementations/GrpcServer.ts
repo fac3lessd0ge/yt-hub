@@ -43,8 +43,7 @@ export class GrpcServer implements IGrpcServer {
   ) {
     const serverOptions: Record<string, unknown> = {};
     if (options.maxMessageSize !== undefined) {
-      serverOptions["grpc.max_receive_message_length"] =
-        options.maxMessageSize;
+      serverOptions["grpc.max_receive_message_length"] = options.maxMessageSize;
       serverOptions["grpc.max_send_message_length"] = options.maxMessageSize;
     }
     this.server = new Server(serverOptions);
