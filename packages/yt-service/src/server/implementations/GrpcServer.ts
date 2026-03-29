@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  status as GrpcStatus,
   type handleServerStreamingCall,
   type handleUnaryCall,
   Server,
@@ -8,7 +9,6 @@ import {
   type ServerUnaryCall,
   type ServerWritableStream,
   type sendUnaryData,
-  status as GrpcStatus,
 } from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 import type {
