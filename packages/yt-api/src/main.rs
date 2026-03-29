@@ -26,17 +26,26 @@ pub struct AppState {
 
 async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
     let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("Failed to install Ctrl+C handler");
+        match signal::ctrl_c().await {
+            Ok(()) => {}
+            Err(e) => {
+                tracing::error!("Failed to install Ctrl+C handler: {e}");
+                std::process::exit(1);
+            }
+        }
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("Failed to install SIGTERM handler")
-            .recv()
-            .await;
+        match signal::unix::signal(signal::unix::SignalKind::terminate()) {
+            Ok(mut sig) => {
+                sig.recv().await;
+            }
+            Err(e) => {
+                tracing::error!("Failed to install SIGTERM handler: {e}");
+                std::process::exit(1);
+            }
+        }
     };
 
     #[cfg(not(unix))]
@@ -58,9 +67,13 @@ async fn main() {
 
     let config = Config::from_env();
 
-    let grpc_client = GrpcClient::connect(&config.grpc_target)
-        .await
-        .expect("Failed to connect to gRPC server");
+    let grpc_client = match GrpcClient::connect(&config.grpc_target).await {
+        Ok(client) => client,
+        Err(e) => {
+            tracing::error!("Failed to connect to gRPC server: {e}");
+            std::process::exit(1);
+        }
+    };
 
     let shutting_down = Arc::new(AtomicBool::new(false));
 
@@ -76,14 +89,24 @@ async fn main() {
     let addr = config.addr();
     tracing::info!("Listening on {addr}");
 
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .expect("Failed to bind address");
+    let listener = match tokio::net::TcpListener::bind(&addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            tracing::error!("Failed to bind address {addr}: {e}");
+            std::process::exit(1);
+        }
+    };
 
-    axum::serve(listener, app)
+    match axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal(shutting_down))
         .await
-        .expect("Server error");
+    {
+        Ok(()) => {}
+        Err(e) => {
+            tracing::error!("Server error: {e}");
+            std::process::exit(1);
+        }
+    }
 
     tracing::info!("Server shut down gracefully");
 }
