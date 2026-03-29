@@ -25,6 +25,17 @@ yt-client (Electron/React) → HTTP → yt-api (Rust/Axum) → gRPC → yt-servi
 
 ## Quick Start
 
+### Docker (recommended)
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+This builds and starts both backend services (yt-api on `:3000`, yt-service on `:50051`) with proper health checks and startup ordering. Downloads are persisted in a Docker volume.
+
+### Local development
+
 ```bash
 npm install
 npm run dev
@@ -97,6 +108,8 @@ yt-hub/
 │   └── yt-client/        # Desktop app (Electron/React)
 ├── scripts/              # Dev orchestration (npm run dev)
 ├── .github/workflows/    # CI pipeline
+├── docker-compose.yml    # Docker Compose for backend services
+├── .env.example          # Environment variable template
 ├── biome.json            # Linting and formatting config
 ├── nx.json               # Nx task orchestration config
 └── tsconfig.base.json    # Shared TypeScript config
