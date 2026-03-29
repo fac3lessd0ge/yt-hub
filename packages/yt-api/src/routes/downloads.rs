@@ -11,6 +11,7 @@ use crate::error::AppError;
 use crate::models::requests::DownloadRequestBody;
 use crate::models::responses::{DownloadComplete, DownloadProgress};
 use crate::proto;
+use crate::validation;
 
 fn serialization_error_event(err: axum::Error) -> Event {
     let body = json!({
@@ -27,6 +28,13 @@ pub async fn download(
     State(state): State<AppState>,
     Json(body): Json<DownloadRequestBody>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>>, AppError> {
+    validation::validate_youtube_url(&body.link).map_err(AppError::Validation)?;
+    validation::validate_format(&body.format).map_err(AppError::Validation)?;
+    validation::validate_name(&body.name).map_err(AppError::Validation)?;
+    if let Some(ref dest) = body.destination {
+        validation::validate_destination(dest).map_err(AppError::Validation)?;
+    }
+
     let grpc_request: proto::DownloadRequest = body.into();
     let stream = state.grpc_client.download(grpc_request).await?;
 

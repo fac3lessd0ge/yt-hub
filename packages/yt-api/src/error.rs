@@ -29,6 +29,7 @@ pub enum AppError {
     GrpcConnection(tonic::transport::Error),
     GrpcCall(tonic::Status),
     BadRequest(String),
+    Validation(String),
 }
 
 impl IntoResponse for AppError {
@@ -108,6 +109,14 @@ impl IntoResponse for AppError {
                 )
             }
             AppError::BadRequest(msg) => (
+                StatusCode::BAD_REQUEST,
+                ErrorResponse {
+                    code: error_codes::VALIDATION_ERROR,
+                    message: msg,
+                    retryable: false,
+                },
+            ),
+            AppError::Validation(msg) => (
                 StatusCode::BAD_REQUEST,
                 ErrorResponse {
                     code: error_codes::VALIDATION_ERROR,

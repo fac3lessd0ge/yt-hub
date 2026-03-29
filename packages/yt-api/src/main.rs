@@ -3,6 +3,7 @@ mod error;
 mod grpc;
 mod models;
 mod routes;
+mod validation;
 
 pub mod proto {
     tonic::include_proto!("yt_service");
