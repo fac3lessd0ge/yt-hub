@@ -1,10 +1,10 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  type Metadata,
   status as GrpcStatus,
   type handleServerStreamingCall,
   type handleUnaryCall,
+  type Metadata,
   Server,
   ServerCredentials,
   type ServerUnaryCall,
