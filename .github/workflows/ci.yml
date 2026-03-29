@@ -9,21 +9,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - name: Install protobuf compiler
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # Always run Rust checks — Nx doesn't track Rust file changes well
       - name: Rust clippy lint (yt-api)
         run: cargo clippy -- -D warnings
+        working-directory: packages/yt-api
+      - name: Rust tests (yt-api)
+        run: cargo test
         working-directory: packages/yt-api
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx nx build yt-downloader
-      - run: npx nx run-many -t lint,test,typecheck
+      - name: Build yt-downloader (prerequisite for yt-service)
+        run: npx nx build yt-downloader
+      - name: Nx affected lint, test, typecheck
+        run: npx nx affected -t lint,test,typecheck --base=origin/dev --head=HEAD
 
   docker-build:
     runs-on: ubuntu-latest
