@@ -32,6 +32,9 @@ The server listens on `0.0.0.0:50051` by default. Configure via environment vari
 |----------|---------|-------------|
 | `GRPC_HOST` | `0.0.0.0` | Bind address |
 | `GRPC_PORT` | `50051` | Port |
+| `LOG_LEVEL` | `info` | Log verbosity |
+| `REQUEST_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
+| `MAX_MESSAGE_SIZE` | `4194304` | Max gRPC message size in bytes |
 
 ## gRPC API
 
@@ -92,10 +95,34 @@ The stream sends multiple messages using a `oneof payload`:
 
 3. **Error** on failure:
    ```json
-   { "error": { "code": "VALIDATION", "message": "URL does not look like a YouTube link." } }
+   { "error": { "code": "INVALID_URL", "message": "URL does not look like a YouTube link.", "retryable": false } }
    ```
 
-Error codes: `VALIDATION`, `DOWNLOAD`, `METADATA`, `DEPENDENCY`, `INTERNAL`
+Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`
+
+### Request Validation
+
+A `RequestValidator` validates all incoming gRPC requests before processing:
+
+- YouTube URL format and hostname validation
+- Format and name field validation
+- Returns `INVALID_ARGUMENT` gRPC status on validation failure
+
+### Cancellation Support
+
+Download RPCs support client-initiated cancellation. When a client cancels the gRPC stream, the cancellation propagates through to yt-downloader via `AbortSignal`.
+
+### gRPC Status Code Mapping
+
+| Error Code | gRPC Status |
+|------------|-------------|
+| `VALIDATION_ERROR`, `INVALID_URL` | `INVALID_ARGUMENT` |
+| `VIDEO_NOT_FOUND` | `NOT_FOUND` |
+| `DOWNLOAD_FAILED`, `METADATA_FAILED` | `INTERNAL` |
+| `DEPENDENCY_MISSING` | `FAILED_PRECONDITION` |
+| `SERVICE_UNAVAILABLE` | `UNAVAILABLE` |
+| `REQUEST_TIMEOUT` | `DEADLINE_EXCEEDED` |
+| `CANCELLED` | `CANCELLED` |
 
 ## Rust Client Example
 

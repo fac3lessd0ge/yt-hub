@@ -34,6 +34,8 @@ The server listens on `0.0.0.0:3000` by default. Configure via environment varia
 | `YT_API_HOST` | `0.0.0.0` | HTTP bind address |
 | `YT_API_PORT` | `3000` | HTTP port |
 | `GRPC_TARGET` | `http://localhost:50051` | yt-service gRPC endpoint |
+| `LOG_LEVEL` | `info` | Log verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
+| `REQUEST_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
 
 ## REST API
 
@@ -100,10 +102,24 @@ data: {"output_path":"/tmp/rickroll.mp3","title":"...","author_name":"...","form
 On failure:
 ```
 event: error
-data: {"code":"VALIDATION","message":"URL does not look like a YouTube link."}
+data: {"code":"INVALID_URL","message":"URL does not look like a YouTube link.","retryable":false}
 ```
 
-Error codes: `VALIDATION`, `DOWNLOAD`, `METADATA`, `DEPENDENCY`, `GRPC_ERROR`
+### Error Response Format
+
+All errors follow a standardized format:
+
+```json
+{ "code": "ERROR_CODE", "message": "Human-readable description", "retryable": true }
+```
+
+Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`
+
+### Input Validation
+
+- **YouTube URL**: must match `youtube.com/watch`, `youtu.be`, or `youtube.com/shorts` hostnames
+- **Format**: must be one of the supported format IDs (`mp3`, `mp4`)
+- **Name**: non-empty, max 255 characters, no path separators
 
 ## Docker
 
