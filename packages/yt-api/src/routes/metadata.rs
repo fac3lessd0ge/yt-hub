@@ -4,13 +4,14 @@ use axum::extract::{Query, State};
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::grpc::GrpcClientTrait;
 use crate::middleware::RequestId;
 use crate::models::requests::MetadataQuery;
 use crate::models::responses::MetadataResponse;
 use crate::validation;
 
-pub async fn get_metadata(
-    State(state): State<AppState>,
+pub async fn get_metadata<C: GrpcClientTrait>(
+    State(state): State<AppState<C>>,
     Extension(req_id): Extension<RequestId>,
     Query(query): Query<MetadataQuery>,
 ) -> Result<Json<MetadataResponse>, AppError> {

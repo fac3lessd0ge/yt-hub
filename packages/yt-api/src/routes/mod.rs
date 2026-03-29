@@ -9,14 +9,15 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use crate::AppState;
+use crate::grpc::GrpcClientTrait;
 
-pub fn router() -> Router<AppState> {
+pub fn router<C: GrpcClientTrait>() -> Router<AppState<C>> {
     Router::new()
-        .route("/health", get(health::health))
-        .route("/api/metadata", get(metadata::get_metadata))
-        .route("/api/formats", get(formats::list_formats))
-        .route("/api/backends", get(backends::list_backends))
-        .route("/api/downloads", post(downloads::download))
+        .route("/health", get(health::health::<C>))
+        .route("/api/metadata", get(metadata::get_metadata::<C>))
+        .route("/api/formats", get(formats::list_formats::<C>))
+        .route("/api/backends", get(backends::list_backends::<C>))
+        .route("/api/downloads", post(downloads::download::<C>))
 }
 
 pub fn metrics_router() -> Router<AppState> {

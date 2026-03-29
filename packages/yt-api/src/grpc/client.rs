@@ -7,6 +7,28 @@ use crate::proto::{
     ListBackendsRequest, ListBackendsResponse, ListFormatsRequest, ListFormatsResponse,
 };
 
+#[async_trait::async_trait]
+pub trait GrpcClientTrait: Clone + Send + Sync + 'static {
+    async fn get_metadata(
+        &self,
+        link: &str,
+        request_id: Option<&str>,
+    ) -> Result<GetMetadataResponse, tonic::Status>;
+    async fn list_formats(
+        &self,
+        request_id: Option<&str>,
+    ) -> Result<ListFormatsResponse, tonic::Status>;
+    async fn list_backends(
+        &self,
+        request_id: Option<&str>,
+    ) -> Result<ListBackendsResponse, tonic::Status>;
+    async fn download(
+        &self,
+        request: DownloadRequest,
+        request_id: Option<&str>,
+    ) -> Result<Streaming<DownloadResponse>, tonic::Status>;
+}
+
 #[derive(Clone)]
 pub struct GrpcClient {
     inner: YtServiceClient<Channel>,
@@ -29,8 +51,11 @@ impl GrpcClient {
         let inner = YtServiceClient::connect(addr.to_string()).await?;
         Ok(Self { inner })
     }
+}
 
-    pub async fn get_metadata(
+#[async_trait::async_trait]
+impl GrpcClientTrait for GrpcClient {
+    async fn get_metadata(
         &self,
         link: &str,
         request_id: Option<&str>,
@@ -55,7 +80,7 @@ impl GrpcClient {
         result
     }
 
-    pub async fn list_formats(
+    async fn list_formats(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListFormatsResponse, tonic::Status> {
@@ -77,7 +102,7 @@ impl GrpcClient {
         result
     }
 
-    pub async fn list_backends(
+    async fn list_backends(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListBackendsResponse, tonic::Status> {
@@ -99,7 +124,7 @@ impl GrpcClient {
         result
     }
 
-    pub async fn download(
+    async fn download(
         &self,
         download_req: DownloadRequest,
         request_id: Option<&str>,

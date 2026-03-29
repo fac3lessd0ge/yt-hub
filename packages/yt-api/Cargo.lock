@@ -2135,9 +2135,11 @@ dependencies = [
 name = "yt-api"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
  "dotenvy",
  "envy",
+ "http-body-util",
  "metrics",
  "metrics-exporter-prometheus",
  "prost",
@@ -2147,6 +2149,7 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-build",
+ "tower",
  "tower-http",
  "tracing",
  "tracing-subscriber",

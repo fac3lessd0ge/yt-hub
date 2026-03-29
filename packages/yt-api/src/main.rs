@@ -1,10 +1,10 @@
 mod config;
-mod error;
-mod grpc;
+pub mod error;
+pub mod grpc;
 mod middleware;
-mod models;
-mod routes;
-mod validation;
+pub mod models;
+pub mod routes;
+pub mod validation;
 
 pub mod proto {
     tonic::include_proto!("yt_service");
@@ -21,10 +21,11 @@ use tracing_subscriber::{EnvFilter, fmt};
 
 use crate::config::Config;
 use crate::grpc::GrpcClient;
+pub use crate::grpc::GrpcClientTrait;
 
 #[derive(Clone)]
-pub struct AppState {
-    pub grpc_client: GrpcClient,
+pub struct AppState<C: GrpcClientTrait = GrpcClient> {
+    pub grpc_client: C,
     pub shutting_down: Arc<AtomicBool>,
     pub metrics_handle: PrometheusHandle,
 }
