@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  type Metadata,
   status as GrpcStatus,
   type handleServerStreamingCall,
   type handleUnaryCall,
@@ -50,15 +51,18 @@ export class GrpcServer implements IGrpcServer {
   ) {
     this.requestValidator = new RequestValidator();
     this.errorMapper = new ErrorMapper();
-    // Use a no-op logger if none provided (e.g. in tests)
-    this.logger =
-      logger ??
-      ({
+    if (logger) {
+      this.logger = logger;
+    } else {
+      // No-op logger for tests — child() returns itself
+      const noop: any = {
         info: () => {},
         warn: () => {},
         error: () => {},
-        child: () => logger,
-      } as unknown as Logger);
+      };
+      noop.child = () => noop;
+      this.logger = noop as Logger;
+    }
     const serverOptions: Record<string, unknown> = {};
     if (options.maxMessageSize !== undefined) {
       serverOptions["grpc.max_receive_message_length"] = options.maxMessageSize;
@@ -154,18 +158,28 @@ export class GrpcServer implements IGrpcServer {
 
   private _onStreamComplete: (() => void) | null = null;
 
+  private childLogger(metadata: Metadata, method: string): Logger {
+    const values = metadata.get("x-request-id");
+    const requestId = values.length > 0 ? String(values[0]) : undefined;
+    return this.logger.child({ requestId, method });
+  }
+
   private createGetMetadata(): handleUnaryCall<any, any> {
     return async (
       call: ServerUnaryCall<any, any>,
       callback: sendUnaryData<any>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
+      const log = this.childLogger(call.metadata, "GetMetadata");
+      log.info({ link: call.request.link }, "Handling GetMetadata request");
       try {
         this.requestValidator.validateMetadataRequest(call.request);
         const result = await this.metadataHandler.handle(call.request);
+        log.info("GetMetadata completed successfully");
         callback(null, result);
       } catch (err) {
         const mapped = this.errorMapper.mapError(err);
+        log.error({ code: mapped.code }, mapped.message);
         callback({
           code: mapped.grpcStatus,
           message: JSON.stringify({
@@ -180,15 +194,19 @@ export class GrpcServer implements IGrpcServer {
 
   private createListFormats(): handleUnaryCall<any, any> {
     return async (
-      _call: ServerUnaryCall<any, any>,
+      call: ServerUnaryCall<any, any>,
       callback: sendUnaryData<any>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
+      const log = this.childLogger(call.metadata, "ListFormats");
+      log.info("Handling ListFormats request");
       try {
         const result = await this.formatsHandler.handle();
+        log.info("ListFormats completed successfully");
         callback(null, result);
       } catch (err) {
         const mapped = this.errorMapper.mapError(err);
+        log.error({ code: mapped.code }, mapped.message);
         callback({
           code: mapped.grpcStatus,
           message: JSON.stringify({
@@ -203,15 +221,19 @@ export class GrpcServer implements IGrpcServer {
 
   private createListBackends(): handleUnaryCall<any, any> {
     return async (
-      _call: ServerUnaryCall<any, any>,
+      call: ServerUnaryCall<any, any>,
       callback: sendUnaryData<any>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
+      const log = this.childLogger(call.metadata, "ListBackends");
+      log.info("Handling ListBackends request");
       try {
         const result = await this.backendsHandler.handle();
+        log.info("ListBackends completed successfully");
         callback(null, result);
       } catch (err) {
         const mapped = this.errorMapper.mapError(err);
+        log.error({ code: mapped.code }, mapped.message);
         callback({
           code: mapped.grpcStatus,
           message: JSON.stringify({
@@ -234,9 +256,18 @@ export class GrpcServer implements IGrpcServer {
         return;
       }
 
+      const log = this.childLogger(call.metadata, "Download");
+      log.info(
+        { link: call.request.link, format: call.request.format },
+        "Handling Download request",
+      );
+
       this._activeStreams.add(call);
       const abortController = new AbortController();
-      call.on("cancelled", () => abortController.abort());
+      call.on("cancelled", () => {
+        log.warn("Download stream cancelled by client");
+        abortController.abort();
+      });
       try {
         this.requestValidator.validateDownloadRequest(call.request);
         await this.downloadHandler.handle(
@@ -244,6 +275,7 @@ export class GrpcServer implements IGrpcServer {
           (msg) => call.write(msg),
           abortController.signal,
         );
+        log.info("Download completed successfully");
         call.end();
       } finally {
         this._activeStreams.delete(call);
