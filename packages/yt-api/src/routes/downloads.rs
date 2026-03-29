@@ -41,6 +41,8 @@ pub async fn download(
     let grpc_request: proto::DownloadRequest = body.into();
     let stream = state.grpc_client.download(grpc_request, Some(&req_id.0)).await?;
 
+    metrics::gauge!("active_sse_streams").increment(1.0);
+
     let sse_stream = stream.map(|result| {
         let event = match result {
             Ok(response) => match response.payload {
@@ -98,5 +100,39 @@ pub async fn download(
         Ok(event)
     });
 
-    Ok(Sse::new(sse_stream))
+    // Wrap the stream so the gauge is decremented when the stream is exhausted or dropped
+    let tracked_stream = SseStreamGuard::new(sse_stream);
+
+    Ok(Sse::new(tracked_stream))
+}
+
+/// Wrapper that decrements active_sse_streams gauge on drop.
+struct SseStreamGuard<S> {
+    inner: S,
+}
+
+impl<S> SseStreamGuard<S> {
+    fn new(inner: S) -> Self {
+        Self { inner }
+    }
+}
+
+impl<S> Drop for SseStreamGuard<S> {
+    fn drop(&mut self) {
+        metrics::gauge!("active_sse_streams").decrement(1.0);
+    }
+}
+
+impl<S> tokio_stream::Stream for SseStreamGuard<S>
+where
+    S: tokio_stream::Stream + Unpin,
+{
+    type Item = S::Item;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        std::pin::Pin::new(&mut self.inner).poll_next(cx)
+    }
 }

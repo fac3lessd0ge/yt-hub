@@ -12,6 +12,10 @@ pub struct GrpcClient {
     inner: YtServiceClient<Channel>,
 }
 
+fn record_grpc_call(method: &str, outcome: &str) {
+    metrics::counter!("grpc_calls_total", "method" => method.to_string(), "outcome" => outcome.to_string()).increment(1);
+}
+
 fn inject_request_id<T>(req: &mut tonic::Request<T>, request_id: Option<&str>) {
     if let Some(id) = request_id {
         if let Ok(val) = id.parse() {
@@ -39,8 +43,14 @@ impl GrpcClient {
         let result = self.inner.clone().get_metadata(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
         match &result {
-            Ok(_) => tracing::info!(grpc_method = "get_metadata", duration_ms, outcome = "ok", "gRPC call completed"),
-            Err(status) => tracing::warn!(grpc_method = "get_metadata", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed"),
+            Ok(_) => {
+                record_grpc_call("get_metadata", "ok");
+                tracing::info!(grpc_method = "get_metadata", duration_ms, outcome = "ok", "gRPC call completed");
+            }
+            Err(status) => {
+                record_grpc_call("get_metadata", "error");
+                tracing::warn!(grpc_method = "get_metadata", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
+            }
         }
         result
     }
@@ -55,8 +65,14 @@ impl GrpcClient {
         let result = self.inner.clone().list_formats(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
         match &result {
-            Ok(_) => tracing::info!(grpc_method = "list_formats", duration_ms, outcome = "ok", "gRPC call completed"),
-            Err(status) => tracing::warn!(grpc_method = "list_formats", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed"),
+            Ok(_) => {
+                record_grpc_call("list_formats", "ok");
+                tracing::info!(grpc_method = "list_formats", duration_ms, outcome = "ok", "gRPC call completed");
+            }
+            Err(status) => {
+                record_grpc_call("list_formats", "error");
+                tracing::warn!(grpc_method = "list_formats", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
+            }
         }
         result
     }
@@ -71,8 +87,14 @@ impl GrpcClient {
         let result = self.inner.clone().list_backends(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
         match &result {
-            Ok(_) => tracing::info!(grpc_method = "list_backends", duration_ms, outcome = "ok", "gRPC call completed"),
-            Err(status) => tracing::warn!(grpc_method = "list_backends", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed"),
+            Ok(_) => {
+                record_grpc_call("list_backends", "ok");
+                tracing::info!(grpc_method = "list_backends", duration_ms, outcome = "ok", "gRPC call completed");
+            }
+            Err(status) => {
+                record_grpc_call("list_backends", "error");
+                tracing::warn!(grpc_method = "list_backends", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
+            }
         }
         result
     }
@@ -88,8 +110,14 @@ impl GrpcClient {
         let result = self.inner.clone().download(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
         match &result {
-            Ok(_) => tracing::info!(grpc_method = "download", duration_ms, outcome = "ok", "gRPC call completed"),
-            Err(status) => tracing::warn!(grpc_method = "download", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed"),
+            Ok(_) => {
+                record_grpc_call("download", "ok");
+                tracing::info!(grpc_method = "download", duration_ms, outcome = "ok", "gRPC call completed");
+            }
+            Err(status) => {
+                record_grpc_call("download", "error");
+                tracing::warn!(grpc_method = "download", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
+            }
         }
         result
     }
