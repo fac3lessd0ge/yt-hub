@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "yt-api"
+    metrics_path: /metrics
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - "yt-api:3000"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets:
+          - "localhost:9090"

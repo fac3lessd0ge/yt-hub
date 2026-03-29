@@ -1,6 +1,7 @@
 mod config;
 mod error;
 mod grpc;
+mod middleware;
 mod models;
 mod routes;
 mod validation;
@@ -12,8 +13,11 @@ pub mod proto {
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::signal;
 use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{EnvFilter, fmt};
 
 use crate::config::Config;
 use crate::grpc::GrpcClient;
@@ -22,6 +26,7 @@ use crate::grpc::GrpcClient;
 pub struct AppState {
     pub grpc_client: GrpcClient,
     pub shutting_down: Arc<AtomicBool>,
+    pub metrics_handle: PrometheusHandle,
 }
 
 async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
@@ -63,7 +68,11 @@ async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    tracing_subscriber::fmt::init();
+
+    let filter = EnvFilter::try_from_env("RUST_LOG")
+        .or_else(|_| EnvFilter::try_from_env("LOG_LEVEL"))
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+    fmt().json().with_env_filter(filter).with_target(true).with_current_span(true).init();
 
     let config = Config::from_env();
 
@@ -75,15 +84,35 @@ async fn main() {
         }
     };
 
+    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Failed to install Prometheus recorder");
+
+    // Spawn periodic upkeep for the metrics recorder
+    let upkeep_handle = metrics_handle.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            upkeep_handle.run_upkeep();
+        }
+    });
+
     let shutting_down = Arc::new(AtomicBool::new(false));
 
     let state = AppState {
         grpc_client,
         shutting_down: Arc::clone(&shutting_down),
+        metrics_handle,
     };
 
-    let app = routes::router()
-        .with_state(state)
+    let api_routes = routes::router()
+        .with_state(state.clone())
+        .layer(axum::middleware::from_fn(middleware::metrics::metrics_middleware))
+        .layer(TraceLayer::new_for_http())
+        .layer(axum::middleware::from_fn(middleware::request_id::request_id_middleware));
+
+    let app = api_routes
+        .merge(routes::metrics_router().with_state(state))
         .layer(CorsLayer::permissive());
 
     let addr = config.addr();
