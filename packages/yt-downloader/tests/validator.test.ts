@@ -1,12 +1,7 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { IDownloadBackend } from "~/download";
-import {
-  DEFAULT_DESTINATION,
-  InputValidator,
-  ValidationError,
-  YOUTUBE_PATTERNS,
-} from "~/input";
+import { DEFAULT_DESTINATION, InputValidator, ValidationError } from "~/input";
 
 function fakeBackend(): IDownloadBackend {
   return {
@@ -152,13 +147,5 @@ describe("InputValidator", () => {
         format: "mp3",
       }),
     ).toThrow(ValidationError);
-  });
-});
-
-describe("YOUTUBE_PATTERNS", () => {
-  it("contains expected patterns", () => {
-    expect(YOUTUBE_PATTERNS).toContain("youtube.com/watch");
-    expect(YOUTUBE_PATTERNS).toContain("youtu.be/");
-    expect(YOUTUBE_PATTERNS).toContain("youtube.com/shorts/");
   });
 });

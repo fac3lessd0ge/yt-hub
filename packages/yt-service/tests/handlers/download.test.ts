@@ -77,7 +77,7 @@ describe("DownloadHandler", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0]).toEqual({
-      error: { code: "VALIDATION", message: "bad link" },
+      error: { code: "VALIDATION_ERROR", message: "bad link" },
     });
   });
 

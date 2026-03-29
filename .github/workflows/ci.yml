@@ -9,14 +9,89 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protobuf compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # Always run Rust checks — Nx doesn't track Rust file changes well
+      - name: Rust clippy lint (yt-api)
+        run: cargo clippy -- -D warnings
+        working-directory: packages/yt-api
+      - name: Rust tests (yt-api)
+        run: cargo test
+        working-directory: packages/yt-api
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx nx build yt-downloader
-      - run: npx nx run-many -t lint,test,typecheck
+      - name: Build yt-downloader (prerequisite for yt-service)
+        run: npx nx build yt-downloader
+      - name: Nx affected lint, test, typecheck
+        run: npx nx affected -t lint,test,typecheck --base=origin/dev --head=HEAD
+
+  proto-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check for proto changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            proto:
+              - 'packages/yt-service/proto/**'
+      # Proto compatibility: tonic-build (yt-api) and proto-loader (yt-service) must both compile
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.filter.outputs.proto == 'true'
+      - name: Install protobuf compiler
+        if: steps.filter.outputs.proto == 'true'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Validate proto with tonic-build (yt-api)
+        if: steps.filter.outputs.proto == 'true'
+        run: cargo build
+        working-directory: packages/yt-api
+      - uses: actions/setup-node@v4
+        if: steps.filter.outputs.proto == 'true'
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        if: steps.filter.outputs.proto == 'true'
+        run: npm ci
+      - name: Build yt-downloader (prerequisite)
+        if: steps.filter.outputs.proto == 'true'
+        run: npx nx build yt-downloader
+      - name: Validate proto with proto-loader (yt-service typecheck)
+        if: steps.filter.outputs.proto == 'true'
+        run: npx nx typecheck yt-service
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check for Docker-related changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docker:
+              - '**/Dockerfile'
+              - 'packages/yt-api/Cargo.toml'
+              - 'packages/yt-api/Cargo.lock'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'packages/*/package.json'
+              - 'packages/yt-service/proto/**'
+              - 'docker-compose.yml'
+      - name: Build yt-api Docker image
+        if: steps.filter.outputs.docker == 'true'
+        run: docker build -f packages/yt-api/Dockerfile .
+      - name: Build yt-service Docker image
+        if: steps.filter.outputs.docker == 'true'
+        run: docker build -f packages/yt-service/Dockerfile .

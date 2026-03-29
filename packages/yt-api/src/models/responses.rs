@@ -75,6 +75,7 @@ pub struct DownloadComplete {
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct DownloadError {
     pub code: String,
     pub message: String,

@@ -17,6 +17,8 @@ import type {
   FormatsHandler,
   MetadataHandler,
 } from "~/handlers";
+import { RequestValidator } from "~/handlers/requestValidator";
+import { ErrorMapper } from "~/mapping";
 import { ServerError } from "../errors/ServerError";
 import type { IGrpcServer } from "../types/IGrpcServer";
 
@@ -25,18 +27,32 @@ const PROTO_PATH = resolve(__dirname, "../../../proto/yt_service.proto");
 
 const SHUTDOWN_TIMEOUT_MS = 8000;
 
+export interface GrpcServerOptions {
+  maxMessageSize?: number;
+}
+
 export class GrpcServer implements IGrpcServer {
   private server: Server;
   private _shuttingDown: boolean = false;
   private _activeStreams: Set<ServerWritableStream<any, any>> = new Set();
+  private requestValidator: RequestValidator;
+  private errorMapper: ErrorMapper;
 
   constructor(
     private metadataHandler: MetadataHandler,
     private formatsHandler: FormatsHandler,
     private backendsHandler: BackendsHandler,
     private downloadHandler: DownloadHandler,
+    options: GrpcServerOptions = {},
   ) {
-    this.server = new Server();
+    this.requestValidator = new RequestValidator();
+    this.errorMapper = new ErrorMapper();
+    const serverOptions: Record<string, unknown> = {};
+    if (options.maxMessageSize !== undefined) {
+      serverOptions["grpc.max_receive_message_length"] = options.maxMessageSize;
+      serverOptions["grpc.max_send_message_length"] = options.maxMessageSize;
+    }
+    this.server = new Server(serverOptions);
   }
 
   get isShuttingDown(): boolean {
@@ -131,10 +147,19 @@ export class GrpcServer implements IGrpcServer {
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
       try {
+        this.requestValidator.validateMetadataRequest(call.request);
         const result = await this.metadataHandler.handle(call.request);
         callback(null, result);
       } catch (err) {
-        callback(err as Error);
+        const mapped = this.errorMapper.mapError(err);
+        callback({
+          code: mapped.grpcStatus,
+          message: JSON.stringify({
+            code: mapped.code,
+            message: mapped.message,
+            retryable: mapped.retryable,
+          }),
+        });
       }
     };
   }
@@ -149,7 +174,15 @@ export class GrpcServer implements IGrpcServer {
         const result = await this.formatsHandler.handle();
         callback(null, result);
       } catch (err) {
-        callback(err as Error);
+        const mapped = this.errorMapper.mapError(err);
+        callback({
+          code: mapped.grpcStatus,
+          message: JSON.stringify({
+            code: mapped.code,
+            message: mapped.message,
+            retryable: mapped.retryable,
+          }),
+        });
       }
     };
   }
@@ -164,7 +197,15 @@ export class GrpcServer implements IGrpcServer {
         const result = await this.backendsHandler.handle();
         callback(null, result);
       } catch (err) {
-        callback(err as Error);
+        const mapped = this.errorMapper.mapError(err);
+        callback({
+          code: mapped.grpcStatus,
+          message: JSON.stringify({
+            code: mapped.code,
+            message: mapped.message,
+            retryable: mapped.retryable,
+          }),
+        });
       }
     };
   }
@@ -180,9 +221,14 @@ export class GrpcServer implements IGrpcServer {
       }
 
       this._activeStreams.add(call);
+      const abortController = new AbortController();
+      call.on("cancelled", () => abortController.abort());
       try {
-        await this.downloadHandler.handle(call.request, (msg) =>
-          call.write(msg),
+        this.requestValidator.validateDownloadRequest(call.request);
+        await this.downloadHandler.handle(
+          call.request,
+          (msg) => call.write(msg),
+          abortController.signal,
         );
         call.end();
       } finally {

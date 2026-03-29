@@ -17,7 +17,11 @@ export class DownloadHandler implements IStreamHandler<DownloadRequest, any> {
     private responseMapper: ResponseMapper,
   ) {}
 
-  async handle(request: DownloadRequest, write: (msg: any) => void) {
+  async handle(
+    request: DownloadRequest,
+    write: (msg: any) => void,
+    signal?: AbortSignal,
+  ) {
     try {
       const result = await this.downloadService.download(
         {
@@ -30,6 +34,7 @@ export class DownloadHandler implements IStreamHandler<DownloadRequest, any> {
         (progress) => {
           write(this.responseMapper.toDownloadProgress(progress));
         },
+        signal,
       );
       write(this.responseMapper.toDownloadComplete(result));
     } catch (err) {

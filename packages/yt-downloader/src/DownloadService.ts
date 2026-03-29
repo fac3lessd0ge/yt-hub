@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import type { YtDlpConfig } from "~/config";
 import type { IBinaryResolver } from "~/dependencies";
 import { DependencyChecker, NodeBinaryResolver } from "~/dependencies";
 import type {
@@ -9,7 +10,7 @@ import type {
   ProgressCallback,
 } from "~/download";
 import { BackendRegistry, YtDlpBackend } from "~/download";
-import { ValidationError, YOUTUBE_PATTERNS } from "~/input";
+import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
 import { OutputPathBuilder } from "~/output";
@@ -44,9 +45,11 @@ export class DownloadService {
       binaryResolver?: IBinaryResolver;
       metadataFetcher?: IMetadataFetcher;
       backends?: BackendRegistry;
+      ytDlpConfig?: YtDlpConfig;
     } = {},
   ) {
-    this.backends = options.backends ?? DownloadService.defaultBackends();
+    this.backends =
+      options.backends ?? DownloadService.defaultBackends(options.ytDlpConfig);
     this.metadataFetcher = options.metadataFetcher ?? new HttpMetadataFetcher();
     this.dependencyChecker = new DependencyChecker(
       options.binaryResolver ?? new NodeBinaryResolver(),
@@ -66,12 +69,13 @@ export class DownloadService {
   async download(
     params: DownloadParams,
     onProgress?: ProgressCallback,
+    signal?: AbortSignal,
   ): Promise<DownloadResult> {
     this.validateParams(params);
 
     this.dependencyChecker.check(this.activeBackend.requiredDependencies());
 
-    const metadata = await this.metadataFetcher.fetch(params.link);
+    const metadata = await this.metadataFetcher.fetch(params.link, signal);
 
     const format = this.activeBackend
       .supportedFormats()
@@ -92,6 +96,7 @@ export class DownloadService {
       outputPath,
       params.format.toLowerCase(),
       onProgress,
+      signal,
     );
 
     return { outputPath, metadata, format };
@@ -126,14 +131,36 @@ export class DownloadService {
       );
     }
 
-    if (!YOUTUBE_PATTERNS.some((pattern) => params.link.includes(pattern))) {
+    if (!DownloadService.isValidYouTubeUrl(params.link)) {
       throw new ValidationError("URL does not look like a YouTube link.");
     }
   }
 
-  private static defaultBackends(): BackendRegistry {
+  private static isValidYouTubeUrl(input: string): boolean {
+    let url: URL;
+    try {
+      url = new URL(input);
+    } catch {
+      return false;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const host = url.hostname.replace(/^(www\.|m\.)/, "");
+    if (host === "youtube.com") {
+      if (url.pathname === "/watch" && url.searchParams.get("v")) return true;
+      if (
+        url.pathname.startsWith("/shorts/") &&
+        url.pathname.length > "/shorts/".length
+      )
+        return true;
+      return false;
+    }
+    if (host === "youtu.be") return url.pathname.length > 1;
+    return false;
+  }
+
+  private static defaultBackends(ytDlpConfig?: YtDlpConfig): BackendRegistry {
     const registry = new BackendRegistry();
-    registry.register(new YtDlpBackend(new NodeProcessSpawner()));
+    registry.register(new YtDlpBackend(new NodeProcessSpawner(), ytDlpConfig));
     return registry;
   }
 }

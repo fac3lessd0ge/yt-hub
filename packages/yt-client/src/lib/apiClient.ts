@@ -4,13 +4,13 @@ import type {
   MetadataResponse,
 } from "@/types/api";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${response.status}`);
+    throw new Error(body.message || `HTTP ${response.status}`);
   }
   return response.json();
 }

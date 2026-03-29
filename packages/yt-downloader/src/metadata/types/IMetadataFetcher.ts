@@ -4,5 +4,5 @@ export interface VideoMetadata {
 }
 
 export interface IMetadataFetcher {
-  fetch(videoUrl: string): Promise<VideoMetadata>;
+  fetch(videoUrl: string, signal?: AbortSignal): Promise<VideoMetadata>;
 }
