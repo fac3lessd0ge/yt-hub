@@ -6,10 +6,12 @@ import {
   FormatsHandler,
   MetadataHandler,
 } from "~/handlers";
+import { createLogger } from "~/logger";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
 import { GrpcServer } from "~/server";
 
-const config = loadConfig();
+const logger = createLogger(process.env.LOG_LEVEL ?? "info");
+const config = loadConfig(logger);
 
 const downloadService = new DownloadService();
 const errorMapper = new ErrorMapper();
@@ -30,6 +32,7 @@ const server = new GrpcServer(
   backendsHandler,
   downloadHandler,
   { maxMessageSize: config.maxMessageSize },
+  logger,
 );
 
 let isShuttingDown = false;
@@ -38,14 +41,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
-  console.log(`Received ${signal}, starting graceful shutdown...`);
+  logger.info({ signal }, "Received signal, starting graceful shutdown");
 
   try {
     await server.stop();
-    console.log("gRPC server stopped gracefully");
+    logger.info("gRPC server stopped gracefully");
     process.exit(0);
   } catch (err) {
-    console.error("Error during graceful shutdown:", err);
+    logger.error({ err }, "Error during graceful shutdown");
     process.exit(1);
   }
 }
@@ -56,9 +59,12 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 server
   .start(config.host, config.port)
   .then(() =>
-    console.log(`gRPC server listening on ${config.host}:${config.port}`),
+    logger.info(
+      { host: config.host, port: config.port },
+      "gRPC server listening",
+    ),
   )
   .catch((err) => {
-    console.error("Failed to start server:", err);
+    logger.error({ err }, "Failed to start server");
     process.exit(1);
   });

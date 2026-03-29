@@ -18,6 +18,7 @@ import type {
   MetadataHandler,
 } from "~/handlers";
 import { RequestValidator } from "~/handlers/requestValidator";
+import type { Logger } from "~/logger";
 import { ErrorMapper } from "~/mapping";
 import { ServerError } from "../errors/ServerError";
 import type { IGrpcServer } from "../types/IGrpcServer";
@@ -37,6 +38,7 @@ export class GrpcServer implements IGrpcServer {
   private _activeStreams: Set<ServerWritableStream<any, any>> = new Set();
   private requestValidator: RequestValidator;
   private errorMapper: ErrorMapper;
+  private logger: Logger;
 
   constructor(
     private metadataHandler: MetadataHandler,
@@ -44,9 +46,19 @@ export class GrpcServer implements IGrpcServer {
     private backendsHandler: BackendsHandler,
     private downloadHandler: DownloadHandler,
     options: GrpcServerOptions = {},
+    logger?: Logger,
   ) {
     this.requestValidator = new RequestValidator();
     this.errorMapper = new ErrorMapper();
+    // Use a no-op logger if none provided (e.g. in tests)
+    this.logger =
+      logger ??
+      ({
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        child: () => logger,
+      } as unknown as Logger);
     const serverOptions: Record<string, unknown> = {};
     if (options.maxMessageSize !== undefined) {
       serverOptions["grpc.max_receive_message_length"] = options.maxMessageSize;
@@ -96,8 +108,9 @@ export class GrpcServer implements IGrpcServer {
 
   async stop(): Promise<void> {
     this._shuttingDown = true;
-    console.log(
-      `Waiting for ${this._activeStreams.size} active stream(s) to finish...`,
+    this.logger.info(
+      { activeStreams: this._activeStreams.size },
+      "Waiting for active streams to finish",
     );
 
     await Promise.race([
@@ -106,8 +119,9 @@ export class GrpcServer implements IGrpcServer {
     ]);
 
     if (this._activeStreams.size > 0) {
-      console.warn(
-        `Shutdown timeout reached with ${this._activeStreams.size} active stream(s) remaining`,
+      this.logger.warn(
+        { activeStreams: this._activeStreams.size },
+        "Shutdown timeout reached with active streams remaining",
       );
     }
 
