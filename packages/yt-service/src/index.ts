@@ -31,6 +31,27 @@ const server = new GrpcServer(
   downloadHandler,
 );
 
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`Received ${signal}, starting graceful shutdown...`);
+
+  try {
+    await server.stop();
+    console.log("gRPC server stopped gracefully");
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during graceful shutdown:", err);
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
 server
   .start(HOST, PORT)
   .then(() => console.log(`gRPC server listening on ${HOST}:${PORT}`))
