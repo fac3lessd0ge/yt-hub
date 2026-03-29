@@ -1,11 +1,17 @@
+use std::pin::Pin;
+
+use tokio_stream::Stream;
 use tonic::transport::Channel;
-use tonic::Streaming;
 
 use crate::proto::yt_service_client::YtServiceClient;
 use crate::proto::{
     DownloadRequest, DownloadResponse, GetMetadataRequest, GetMetadataResponse,
     ListBackendsRequest, ListBackendsResponse, ListFormatsRequest, ListFormatsResponse,
 };
+
+/// A type-erased stream of download responses, usable both with tonic::Streaming and test mocks.
+pub type DownloadStream =
+    Pin<Box<dyn Stream<Item = Result<DownloadResponse, tonic::Status>> + Send>>;
 
 #[async_trait::async_trait]
 pub trait GrpcClientTrait: Clone + Send + Sync + 'static {
@@ -26,7 +32,7 @@ pub trait GrpcClientTrait: Clone + Send + Sync + 'static {
         &self,
         request: DownloadRequest,
         request_id: Option<&str>,
-    ) -> Result<Streaming<DownloadResponse>, tonic::Status>;
+    ) -> Result<DownloadStream, tonic::Status>;
 }
 
 #[derive(Clone)]
@@ -128,11 +134,16 @@ impl GrpcClientTrait for GrpcClient {
         &self,
         download_req: DownloadRequest,
         request_id: Option<&str>,
-    ) -> Result<Streaming<DownloadResponse>, tonic::Status> {
+    ) -> Result<DownloadStream, tonic::Status> {
         let mut request = tonic::Request::new(download_req);
         inject_request_id(&mut request, request_id);
         let start = std::time::Instant::now();
-        let result = self.inner.clone().download(request).await.map(|r| r.into_inner());
+        let result = self
+            .inner
+            .clone()
+            .download(request)
+            .await
+            .map(|r| Box::pin(r.into_inner()) as DownloadStream);
         let duration_ms = start.elapsed().as_millis();
         match &result {
             Ok(_) => {
