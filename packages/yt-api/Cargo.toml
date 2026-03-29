@@ -20,6 +20,11 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.16"
+async-trait = "0.1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 
 [build-dependencies]
 tonic-build = "0.13"

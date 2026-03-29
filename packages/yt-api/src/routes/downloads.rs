@@ -9,6 +9,7 @@ use tokio_stream::StreamExt;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::grpc::GrpcClientTrait;
 use crate::middleware::RequestId;
 use crate::models::requests::DownloadRequestBody;
 use crate::models::responses::{DownloadComplete, DownloadProgress};
@@ -26,8 +27,8 @@ fn serialization_error_event(err: axum::Error) -> Event {
         .data(body.to_string())
 }
 
-pub async fn download(
-    State(state): State<AppState>,
+pub async fn download<C: GrpcClientTrait>(
+    State(state): State<AppState<C>>,
     Extension(req_id): Extension<RequestId>,
     Json(body): Json<DownloadRequestBody>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>>, AppError> {

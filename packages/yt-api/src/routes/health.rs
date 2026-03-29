@@ -7,8 +7,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::AppState;
+use crate::grpc::GrpcClientTrait;
 
-pub async fn health(State(state): State<AppState>) -> Response {
+pub async fn health<C: GrpcClientTrait>(State(state): State<AppState<C>>) -> Response {
     if state.shutting_down.load(Ordering::SeqCst) {
         (
             StatusCode::SERVICE_UNAVAILABLE,

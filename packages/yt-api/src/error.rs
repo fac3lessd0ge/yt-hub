@@ -174,3 +174,108 @@ impl From<tonic::Status> for AppError {
         AppError::GrpcCall(status)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+    use http_body_util::BodyExt;
+
+    async fn response_to_json(resp: Response) -> (StatusCode, serde_json::Value) {
+        let status = resp.status();
+        let body = resp.into_body();
+        let bytes = body.collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        (status, json)
+    }
+
+    #[tokio::test]
+    async fn bad_request_returns_400() {
+        let err = AppError::BadRequest("missing field".into());
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(json["code"], "VALIDATION_ERROR");
+        assert_eq!(json["message"], "missing field");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn validation_returns_400() {
+        let err = AppError::Validation("bad url".into());
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(json["code"], "VALIDATION_ERROR");
+        assert_eq!(json["message"], "bad url");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn grpc_not_found_returns_404() {
+        let err = AppError::GrpcCall(tonic::Status::not_found("video missing"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(json["code"], "VIDEO_NOT_FOUND");
+        assert_eq!(json["message"], "video missing");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn grpc_invalid_argument_returns_400() {
+        let err = AppError::GrpcCall(tonic::Status::invalid_argument("bad arg"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(json["code"], "VALIDATION_ERROR");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn grpc_unavailable_returns_503_retryable() {
+        let err = AppError::GrpcCall(tonic::Status::unavailable("service down"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(json["code"], "SERVICE_UNAVAILABLE");
+        assert_eq!(json["retryable"], true);
+    }
+
+    #[tokio::test]
+    async fn grpc_deadline_exceeded_returns_504_retryable() {
+        let err = AppError::GrpcCall(tonic::Status::deadline_exceeded("timeout"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::GATEWAY_TIMEOUT);
+        assert_eq!(json["code"], "REQUEST_TIMEOUT");
+        assert_eq!(json["retryable"], true);
+    }
+
+    #[tokio::test]
+    async fn grpc_cancelled_returns_400() {
+        let err = AppError::GrpcCall(tonic::Status::cancelled("user cancelled"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(json["code"], "CANCELLED");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn grpc_internal_returns_500() {
+        let err = AppError::GrpcCall(tonic::Status::internal("oops"));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(json["code"], "INTERNAL_ERROR");
+        assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn grpc_json_status_message_extracts_code_and_message() {
+        let json_msg = serde_json::json!({
+            "code": "DOWNLOAD_FAILED",
+            "message": "ffmpeg crashed",
+            "retryable": true
+        });
+        let err = AppError::GrpcCall(tonic::Status::unknown(json_msg.to_string()));
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(json["code"], "DOWNLOAD_FAILED");
+        assert_eq!(json["message"], "ffmpeg crashed");
+        assert_eq!(json["retryable"], true);
+    }
+}

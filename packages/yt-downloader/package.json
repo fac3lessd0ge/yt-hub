@@ -18,7 +18,8 @@
     "download:song": "tsx cli.ts --format mp3",
     "download:video": "tsx cli.ts --format mp4",
     "build": "tsup",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "INTEGRATION=1 vitest run tests/integration/"
   },
   "dependencies": {
     "prompt-sync": "^4.2.0",

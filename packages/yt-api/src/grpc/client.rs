@@ -1,11 +1,39 @@
+use std::pin::Pin;
+
+use tokio_stream::Stream;
 use tonic::transport::Channel;
-use tonic::Streaming;
 
 use crate::proto::yt_service_client::YtServiceClient;
 use crate::proto::{
     DownloadRequest, DownloadResponse, GetMetadataRequest, GetMetadataResponse,
     ListBackendsRequest, ListBackendsResponse, ListFormatsRequest, ListFormatsResponse,
 };
+
+/// A type-erased stream of download responses, usable both with tonic::Streaming and test mocks.
+pub type DownloadStream =
+    Pin<Box<dyn Stream<Item = Result<DownloadResponse, tonic::Status>> + Send>>;
+
+#[async_trait::async_trait]
+pub trait GrpcClientTrait: Clone + Send + Sync + 'static {
+    async fn get_metadata(
+        &self,
+        link: &str,
+        request_id: Option<&str>,
+    ) -> Result<GetMetadataResponse, tonic::Status>;
+    async fn list_formats(
+        &self,
+        request_id: Option<&str>,
+    ) -> Result<ListFormatsResponse, tonic::Status>;
+    async fn list_backends(
+        &self,
+        request_id: Option<&str>,
+    ) -> Result<ListBackendsResponse, tonic::Status>;
+    async fn download(
+        &self,
+        request: DownloadRequest,
+        request_id: Option<&str>,
+    ) -> Result<DownloadStream, tonic::Status>;
+}
 
 #[derive(Clone)]
 pub struct GrpcClient {
@@ -29,8 +57,11 @@ impl GrpcClient {
         let inner = YtServiceClient::connect(addr.to_string()).await?;
         Ok(Self { inner })
     }
+}
 
-    pub async fn get_metadata(
+#[async_trait::async_trait]
+impl GrpcClientTrait for GrpcClient {
+    async fn get_metadata(
         &self,
         link: &str,
         request_id: Option<&str>,
@@ -55,7 +86,7 @@ impl GrpcClient {
         result
     }
 
-    pub async fn list_formats(
+    async fn list_formats(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListFormatsResponse, tonic::Status> {
@@ -77,7 +108,7 @@ impl GrpcClient {
         result
     }
 
-    pub async fn list_backends(
+    async fn list_backends(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListBackendsResponse, tonic::Status> {
@@ -99,15 +130,20 @@ impl GrpcClient {
         result
     }
 
-    pub async fn download(
+    async fn download(
         &self,
         download_req: DownloadRequest,
         request_id: Option<&str>,
-    ) -> Result<Streaming<DownloadResponse>, tonic::Status> {
+    ) -> Result<DownloadStream, tonic::Status> {
         let mut request = tonic::Request::new(download_req);
         inject_request_id(&mut request, request_id);
         let start = std::time::Instant::now();
-        let result = self.inner.clone().download(request).await.map(|r| r.into_inner());
+        let result = self
+            .inner
+            .clone()
+            .download(request)
+            .await
+            .map(|r| Box::pin(r.into_inner()) as DownloadStream);
         let duration_ms = start.elapsed().as_millis();
         match &result {
             Ok(_) => {
