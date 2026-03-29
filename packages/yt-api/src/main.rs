@@ -14,6 +14,8 @@ use std::sync::Arc;
 
 use tokio::signal;
 use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{EnvFilter, fmt};
 
 use crate::config::Config;
 use crate::grpc::GrpcClient;
@@ -63,7 +65,11 @@ async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    tracing_subscriber::fmt::init();
+
+    let filter = EnvFilter::try_from_env("RUST_LOG")
+        .or_else(|_| EnvFilter::try_from_env("LOG_LEVEL"))
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+    fmt().json().with_env_filter(filter).with_target(true).with_current_span(true).init();
 
     let config = Config::from_env();
 
@@ -84,6 +90,7 @@ async fn main() {
 
     let app = routes::router()
         .with_state(state)
+        .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive());
 
     let addr = config.addr();
