@@ -27,6 +27,16 @@ npx nx serve yt-client     # Electron app
 
 The app connects to `yt-api` at `http://localhost:3000`.
 
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server |
+
+### Error Handling
+
+API errors are surfaced from the `body.message` field of error responses.
+
 ## Usage
 
 1. Paste a YouTube link into the **YouTube Link** field

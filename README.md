@@ -89,13 +89,44 @@ npx nx typecheck <package> # Type check (TS packages only)
 npx nx build <package>     # Build
 ```
 
-## CI
+## CI/CD
+
+### CI (Pull Requests)
 
 GitHub Actions runs on every pull request to `main` or `dev`:
 
 - Installs Node.js 20, Rust toolchain, and protoc
 - Builds yt-downloader
-- Runs lint, test, and typecheck across all packages
+- Nx-affected smart testing (only tests changed packages)
+- Explicit Rust clippy linting
+- Docker build validation (path-filtered — only runs when Dockerfiles or related files change)
+- Proto compatibility check
+
+### CD (Releases)
+
+- Tag-triggered (`v*.*.*`) workflow publishes Docker images to GHCR
+- Dependabot keeps npm, Cargo, and GitHub Actions dependencies up to date (weekly, targeting `dev`)
+- Weekly security scanning via `npm audit` and `cargo audit` (also runs on PRs)
+
+## Configuration
+
+Each package is configured via environment variables. See `.env.example` files in each package.
+
+| Variable | Package | Default | Description |
+|----------|---------|---------|-------------|
+| `YT_API_HOST` | yt-api | `0.0.0.0` | HTTP bind address |
+| `YT_API_PORT` | yt-api | `3000` | HTTP port |
+| `GRPC_TARGET` | yt-api | `http://localhost:50051` | yt-service gRPC endpoint |
+| `LOG_LEVEL` | yt-api | `info` | Log verbosity |
+| `REQUEST_TIMEOUT_MS` | yt-api | `30000` | Request timeout in ms |
+| `GRPC_HOST` | yt-service | `0.0.0.0` | gRPC bind address |
+| `GRPC_PORT` | yt-service | `50051` | gRPC port |
+| `LOG_LEVEL` | yt-service | `info` | Log verbosity |
+| `REQUEST_TIMEOUT_MS` | yt-service | `30000` | Request timeout in ms |
+| `MAX_MESSAGE_SIZE` | yt-service | `4194304` | Max gRPC message size (bytes) |
+| `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
+
+yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
 
 ## Project Structure
 
