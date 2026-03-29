@@ -11,6 +11,7 @@ export type {
   ProgressCallback,
 } from "./download";
 export { CancellationError, DownloadError } from "./download";
+export type { ILogger } from "./infra";
 export { ValidationError } from "./input";
 // Re-export shared types for consumers
 export type { VideoMetadata } from "./metadata";

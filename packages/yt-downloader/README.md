@@ -247,6 +247,34 @@ Output filenames are sanitized to prevent path traversal attacks. Characters lik
 
 Metadata fetching retries up to 3 times with exponential backoff and a 10-second timeout per attempt.
 
+## Logging
+
+yt-downloader provides a `ConsoleLogger` that implements the `ILogger` interface with structured output:
+
+- **Log levels**: `debug`, `info`, `warn`, `error` with minimum level filtering
+- **ISO timestamps**: every log line includes an ISO 8601 timestamp
+- **Backward-compatible**: the `ILogger` interface allows consumers (like yt-service) to inject their own logger implementation
+
+```typescript
+import { ConsoleLogger } from "yt-downloader";
+
+const logger = new ConsoleLogger("info"); // minimum level
+logger.info("Download started", { url: "..." });
+// 2026-03-29T12:00:00.000Z [INFO] Download started {"url":"..."}
+```
+
+## Testing
+
+```bash
+# Unit tests
+bun test
+
+# Integration tests (requires yt-dlp and ffmpeg on PATH)
+INTEGRATION=1 bun test
+```
+
+Integration tests exercise real downloads via yt-dlp and are guarded by the `INTEGRATION=1` environment variable. They are skipped by default to keep CI fast.
+
 ## Development
 
 ```bash

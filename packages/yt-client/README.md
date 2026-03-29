@@ -46,6 +46,23 @@ API errors are surfaced from the `body.message` field of error responses.
 5. Watch the progress bar fill with real-time speed and ETA
 6. When complete, see the result card with the file path
 
+## Testing
+
+yt-client has 40+ tests covering React components and custom hooks using [Vitest](https://vitest.dev/) with [jsdom](https://github.com/jsdom/jsdom) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro).
+
+```bash
+# Run all tests
+npx vitest run
+
+# Or via Nx
+npx nx test yt-client
+```
+
+Test coverage:
+
+- **Component tests**: DownloadForm, DownloadProgress, DownloadResult, DownloadPage — render states, user interactions, error display
+- **Hook tests**: useFormats, useBackends, useMetadata, useDownload — data fetching, loading states, error handling, SSE progress tracking
+
 ## Development
 
 ```bash

@@ -1,3 +1,5 @@
+import type { Logger } from "~/logger";
+
 export interface ServiceConfig {
   host: string;
   port: number;
@@ -6,7 +8,7 @@ export interface ServiceConfig {
   maxMessageSize: number;
 }
 
-export function loadConfig(): ServiceConfig {
+export function loadConfig(logger: Logger): ServiceConfig {
   const host = process.env.GRPC_HOST ?? "0.0.0.0";
   const port = Number(process.env.GRPC_PORT ?? 50051);
   const logLevel = process.env.LOG_LEVEL ?? "info";
@@ -39,13 +41,7 @@ export function loadConfig(): ServiceConfig {
     maxMessageSize,
   };
 
-  console.log("Resolved service config:", {
-    host: config.host,
-    port: config.port,
-    logLevel: config.logLevel,
-    requestTimeoutMs: config.requestTimeoutMs,
-    maxMessageSize: config.maxMessageSize,
-  });
+  logger.info({ config }, "Resolved service config");
 
   return config;
 }
