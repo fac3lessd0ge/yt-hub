@@ -102,3 +102,146 @@ pub fn validate_destination(dest: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- validate_youtube_url ---
+
+    #[test]
+    fn url_empty_is_rejected() {
+        let err = validate_youtube_url("").unwrap_err();
+        assert!(err.contains("empty"), "expected 'empty' in: {err}");
+    }
+
+    #[test]
+    fn url_too_long_is_rejected() {
+        let long = format!("https://youtube.com/watch?v={}", "a".repeat(MAX_URL_LENGTH));
+        assert!(validate_youtube_url(&long).is_err());
+    }
+
+    #[test]
+    fn url_non_http_scheme_is_rejected() {
+        let err = validate_youtube_url("ftp://youtube.com/watch?v=abc").unwrap_err();
+        assert!(err.contains("http"), "expected mention of http in: {err}");
+    }
+
+    #[test]
+    fn url_bad_host_is_rejected() {
+        let err = validate_youtube_url("https://example.com/watch?v=abc").unwrap_err();
+        assert!(
+            err.contains("youtube.com") || err.contains("youtu.be"),
+            "expected allowed host mention in: {err}"
+        );
+    }
+
+    #[test]
+    fn url_www_youtube_watch_is_valid() {
+        assert!(validate_youtube_url("https://www.youtube.com/watch?v=abc").is_ok());
+    }
+
+    #[test]
+    fn url_youtu_be_with_id_is_valid() {
+        assert!(validate_youtube_url("https://youtu.be/abc123").is_ok());
+    }
+
+    #[test]
+    fn url_youtu_be_without_id_is_rejected() {
+        let err = validate_youtube_url("https://youtu.be/").unwrap_err();
+        assert!(
+            err.contains("video ID"),
+            "expected 'video ID' in: {err}"
+        );
+    }
+
+    #[test]
+    fn url_shorts_is_valid() {
+        assert!(validate_youtube_url("https://youtube.com/shorts/abc123").is_ok());
+    }
+
+    #[test]
+    fn url_unknown_host_is_rejected() {
+        assert!(validate_youtube_url("https://vimeo.com/123").is_err());
+    }
+
+    #[test]
+    fn url_m_youtube_is_valid() {
+        assert!(validate_youtube_url("https://m.youtube.com/watch?v=xyz").is_ok());
+    }
+
+    #[test]
+    fn url_youtube_no_v_param_is_rejected() {
+        assert!(validate_youtube_url("https://youtube.com/watch").is_err());
+    }
+
+    #[test]
+    fn url_youtube_unknown_path_is_rejected() {
+        assert!(validate_youtube_url("https://youtube.com/playlist?list=abc").is_err());
+    }
+
+    // --- validate_format ---
+
+    #[test]
+    fn format_empty_is_rejected() {
+        let err = validate_format("").unwrap_err();
+        assert!(err.contains("empty"), "expected 'empty' in: {err}");
+    }
+
+    #[test]
+    fn format_too_long_is_rejected() {
+        let long = "a".repeat(MAX_FORMAT_LENGTH + 1);
+        assert!(validate_format(&long).is_err());
+    }
+
+    #[test]
+    fn format_valid() {
+        assert!(validate_format("mp4").is_ok());
+    }
+
+    // --- validate_name ---
+
+    #[test]
+    fn name_empty_is_rejected() {
+        let err = validate_name("").unwrap_err();
+        assert!(err.contains("empty"), "expected 'empty' in: {err}");
+    }
+
+    #[test]
+    fn name_too_long_is_rejected() {
+        let long = "a".repeat(MAX_NAME_LENGTH + 1);
+        assert!(validate_name(&long).is_err());
+    }
+
+    #[test]
+    fn name_valid() {
+        assert!(validate_name("my-video").is_ok());
+    }
+
+    // --- validate_destination ---
+
+    #[test]
+    fn destination_too_long_is_rejected() {
+        let long = "a".repeat(MAX_DESTINATION_LENGTH + 1);
+        assert!(validate_destination(&long).is_err());
+    }
+
+    #[test]
+    fn destination_null_byte_is_rejected() {
+        let err = validate_destination("/tmp/foo\0bar").unwrap_err();
+        assert!(
+            err.contains("null"),
+            "expected 'null' in: {err}"
+        );
+    }
+
+    #[test]
+    fn destination_valid() {
+        assert!(validate_destination("/tmp/downloads").is_ok());
+    }
+
+    #[test]
+    fn destination_empty_is_allowed() {
+        assert!(validate_destination("").is_ok());
+    }
+}
