@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use axum::Json;
 use axum::extract::State;
 use axum::response::sse::{Event, Sse};
+use serde_json::json;
 use tokio_stream::StreamExt;
 
 use crate::AppState;
@@ -10,6 +11,17 @@ use crate::error::AppError;
 use crate::models::requests::DownloadRequestBody;
 use crate::models::responses::{DownloadComplete, DownloadError, DownloadProgress};
 use crate::proto;
+
+fn serialization_error_event(err: axum::Error) -> Event {
+    let body = json!({
+        "code": "SERIALIZATION_ERROR",
+        "message": format!("Failed to serialize SSE payload: {err}"),
+        "retryable": false
+    });
+    Event::default()
+        .event("error")
+        .data(body.to_string())
+}
 
 pub async fn download(
     State(state): State<AppState>,
@@ -30,7 +42,7 @@ pub async fn download(
                     Event::default()
                         .event("progress")
                         .json_data(data)
-                        .unwrap()
+                        .unwrap_or_else(serialization_error_event)
                 }
                 Some(proto::download_response::Payload::Complete(c)) => {
                     let data = DownloadComplete {
@@ -43,7 +55,7 @@ pub async fn download(
                     Event::default()
                         .event("complete")
                         .json_data(data)
-                        .unwrap()
+                        .unwrap_or_else(serialization_error_event)
                 }
                 Some(proto::download_response::Payload::Error(e)) => {
                     let data = DownloadError {
@@ -53,7 +65,7 @@ pub async fn download(
                     Event::default()
                         .event("error")
                         .json_data(data)
-                        .unwrap()
+                        .unwrap_or_else(serialization_error_event)
                 }
                 None => Event::default().comment("empty payload"),
             },
@@ -65,7 +77,7 @@ pub async fn download(
                 Event::default()
                     .event("error")
                     .json_data(data)
-                    .unwrap()
+                    .unwrap_or_else(serialization_error_event)
             }
         };
         Ok(event)
