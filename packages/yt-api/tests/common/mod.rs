@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -125,38 +127,65 @@ impl MockGrpcClientBuilder {
 
 #[async_trait::async_trait]
 impl GrpcClientTrait for MockGrpcClient {
-    async fn get_metadata(&self, _link: &str) -> Result<GetMetadataResponse, tonic::Status> {
+    async fn get_metadata(
+        &self,
+        _link: &str,
+        _request_id: Option<&str>,
+    ) -> Result<GetMetadataResponse, tonic::Status> {
         (self.inner.get_metadata_fn)()
     }
 
-    async fn list_formats(&self) -> Result<ListFormatsResponse, tonic::Status> {
+    async fn list_formats(
+        &self,
+        _request_id: Option<&str>,
+    ) -> Result<ListFormatsResponse, tonic::Status> {
         (self.inner.list_formats_fn)()
     }
 
-    async fn list_backends(&self) -> Result<ListBackendsResponse, tonic::Status> {
+    async fn list_backends(
+        &self,
+        _request_id: Option<&str>,
+    ) -> Result<ListBackendsResponse, tonic::Status> {
         (self.inner.list_backends_fn)()
     }
 
     async fn download(
         &self,
         request: DownloadRequest,
+        _request_id: Option<&str>,
     ) -> Result<Streaming<DownloadResponse>, tonic::Status> {
         (self.inner.download_fn)(request)
     }
+}
+
+fn test_metrics_handle() -> metrics_exporter_prometheus::PrometheusHandle {
+    metrics_exporter_prometheus::PrometheusBuilder::new()
+        .build_recorder()
+        .handle()
 }
 
 pub fn make_app(mock: MockGrpcClient) -> Router {
     let state = AppState {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(false)),
+        metrics_handle: test_metrics_handle(),
     };
-    yt_api::routes::router::<MockGrpcClient>().with_state(state)
+    yt_api::routes::router::<MockGrpcClient>()
+        .with_state(state)
+        .layer(axum::middleware::from_fn(
+            yt_api::middleware::request_id::request_id_middleware,
+        ))
 }
 
 pub fn make_app_shutting_down(mock: MockGrpcClient) -> Router {
     let state = AppState {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(true)),
+        metrics_handle: test_metrics_handle(),
     };
-    yt_api::routes::router::<MockGrpcClient>().with_state(state)
+    yt_api::routes::router::<MockGrpcClient>()
+        .with_state(state)
+        .layer(axum::middleware::from_fn(
+            yt_api::middleware::request_id::request_id_middleware,
+        ))
 }

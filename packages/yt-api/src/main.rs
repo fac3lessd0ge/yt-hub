@@ -1,34 +1,16 @@
-mod config;
-pub mod error;
-pub mod grpc;
-mod middleware;
-pub mod models;
-pub mod routes;
-pub mod validation;
-
-pub mod proto {
-    tonic::include_proto!("yt_service");
-}
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::signal;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{EnvFilter, fmt};
 
-use crate::config::Config;
-use crate::grpc::GrpcClient;
-pub use crate::grpc::GrpcClientTrait;
+use yt_api::grpc::GrpcClient;
+use yt_api::AppState;
 
-#[derive(Clone)]
-pub struct AppState<C: GrpcClientTrait = GrpcClient> {
-    pub grpc_client: C,
-    pub shutting_down: Arc<AtomicBool>,
-    pub metrics_handle: PrometheusHandle,
-}
+mod config;
+use config::Config;
 
 async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
     let ctrl_c = async {
@@ -106,14 +88,14 @@ async fn main() {
         metrics_handle,
     };
 
-    let api_routes = routes::router()
+    let api_routes = yt_api::routes::router()
         .with_state(state.clone())
-        .layer(axum::middleware::from_fn(middleware::metrics::metrics_middleware))
+        .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
         .layer(TraceLayer::new_for_http())
-        .layer(axum::middleware::from_fn(middleware::request_id::request_id_middleware));
+        .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware));
 
     let app = api_routes
-        .merge(routes::metrics_router().with_state(state))
+        .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(CorsLayer::permissive());
 
     let addr = config.addr();
