@@ -47,5 +47,5 @@ ENV YT_API_PORT=3000
 ENV GRPC_TARGET=http://yt-service:50051
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/api/formats || exit 1
+    CMD curl -f http://localhost:3000/health || exit 1
 CMD ["yt-api"]

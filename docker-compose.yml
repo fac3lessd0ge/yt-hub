@@ -11,6 +11,7 @@ services:
     volumes:
       - downloads:/home/appuser/Downloads/yt-downloader
     restart: unless-stopped
+    stop_grace_period: 10s
     healthcheck:
       test: ["CMD", "node", "-e", "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"]
       interval: 10s
@@ -31,8 +32,9 @@ services:
       yt-service:
         condition: service_healthy
     restart: unless-stopped
+    stop_grace_period: 10s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/formats"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 10s
       timeout: 3s
       start_period: 5s
