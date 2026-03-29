@@ -221,10 +221,14 @@ export class GrpcServer implements IGrpcServer {
       }
 
       this._activeStreams.add(call);
+      const abortController = new AbortController();
+      call.on("cancelled", () => abortController.abort());
       try {
         this.requestValidator.validateDownloadRequest(call.request);
-        await this.downloadHandler.handle(call.request, (msg) =>
-          call.write(msg),
+        await this.downloadHandler.handle(
+          call.request,
+          (msg) => call.write(msg),
+          abortController.signal,
         );
         call.end();
       } finally {

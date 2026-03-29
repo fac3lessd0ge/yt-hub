@@ -7,12 +7,12 @@ import type {
 export class HttpMetadataFetcher implements IMetadataFetcher {
   private static readonly OEMBED_URL = "https://www.youtube.com/oembed";
 
-  async fetch(videoUrl: string): Promise<VideoMetadata> {
+  async fetch(videoUrl: string, signal?: AbortSignal): Promise<VideoMetadata> {
     const url = `${HttpMetadataFetcher.OEMBED_URL}?url=${encodeURIComponent(videoUrl)}&format=json`;
 
     let response: Response;
     try {
-      response = await globalThis.fetch(url);
+      response = await globalThis.fetch(url, signal ? { signal } : undefined);
     } catch {
       throw new MetadataError("Network error while fetching video metadata");
     }

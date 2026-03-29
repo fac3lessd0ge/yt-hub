@@ -6,6 +6,7 @@ export interface SpawnOptions {
   stdout: "inherit" | "pipe";
   stderr: "inherit" | "pipe";
   onStdout?: (line: string) => void;
+  signal?: AbortSignal;
 }
 
 export interface IProcessSpawner {

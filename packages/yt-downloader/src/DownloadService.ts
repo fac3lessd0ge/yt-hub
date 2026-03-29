@@ -69,12 +69,13 @@ export class DownloadService {
   async download(
     params: DownloadParams,
     onProgress?: ProgressCallback,
+    signal?: AbortSignal,
   ): Promise<DownloadResult> {
     this.validateParams(params);
 
     this.dependencyChecker.check(this.activeBackend.requiredDependencies());
 
-    const metadata = await this.metadataFetcher.fetch(params.link);
+    const metadata = await this.metadataFetcher.fetch(params.link, signal);
 
     const format = this.activeBackend
       .supportedFormats()
@@ -95,6 +96,7 @@ export class DownloadService {
       outputPath,
       params.format.toLowerCase(),
       onProgress,
+      signal,
     );
 
     return { outputPath, metadata, format };
