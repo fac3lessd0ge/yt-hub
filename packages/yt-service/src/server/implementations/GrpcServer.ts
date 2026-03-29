@@ -17,6 +17,7 @@ import type {
   FormatsHandler,
   MetadataHandler,
 } from "~/handlers";
+import { RequestValidator } from "~/handlers/requestValidator";
 import { ServerError } from "../errors/ServerError";
 import type { IGrpcServer } from "../types/IGrpcServer";
 
@@ -33,6 +34,7 @@ export class GrpcServer implements IGrpcServer {
   private server: Server;
   private _shuttingDown: boolean = false;
   private _activeStreams: Set<ServerWritableStream<any, any>> = new Set();
+  private requestValidator: RequestValidator;
 
   constructor(
     private metadataHandler: MetadataHandler,
@@ -41,6 +43,7 @@ export class GrpcServer implements IGrpcServer {
     private downloadHandler: DownloadHandler,
     options: GrpcServerOptions = {},
   ) {
+    this.requestValidator = new RequestValidator();
     const serverOptions: Record<string, unknown> = {};
     if (options.maxMessageSize !== undefined) {
       serverOptions["grpc.max_receive_message_length"] = options.maxMessageSize;
@@ -141,6 +144,7 @@ export class GrpcServer implements IGrpcServer {
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
       try {
+        this.requestValidator.validateMetadataRequest(call.request);
         const result = await this.metadataHandler.handle(call.request);
         callback(null, result);
       } catch (err) {
@@ -191,6 +195,7 @@ export class GrpcServer implements IGrpcServer {
 
       this._activeStreams.add(call);
       try {
+        this.requestValidator.validateDownloadRequest(call.request);
         await this.downloadHandler.handle(call.request, (msg) =>
           call.write(msg),
         );
