@@ -10,7 +10,7 @@ import type {
   ProgressCallback,
 } from "~/download";
 import { BackendRegistry, YtDlpBackend } from "~/download";
-import { ValidationError, YOUTUBE_PATTERNS } from "~/input";
+import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
 import { OutputPathBuilder } from "~/output";
@@ -131,9 +131,31 @@ export class DownloadService {
       );
     }
 
-    if (!YOUTUBE_PATTERNS.some((pattern) => params.link.includes(pattern))) {
+    if (!DownloadService.isValidYouTubeUrl(params.link)) {
       throw new ValidationError("URL does not look like a YouTube link.");
     }
+  }
+
+  private static isValidYouTubeUrl(input: string): boolean {
+    let url: URL;
+    try {
+      url = new URL(input);
+    } catch {
+      return false;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const host = url.hostname.replace(/^(www\.|m\.)/, "");
+    if (host === "youtube.com") {
+      if (url.pathname === "/watch" && url.searchParams.get("v")) return true;
+      if (
+        url.pathname.startsWith("/shorts/") &&
+        url.pathname.length > "/shorts/".length
+      )
+        return true;
+      return false;
+    }
+    if (host === "youtu.be") return url.pathname.length > 1;
+    return false;
   }
 
   private static defaultBackends(ytDlpConfig?: YtDlpConfig): BackendRegistry {
