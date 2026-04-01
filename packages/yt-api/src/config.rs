@@ -21,29 +21,72 @@ fn default_request_timeout_ms() -> u64 {
     30000
 }
 
+fn default_max_body_size_bytes() -> usize {
+    1_048_576
+}
+
+fn default_rate_limit_rpm() -> u32 {
+    30
+}
+
+/// Intermediate struct used by envy for env-var deserialization.
+/// `allowed_origins` is handled manually after parsing.
 #[derive(Deserialize)]
-pub struct Config {
+struct RawConfig {
     #[serde(default = "default_host")]
-    pub yt_api_host: String,
+    yt_api_host: String,
 
     #[serde(default = "default_port")]
-    pub yt_api_port: u16,
+    yt_api_port: u16,
 
     #[serde(default = "default_grpc_target")]
-    pub grpc_target: String,
+    grpc_target: String,
 
     #[serde(default = "default_log_level")]
-    pub log_level: String,
+    log_level: String,
 
     #[serde(default = "default_request_timeout_ms")]
+    request_timeout_ms: u64,
+
+    #[serde(default = "default_max_body_size_bytes")]
+    max_body_size_bytes: usize,
+
+    #[serde(default = "default_rate_limit_rpm")]
+    rate_limit_rpm: u32,
+}
+
+pub struct Config {
+    pub yt_api_host: String,
+    pub yt_api_port: u16,
+    pub grpc_target: String,
+    pub log_level: String,
     pub request_timeout_ms: u64,
+    pub max_body_size_bytes: usize,
+    pub rate_limit_rpm: u32,
+    pub allowed_origins: Vec<String>,
+}
+
+fn default_allowed_origins() -> Vec<String> {
+    vec![
+        "http://localhost:5173".to_string(),
+        "http://localhost:3000".to_string(),
+    ]
+}
+
+fn parse_allowed_origins() -> Vec<String> {
+    match env::var("ALLOWED_ORIGINS") {
+        Ok(val) if !val.trim().is_empty() => {
+            val.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        }
+        _ => default_allowed_origins(),
+    }
 }
 
 impl Config {
     pub fn from_env() -> Self {
-        let config: Self = envy::from_env().unwrap_or_else(|err| {
+        let raw: RawConfig = envy::from_env().unwrap_or_else(|err| {
             tracing::warn!("Failed to parse config from env with envy ({err}), falling back to manual parsing");
-            Self {
+            RawConfig {
                 yt_api_host: env::var("YT_API_HOST").unwrap_or_else(|_| default_host()),
                 yt_api_port: env::var("YT_API_PORT")
                     .ok()
@@ -55,8 +98,27 @@ impl Config {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(default_request_timeout_ms),
+                max_body_size_bytes: env::var("MAX_BODY_SIZE_BYTES")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(default_max_body_size_bytes),
+                rate_limit_rpm: env::var("RATE_LIMIT_RPM")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(default_rate_limit_rpm),
             }
         });
+
+        let config = Self {
+            yt_api_host: raw.yt_api_host,
+            yt_api_port: raw.yt_api_port,
+            grpc_target: raw.grpc_target,
+            log_level: raw.log_level,
+            request_timeout_ms: raw.request_timeout_ms,
+            max_body_size_bytes: raw.max_body_size_bytes,
+            rate_limit_rpm: raw.rate_limit_rpm,
+            allowed_origins: parse_allowed_origins(),
+        };
 
         config.validate();
 
@@ -66,6 +128,8 @@ impl Config {
             grpc_target = %config.grpc_target,
             log_level = %config.log_level,
             request_timeout_ms = config.request_timeout_ms,
+            max_body_size_bytes = config.max_body_size_bytes,
+            rate_limit_rpm = config.rate_limit_rpm,
             "Resolved yt-api config"
         );
 
@@ -88,5 +152,9 @@ impl Config {
 
     pub fn addr(&self) -> String {
         format!("{}:{}", self.yt_api_host, self.yt_api_port)
+    }
+
+    pub fn governor_period_secs(&self) -> u64 {
+        60u64 / (self.rate_limit_rpm as u64).max(1)
     }
 }

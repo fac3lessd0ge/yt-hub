@@ -2,6 +2,7 @@
 name = "yt-api"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 axum = { version = "0.8", features = ["json"] }
@@ -10,7 +11,10 @@ tonic = "0.13"
 prost = "0.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tower = { version = "0.5", features = ["timeout", "util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower_governor = "0.8"
+governor = { version = "0.10", default-features = false, features = ["std", "quanta"] }
 dotenvy = "0.15"
 envy = "0.4"
 tracing = "0.1"
@@ -23,7 +27,6 @@ metrics-exporter-prometheus = "0.16"
 async-trait = "0.1"
 
 [dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 
 [build-dependencies]
