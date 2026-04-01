@@ -13,8 +13,11 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{EnvFilter, fmt};
 
+use std::net::SocketAddr;
+
 use yt_api::grpc::GrpcClient;
 use yt_api::AppState;
+use yt_api::middleware::rateLimit::build_governor_layer;
 
 mod config;
 use config::Config;
@@ -138,6 +141,8 @@ async fn main() {
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);
     let streaming_timeout = Duration::from_secs(600);
 
+    let governor_layer = build_governor_layer(config.governor_period_secs(), 10);
+
     let regular_routes = yt_api::routes::regular_routes()
         .with_state(state.clone())
         .layer(
@@ -164,8 +169,11 @@ async fn main() {
 
     let cors_layer = build_cors_layer(&config);
 
-    let app = regular_routes
+    let api_routes = regular_routes
         .merge(streaming_routes)
+        .layer(governor_layer);
+
+    let app = api_routes
         .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(cors_layer);
 
@@ -180,7 +188,7 @@ async fn main() {
         }
     };
 
-    match axum::serve(listener, app)
+    match axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal(shutting_down))
         .await
     {
