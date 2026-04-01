@@ -113,6 +113,7 @@ GitHub Actions runs on every pull request to `main` or `dev`:
 - Tag-triggered (`v*.*.*`) workflow publishes Docker images to GHCR
 - Dependabot keeps npm, Cargo, and GitHub Actions dependencies up to date (weekly, targeting `dev`)
 - Weekly security scanning via `npm audit` and `cargo audit` (also runs on PRs)
+- SBOM generation (CycloneDX) and `cargo-deny` advisory/license scanning in the security workflow
 
 ## Monitoring
 
@@ -134,6 +135,25 @@ Pre-built Grafana dashboards are included: service overview, download metrics, a
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
 ```
 
+## Production Deployment
+
+Production uses Traefik as a reverse proxy with automatic Let's Encrypt TLS.
+
+```bash
+# First-time setup
+cp .env.prod.example .env.prod
+# Edit .env.prod with your domain and email
+touch traefik/acme.json && chmod 600 traefik/acme.json
+
+# Deploy
+VERSION=v0.4.0 bash scripts/deploy.sh
+
+# Rollback
+bash scripts/rollback.sh v0.3.0
+```
+
+See [`docs/deploymentRunbook.md`](docs/deploymentRunbook.md) for the full deployment guide.
+
 ## Testing
 
 Each package has its own test suite:
@@ -143,7 +163,7 @@ Each package has its own test suite:
 npx nx run-many -t test
 
 # Per-package
-npx nx test yt-api           # 47 Rust tests (cargo test)
+npx nx test yt-api           # 49 Rust tests (cargo test)
 npx nx test yt-service       # Vitest (npx vitest run)
 npx nx test yt-client        # Vitest + React Testing Library (jsdom)
 npx nx test yt-downloader    # Bun test
@@ -168,6 +188,9 @@ Each package is configured via environment variables. See `.env.example` files i
 | `LOG_LEVEL` | yt-service | `info` | Log verbosity |
 | `REQUEST_TIMEOUT_MS` | yt-service | `30000` | Request timeout in ms |
 | `MAX_MESSAGE_SIZE` | yt-service | `4194304` | Max gRPC message size (bytes) |
+| `ALLOWED_ORIGINS` | yt-api | `http://localhost:5173,http://localhost:3000` | Comma-separated CORS allowed origins |
+| `MAX_BODY_SIZE_BYTES` | yt-api | `1048576` | Maximum request body size in bytes |
+| `RATE_LIMIT_RPM` | yt-api | `30` | Rate limit: requests per minute per IP |
 | `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
@@ -183,8 +206,11 @@ yt-hub/
 │   └── yt-client/        # Desktop app (Electron/React)
 ├── scripts/              # Dev orchestration (npm run dev)
 ├── .github/workflows/    # CI pipeline
-├── docker-compose.yml    # Docker Compose for backend services
-├── .env.example          # Environment variable template
+├── docker-compose.yml         # Docker Compose for backend services
+├── docker-compose.prod.yml   # Production Docker Compose with Traefik
+├── traefik/                  # Traefik v3 configuration
+├── docs/                     # TLS strategy, deployment runbook
+├── .env.example              # Environment variable template
 ├── biome.json            # Linting and formatting config
 ├── nx.json               # Nx task orchestration config
 └── tsconfig.base.json    # Shared TypeScript config
