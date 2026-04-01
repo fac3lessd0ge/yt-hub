@@ -8,3 +8,5 @@ Downloads/
 deps
 incremental
 build
+.env.prod
+traefik/acme.json
