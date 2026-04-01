@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: packages/yt-service/Dockerfile
+      args:
+        YT_DLP_VERSION: ${YT_DLP_VERSION:-2026.03.17}
     ports:
       - "50051:50051"
     env_file:

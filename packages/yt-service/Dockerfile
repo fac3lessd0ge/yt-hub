@@ -11,7 +11,7 @@ RUN npm run build --workspace=yt-downloader
 
 # ---- Stage 3: Runtime ----
 FROM node:20-bookworm-slim AS runtime
-ARG YT_DLP_VERSION=2024.12.23
+ARG YT_DLP_VERSION=2026.03.17
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg curl python3 ca-certificates && \
     curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" -o /usr/local/bin/yt-dlp && \
