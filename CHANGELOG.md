@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-04-01
+
+### Added
+
+- CORS restriction: configurable origin allowlist via `ALLOWED_ORIGINS` env var (replaces permissive CORS)
+- Request body size limit (1MB default) configurable via `MAX_BODY_SIZE_BYTES`
+- Request timeouts: 30s for regular routes, 10min for SSE download streams
+- Per-IP rate limiting via `tower_governor` (30 req/min default) with `Retry-After` header, configurable via `RATE_LIMIT_RPM`
+- Security response headers: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Content-Security-Policy
+- SBOM generation (CycloneDX) and `cargo-deny` license/advisory scanning in CI
+- TLS strategy document (`docs/tlsStrategy.md`)
+- Production Docker Compose (`docker-compose.prod.yml`) with Traefik v3 reverse proxy and Let's Encrypt TLS
+- Traefik static configuration (`traefik/traefik.yml`) with HTTP→HTTPS redirect
+- Deployment script (`scripts/deploy.sh`) with health check polling
+- Rollback script (`scripts/rollback.sh`) for version rollback without Traefik restart
+- Production environment template (`.env.prod.example`)
+- Deployment runbook (`docs/deploymentRunbook.md`)
+
+### Changed
+
+- Rate limiter uses `SmartIpKeyExtractor` for correct IP extraction behind reverse proxy (X-Forwarded-For support)
+- yt-api router split into `regular_routes()` and `streaming_routes()` for per-route timeout configuration
+- yt-api Cargo.toml: added MIT license field
+
 ## [0.3.0] - 2026-03-29
 
 ### Added
