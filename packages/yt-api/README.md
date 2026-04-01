@@ -7,8 +7,9 @@ A Rust/Axum REST API that serves as the main backend for the [yt-client](../yt-c
 - **REST API** with JSON request/response for metadata, formats, and backends
 - **SSE streaming** for real-time download progress over HTTP
 - **gRPC client** auto-generated from the shared proto definition
-- **CORS** enabled for cross-origin requests
+- **CORS** with configurable origin allowlist (not permissive)
 - **Structured error responses** with proper HTTP status codes
+- **Security middleware**: rate limiting, body size limit, request timeouts, security headers
 
 ## Prerequisites
 
@@ -36,6 +37,9 @@ The server listens on `0.0.0.0:3000` by default. Configure via environment varia
 | `GRPC_TARGET` | `http://localhost:50051` | yt-service gRPC endpoint |
 | `LOG_LEVEL` | `info` | Log verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | `REQUEST_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated CORS allowed origins |
+| `MAX_BODY_SIZE_BYTES` | `1048576` | Maximum request body size in bytes |
+| `RATE_LIMIT_RPM` | `30` | Rate limit: requests per minute per IP |
 
 ## REST API
 
@@ -121,6 +125,18 @@ Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAI
 - **Format**: must be one of the supported format IDs (`mp3`, `mp4`)
 - **Name**: non-empty, max 255 characters, no path separators
 
+## Security Middleware
+
+yt-api applies several security layers via Axum middleware:
+
+| Layer | Description | Configuration |
+|-------|-------------|---------------|
+| **CORS** | Explicit origin allowlist (no permissive mode) | `ALLOWED_ORIGINS` env var |
+| **Rate limiting** | Per-IP rate limiting via `tower_governor` with `SmartIpKeyExtractor` (X-Forwarded-For aware). Returns 429 with `Retry-After` header. | `RATE_LIMIT_RPM` env var |
+| **Body size limit** | Rejects requests exceeding the configured body size | `MAX_BODY_SIZE_BYTES` env var |
+| **Request timeouts** | 30s for regular routes, 10min for SSE download streams. Router is split into `regular_routes()` and `streaming_routes()` for per-route configuration. | `REQUEST_TIMEOUT_MS` env var |
+| **Security headers** | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 0`, `Content-Security-Policy: default-src 'none'` | Not configurable |
+
 ## Observability
 
 ### Structured Logging
@@ -166,7 +182,7 @@ The Dockerfile uses a multi-stage build with [cargo-chef](https://github.com/Luk
 
 ## Testing
 
-yt-api has 47 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
+yt-api has 49 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
 
 ```bash
 # Run all tests
