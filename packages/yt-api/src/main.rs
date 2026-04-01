@@ -175,6 +175,7 @@ async fn main() {
 
     let app = api_routes
         .merge(yt_api::routes::metrics_router().with_state(state))
+        .layer(axum::middleware::from_fn(yt_api::middleware::securityHeaders::security_headers_middleware))
         .layer(cors_layer);
 
     let addr = config.addr();
