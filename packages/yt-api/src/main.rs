@@ -1,8 +1,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use axum::http::{HeaderValue, Method, header};
 use tokio::signal;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{EnvFilter, fmt};
 
@@ -11,6 +12,24 @@ use yt_api::AppState;
 
 mod config;
 use config::Config;
+
+fn build_cors_layer(config: &Config) -> CorsLayer {
+    let origins: Vec<HeaderValue> = config
+        .allowed_origins
+        .iter()
+        .filter_map(|o| o.parse::<HeaderValue>().ok())
+        .collect();
+
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::ACCEPT,
+        ])
+        .allow_credentials(false)
+        .max_age(std::time::Duration::from_secs(3600))
+}
 
 async fn shutdown_signal(shutting_down: Arc<AtomicBool>) {
     let ctrl_c = async {
@@ -94,9 +113,11 @@ async fn main() {
         .layer(TraceLayer::new_for_http())
         .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware));
 
+    let cors_layer = build_cors_layer(&config);
+
     let app = api_routes
         .merge(yt_api::routes::metrics_router().with_state(state))
-        .layer(CorsLayer::permissive());
+        .layer(cors_layer);
 
     let addr = config.addr();
     tracing::info!("Listening on {addr}");
