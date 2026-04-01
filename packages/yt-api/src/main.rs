@@ -109,6 +109,7 @@ async fn main() {
 
     let api_routes = yt_api::routes::router()
         .with_state(state.clone())
+        .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
         .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware));
