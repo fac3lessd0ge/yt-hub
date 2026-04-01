@@ -1,0 +1,32 @@
+# Traefik v3 static configuration
+
+api:
+  dashboard: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # Email is set via --certificatesresolvers.letsencrypt.acme.email in docker-compose.prod.yml
+      storage: /acme/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: yt-hub_proxy
+
+log:
+  level: WARN
