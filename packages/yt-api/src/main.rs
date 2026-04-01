@@ -1,8 +1,14 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
-use axum::http::{HeaderValue, Method, header};
+use axum::BoxError;
+use axum::Json;
+use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::response::IntoResponse;
 use tokio::signal;
+use tower::ServiceBuilder;
+use tower::timeout::TimeoutLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{EnvFilter, fmt};
@@ -12,6 +18,28 @@ use yt_api::AppState;
 
 mod config;
 use config::Config;
+
+async fn handle_timeout_error(err: BoxError) -> impl IntoResponse {
+    if err.is::<tower::timeout::error::Elapsed>() {
+        (
+            StatusCode::REQUEST_TIMEOUT,
+            Json(serde_json::json!({
+                "code": "REQUEST_TIMEOUT",
+                "message": "Request timed out",
+                "retryable": true
+            })),
+        )
+    } else {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error",
+                "retryable": false
+            })),
+        )
+    }
+}
 
 fn build_cors_layer(config: &Config) -> CorsLayer {
     let origins: Vec<HeaderValue> = config
@@ -107,16 +135,37 @@ async fn main() {
         metrics_handle,
     };
 
-    let api_routes = yt_api::routes::router()
+    let regular_timeout = Duration::from_millis(config.request_timeout_ms);
+    let streaming_timeout = Duration::from_secs(600);
+
+    let regular_routes = yt_api::routes::regular_routes()
         .with_state(state.clone())
-        .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
-        .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
-        .layer(TraceLayer::new_for_http())
-        .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware));
+        .layer(
+            ServiceBuilder::new()
+                .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
+                .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
+                .layer(TraceLayer::new_for_http())
+                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware))
+                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
+                .layer(TimeoutLayer::new(regular_timeout)),
+        );
+
+    let streaming_routes = yt_api::routes::streaming_routes()
+        .with_state(state.clone())
+        .layer(
+            ServiceBuilder::new()
+                .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
+                .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
+                .layer(TraceLayer::new_for_http())
+                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware))
+                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
+                .layer(TimeoutLayer::new(streaming_timeout)),
+        );
 
     let cors_layer = build_cors_layer(&config);
 
-    let app = api_routes
+    let app = regular_routes
+        .merge(streaming_routes)
         .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(cors_layer);
 
