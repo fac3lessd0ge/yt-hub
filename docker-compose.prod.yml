@@ -1,0 +1,71 @@
+# Production Docker Compose — requires .env.prod
+# Usage: VERSION=v0.4.0 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+services:
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/acme.json:/acme/acme.json
+    networks:
+      - proxy
+
+  yt-api:
+    image: ghcr.io/fac3lessd0ge/yt-api:${VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      yt-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    stop_grace_period: 15s
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=yt-hub_proxy"
+      - "traefik.http.routers.yt-api.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.yt-api.entrypoints=websecure"
+      - "traefik.http.routers.yt-api.tls=true"
+      - "traefik.http.routers.yt-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.yt-api.loadbalancer.server.port=3000"
+
+  yt-service:
+    image: ghcr.io/fac3lessd0ge/yt-service:${VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    volumes:
+      - downloads:/home/appuser/Downloads/yt-downloader
+    healthcheck:
+      test: ["CMD", "node", "-e", "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    stop_grace_period: 10s
+    networks:
+      - internal
+
+networks:
+  proxy:
+    name: yt-hub_proxy
+  internal:
+    name: yt-hub_internal
+
+volumes:
+  downloads:
