@@ -43,13 +43,13 @@ jobs:
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx --locked
       - name: Generate SBOM
-        run: cargo cyclonedx --format json --output-file bom.json
+        run: cargo cyclonedx --format json --override-filename bom
         working-directory: packages/yt-api
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
           name: rust-sbom
-          path: packages/yt-api/bom.json
+          path: packages/yt-api/bom.cdx.json
           retention-days: 90
 
   cargo-deny:
