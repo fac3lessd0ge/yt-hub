@@ -18,6 +18,7 @@ pub fn regular_routes<C: GrpcClientTrait>() -> Router<AppState<C>> {
         .route("/api/metadata", get(metadata::get_metadata::<C>))
         .route("/api/formats", get(formats::list_formats::<C>))
         .route("/api/backends", get(backends::list_backends::<C>))
+        .route("/api/downloads/{filename}", get(downloads::serve_file::<C>))
 }
 
 /// Routes for streaming (SSE/download) endpoints.

@@ -1,11 +1,17 @@
 use std::convert::Infallible;
+use std::path::Path;
 
 use axum::Extension;
 use axum::Json;
-use axum::extract::State;
+use axum::body::Body;
+use axum::extract::{self, State};
+use axum::http::header;
 use axum::response::sse::{Event, Sse};
+use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use tokio::fs::File;
 use tokio_stream::StreamExt;
+use tokio_util::io::ReaderStream;
 
 use crate::AppState;
 use crate::error::AppError;
@@ -59,8 +65,14 @@ pub async fn download<C: GrpcClientTrait>(
                         .unwrap_or_else(serialization_error_event)
                 }
                 Some(proto::download_response::Payload::Complete(c)) => {
+                    let download_url = Path::new(&c.output_path)
+                        .file_name()
+                        .and_then(|f| f.to_str())
+                        .map(|f| format!("/api/downloads/{f}"))
+                        .unwrap_or_default();
                     let data = DownloadComplete {
                         output_path: c.output_path,
+                        download_url,
                         title: c.title,
                         author_name: c.author_name,
                         format_id: c.format_id,
@@ -135,5 +147,69 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         std::pin::Pin::new(&mut self.inner).poll_next(cx)
+    }
+}
+
+pub async fn serve_file<C: GrpcClientTrait>(
+    State(state): State<AppState<C>>,
+    extract::Path(filename): extract::Path<String>,
+) -> Result<Response, AppError> {
+    validation::validate_filename(&filename).map_err(AppError::Validation)?;
+
+    let file_path = state.downloads_dir.join(&filename);
+
+    // Ensure the resolved path is still within downloads_dir (defense in depth)
+    let canonical_dir = state.downloads_dir.canonicalize().map_err(|e| {
+        tracing::error!(error = %e, "Downloads directory not found");
+        AppError::NotFound("Downloads directory not available".to_string())
+    })?;
+    let canonical_file = file_path.canonicalize().map_err(|_| {
+        AppError::NotFound(format!("File not found: {filename}"))
+    })?;
+    if !canonical_file.starts_with(&canonical_dir) {
+        return Err(AppError::Validation("Invalid filename".to_string()));
+    }
+
+    let metadata = tokio::fs::metadata(&canonical_file).await.map_err(|_| {
+        AppError::NotFound(format!("File not found: {filename}"))
+    })?;
+
+    let file = File::open(&canonical_file).await.map_err(|e| {
+        tracing::error!(error = %e, filename = %filename, "Failed to open file");
+        AppError::NotFound(format!("File not found: {filename}"))
+    })?;
+
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    let content_type = mime_from_extension(&filename);
+
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_LENGTH, metadata.len())
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{filename}\""),
+        )
+        .body(body)
+        .unwrap()
+        .into_response())
+}
+
+fn mime_from_extension(filename: &str) -> &'static str {
+    match Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+    {
+        "mp3" => "audio/mpeg",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "m4a" => "audio/mp4",
+        "ogg" | "oga" => "audio/ogg",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "mkv" => "video/x-matroska",
+        _ => "application/octet-stream",
     }
 }
