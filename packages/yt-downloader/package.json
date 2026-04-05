@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "prompt-sync": "^4.2.0",
-    "which": "^5.0.0"
+    "which": "^6.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
