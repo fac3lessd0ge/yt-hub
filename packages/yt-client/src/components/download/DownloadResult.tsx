@@ -6,7 +6,11 @@ interface DownloadResultProps {
   onReset: () => void;
 }
 
-export function DownloadResult({ result, localPath, onReset }: DownloadResultProps) {
+export function DownloadResult({
+  result,
+  localPath,
+  onReset,
+}: DownloadResultProps) {
   return (
     <div className="rounded-lg border border-border p-4">
       <h3 className="mb-2 text-sm font-medium text-green-600">

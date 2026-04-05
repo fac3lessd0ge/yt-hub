@@ -37,13 +37,14 @@ export function useDownload() {
             setResult(data);
             setState("saving");
 
-            const filename =
-              data.download_url.split("/").pop() ?? "download";
+            const filename = data.download_url.split("/").pop() ?? "download";
             const fullUrl = `${BASE_URL}${data.download_url}`;
 
             try {
-              const saveResult =
-                await window.electronAPI?.saveDownload(fullUrl, filename);
+              const saveResult = await window.electronAPI?.saveDownload(
+                fullUrl,
+                filename,
+              );
               if (saveResult) {
                 setLocalPath(saveResult.filePath);
               }

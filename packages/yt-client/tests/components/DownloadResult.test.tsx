@@ -15,13 +15,17 @@ const mockResult: DownloadComplete = {
 
 describe("DownloadResult", () => {
   it("renders the Download Complete heading", () => {
-    render(<DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />);
+    render(
+      <DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />,
+    );
 
     expect(screen.getByText("Download Complete")).toBeInTheDocument();
   });
 
   it("renders server path when localPath is null", () => {
-    render(<DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />);
+    render(
+      <DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />,
+    );
 
     expect(screen.getByText("Test Video")).toBeInTheDocument();
     expect(screen.getByText("Test Author")).toBeInTheDocument();
@@ -32,7 +36,13 @@ describe("DownloadResult", () => {
   });
 
   it("renders local path when localPath is provided", () => {
-    render(<DownloadResult result={mockResult} localPath="/Users/me/Music/test.mp3" onReset={vi.fn()} />);
+    render(
+      <DownloadResult
+        result={mockResult}
+        localPath="/Users/me/Music/test.mp3"
+        onReset={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("/Users/me/Music/test.mp3")).toBeInTheDocument();
     expect(
@@ -41,15 +51,29 @@ describe("DownloadResult", () => {
   });
 
   it("shows Show in Folder button only when localPath is provided", () => {
-    const { rerender } = render(<DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Show in Folder" })).not.toBeInTheDocument();
+    const { rerender } = render(
+      <DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Show in Folder" }),
+    ).not.toBeInTheDocument();
 
-    rerender(<DownloadResult result={mockResult} localPath="/Users/me/test.mp3" onReset={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Show in Folder" })).toBeInTheDocument();
+    rerender(
+      <DownloadResult
+        result={mockResult}
+        localPath="/Users/me/test.mp3"
+        onReset={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Show in Folder" }),
+    ).toBeInTheDocument();
   });
 
   it("renders a Download Another button", () => {
-    render(<DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />);
+    render(
+      <DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />,
+    );
 
     expect(
       screen.getByRole("button", { name: "Download Another" }),
@@ -59,7 +83,9 @@ describe("DownloadResult", () => {
   it("calls onReset when Download Another button is clicked", async () => {
     const onReset = vi.fn();
     const user = userEvent.setup();
-    render(<DownloadResult result={mockResult} localPath={null} onReset={onReset} />);
+    render(
+      <DownloadResult result={mockResult} localPath={null} onReset={onReset} />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Download Another" }));
 
