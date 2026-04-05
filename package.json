@@ -8,8 +8,8 @@
     "dev": "tsx scripts/dev.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "nx": "^22.6.3",
+    "@biomejs/biome": "^2.4.10",
+    "nx": "^22.6.4",
     "tsx": "^4.19.0"
   }
 }
