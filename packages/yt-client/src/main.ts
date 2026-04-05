@@ -1,5 +1,6 @@
+import fs from "node:fs/promises";
 import path from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
 import started from "electron-squirrel-startup";
 
 if (started) {
@@ -32,6 +33,30 @@ ipcMain.handle("dialog:selectFolder", async () => {
 ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
   shell.showItemInFolder(filePath);
 });
+
+ipcMain.handle(
+  "dialog:saveDownload",
+  async (_event, downloadUrl: string, suggestedFilename: string) => {
+    const result = await dialog.showSaveDialog({
+      defaultPath: suggestedFilename,
+      filters: [{ name: "All Files", extensions: ["*"] }],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    const response = await net.fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status}`);
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    await fs.writeFile(result.filePath, buffer);
+
+    return { filePath: result.filePath };
+  },
+);
 
 app.on("ready", createWindow);
 

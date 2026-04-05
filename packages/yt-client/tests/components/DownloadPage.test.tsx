@@ -32,6 +32,7 @@ function makeHookReturn(overrides: Record<string, unknown> = {}) {
     state: "idle",
     progress: null,
     result: null,
+    localPath: null,
     error: null,
     start: vi.fn(),
     cancel: vi.fn(),

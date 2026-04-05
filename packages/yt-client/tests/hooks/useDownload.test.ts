@@ -8,6 +8,10 @@ vi.mock("@/lib/sse", () => ({
   streamDownload: (...args: any[]) => mockStreamDownload(...args),
 }));
 
+vi.mock("@/lib/apiClient", () => ({
+  BASE_URL: "http://localhost:3000",
+}));
+
 describe("useDownload", () => {
   it("starts in idle state", () => {
     const { result } = renderHook(() => useDownload());
@@ -39,6 +43,7 @@ describe("useDownload", () => {
   it("transitions to complete when onComplete callback fires", async () => {
     const completeData = {
       output_path: "/tmp/test.mp3",
+      download_url: "/api/downloads/test.mp3",
       title: "Video",
       author_name: "Author",
       format_id: "mp3",
@@ -73,6 +78,7 @@ describe("useDownload", () => {
         callbacks.onProgress(progressData);
         callbacks.onComplete({
           output_path: "/tmp/test.mp3",
+          download_url: "/api/downloads/test.mp3",
           title: "V",
           author_name: "A",
           format_id: "mp3",
