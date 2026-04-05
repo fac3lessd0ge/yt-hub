@@ -32,12 +32,22 @@ cp .env.example .env
 docker compose up --build
 ```
 
-This builds and starts both backend services (yt-api on `:3000`, yt-service on `:50051`) with proper health checks and startup ordering. Downloads are persisted in a Docker volume.
+This builds and starts both backend services (yt-api on `:3000`, yt-service on `:50051`) with proper health checks and startup ordering. Downloads are saved to `./downloads/` on the host (configurable via `DOWNLOAD_DIR`).
 
 To also start the monitoring stack (Prometheus, Grafana, Loki):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+```
+
+### Local Docker testing
+
+To test the full Docker stack locally (without Traefik):
+
+```bash
+bash scripts/localProd.sh up      # build + start
+bash scripts/localProd.sh test    # run smoke tests
+bash scripts/localProd.sh down    # stop + cleanup
 ```
 
 ### Local development
@@ -191,6 +201,8 @@ Each package is configured via environment variables. See `.env.example` files i
 | `ALLOWED_ORIGINS` | yt-api | `http://localhost:5173,http://localhost:3000` | Comma-separated CORS allowed origins |
 | `MAX_BODY_SIZE_BYTES` | yt-api | `1048576` | Maximum request body size in bytes |
 | `RATE_LIMIT_RPM` | yt-api | `30` | Rate limit: requests per minute per IP |
+| `DOWNLOADS_DIR` | yt-api | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
+| `DOWNLOAD_DIR` | docker-compose | `./downloads` | Host-side bind mount path for downloads |
 | `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
@@ -215,6 +227,15 @@ yt-hub/
 ├── nx.json               # Nx task orchestration config
 └── tsconfig.base.json    # Shared TypeScript config
 ```
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| **Traefik fails with Docker Desktop v29+** | Use `scripts/localProd.sh` for local testing (skips Traefik) |
+| **yt-dlp fails to download** | Update yt-dlp version: `docker compose build --build-arg YT_DLP_VERSION=YYYY.MM.DD yt-service` |
+| **Download path shows container path** | Use the Electron save dialog (v0.4.5+) or access files in `./downloads/` on the host |
+| **"Downloads directory not available"** | Ensure `DOWNLOADS_DIR` env var points to an existing directory, or create `./downloads/` |
 
 ## License
 

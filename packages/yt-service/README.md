@@ -173,7 +173,7 @@ The Dockerfile uses a multi-stage build: installs workspace dependencies, builds
 
 To override the yt-dlp version at build time:
 ```bash
-docker compose build --build-arg YT_DLP_VERSION=2025.01.15 yt-service
+docker compose build --build-arg YT_DLP_VERSION=2026.03.17 yt-service
 ```
 
 ## Testing

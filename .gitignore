@@ -3,6 +3,7 @@ dist/
 bun.lock
 .DS_Store
 Downloads/
+downloads/
 .nx/
 .fingerprint
 deps

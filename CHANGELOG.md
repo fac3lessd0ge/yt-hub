@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] - 2026-04-02
+
+### Added
+
+- File download endpoint: `GET /api/downloads/{filename}` serves downloaded files via HTTP with streaming response, path traversal protection, and Content-Disposition header
+- `download_url` field in SSE complete event — clients can fetch the file directly from the server
+- Electron save dialog: on download complete, native OS save dialog opens and file is saved to user-chosen location
+- "Show in Folder" button in download result view
+- `DOWNLOADS_DIR` env var for configuring the file serving directory in yt-api
+- Local Docker testing script (`scripts/localProd.sh`) — builds and tests the full stack without Traefik
+
+### Changed
+
+- yt-dlp updated from 2024.12.23 to 2026.03.17 in yt-service Dockerfile
+- `YT_DLP_VERSION` is now a configurable build arg in docker-compose.yml
+- Docker downloads volume changed from named volume to bind mount (`DOWNLOAD_DIR` env var, defaults to `./downloads`)
+- yt-api container now has read-only access to downloads directory for file serving
+- Local testing script rewritten to skip Traefik (incompatible with Docker Desktop v29+)
+
+### Fixed
+
+- Download path in UI now shows user's local save path instead of container-internal path
+
 ## [0.4.0] - 2026-04-01
 
 ### Added

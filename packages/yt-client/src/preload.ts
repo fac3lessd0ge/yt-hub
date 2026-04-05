@@ -5,4 +5,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("dialog:selectFolder"),
   showItemInFolder: (filePath: string): Promise<void> =>
     ipcRenderer.invoke("shell:showItemInFolder", filePath),
+  saveDownload: (
+    downloadUrl: string,
+    suggestedFilename: string,
+  ): Promise<{ filePath: string } | null> =>
+    ipcRenderer.invoke("dialog:saveDownload", downloadUrl, suggestedFilename),
 });

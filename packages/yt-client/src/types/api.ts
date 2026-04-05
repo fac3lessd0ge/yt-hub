@@ -32,6 +32,7 @@ export interface DownloadProgress {
 
 export interface DownloadComplete {
   output_path: string;
+  download_url: string;
   title: string;
   author_name: string;
   format_id: string;

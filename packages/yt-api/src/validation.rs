@@ -91,6 +91,30 @@ pub fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn validate_filename(filename: &str) -> Result<(), String> {
+    if filename.is_empty() {
+        return Err("Filename must not be empty".to_string());
+    }
+    if filename.len() > MAX_NAME_LENGTH {
+        return Err(format!(
+            "Filename must not exceed {MAX_NAME_LENGTH} characters"
+        ));
+    }
+    if filename.contains('\0') {
+        return Err("Filename must not contain null bytes".to_string());
+    }
+    if filename.contains('/') || filename.contains('\\') {
+        return Err("Filename must not contain path separators".to_string());
+    }
+    if filename.contains("..") {
+        return Err("Filename must not contain path traversal sequences".to_string());
+    }
+    if filename.starts_with('.') {
+        return Err("Filename must not start with a dot".to_string());
+    }
+    Ok(())
+}
+
 pub fn validate_destination(dest: &str) -> Result<(), String> {
     if dest.len() > MAX_DESTINATION_LENGTH {
         return Err(format!(
