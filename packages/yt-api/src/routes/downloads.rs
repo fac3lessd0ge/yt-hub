@@ -184,13 +184,28 @@ pub async fn serve_file<C: GrpcClientTrait>(
 
     let content_type = mime_from_extension(&filename);
 
+    let ascii_filename: String = filename
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { '_' })
+        .collect();
+    let encoded: String = filename
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' {
+                format!("{}", b as char)
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect();
+    let disposition = format!(
+        "attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded}"
+    );
+
     Ok(Response::builder()
         .header(header::CONTENT_TYPE, content_type)
         .header(header::CONTENT_LENGTH, metadata.len())
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{filename}\""),
-        )
+        .header(header::CONTENT_DISPOSITION, disposition)
         .body(body)
         .unwrap()
         .into_response())

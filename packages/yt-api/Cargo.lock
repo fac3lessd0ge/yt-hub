@@ -2325,6 +2325,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tonic 0.13.1",
  "tonic-build",
  "tower",
