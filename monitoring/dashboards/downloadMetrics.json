@@ -19,7 +19,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "yt_api_downloads_active",
+          "expr": "active_sse_streams",
           "legendFormat": "Active Streams",
           "refId": "A"
         }
@@ -47,7 +47,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(yt_api_downloads_total[5m])",
+          "expr": "rate(http_requests_total{method=\"POST\",path=\"/api/downloads\"}[5m])",
           "legendFormat": "downloads/s",
           "refId": "A"
         }
@@ -72,17 +72,17 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(yt_api_grpc_call_duration_seconds_bucket[5m]))",
+          "expr": "http_request_duration_seconds{method=\"POST\",path=\"/api/downloads\",quantile=\"0.5\"}",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(yt_api_grpc_call_duration_seconds_bucket[5m]))",
+          "expr": "http_request_duration_seconds{method=\"POST\",path=\"/api/downloads\",quantile=\"0.95\"}",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(yt_api_grpc_call_duration_seconds_bucket[5m]))",
+          "expr": "http_request_duration_seconds{method=\"POST\",path=\"/api/downloads\",quantile=\"0.99\"}",
           "legendFormat": "p99",
           "refId": "C"
         }
