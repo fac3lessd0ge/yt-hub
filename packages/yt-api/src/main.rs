@@ -7,6 +7,7 @@ use axum::Json;
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::IntoResponse;
 use tokio::signal;
+use tokio_util::sync::CancellationToken;
 use tower::ServiceBuilder;
 use tower::timeout::TimeoutLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -121,12 +122,22 @@ async fn main() {
         .install_recorder()
         .expect("Failed to install Prometheus recorder");
 
-    // Spawn periodic upkeep for the metrics recorder
+    // Spawn periodic upkeep for the metrics recorder with cancellation support
+    let cancel_token = CancellationToken::new();
+    let final_metrics_handle = metrics_handle.clone();
     let upkeep_handle = metrics_handle.clone();
+    let upkeep_token = cancel_token.clone();
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            upkeep_handle.run_upkeep();
+            tokio::select! {
+                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
+                    upkeep_handle.run_upkeep();
+                }
+                _ = upkeep_token.cancelled() => {
+                    tracing::info!("Metrics upkeep task stopping");
+                    break;
+                }
+            }
         }
     });
 
@@ -206,5 +217,7 @@ async fn main() {
         }
     }
 
-    tracing::info!("Server shut down gracefully");
+    cancel_token.cancel();
+    final_metrics_handle.run_upkeep();
+    tracing::info!("Final metrics flush completed, server shut down gracefully");
 }
