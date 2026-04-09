@@ -177,10 +177,10 @@ async fn main() {
 
     let api_routes = regular_routes
         .merge(streaming_routes)
+        .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(governor_layer);
 
     let app = api_routes
-        .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(axum::middleware::from_fn(yt_api::middleware::securityHeaders::security_headers_middleware))
         .layer(cors_layer);
 
