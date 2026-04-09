@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/yt-downloader/package.json packages/yt-downloader/
 COPY packages/yt-service/package.json packages/yt-service/
-RUN npm ci --workspace=yt-downloader --workspace=yt-service --include-workspace-root
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=yt-downloader --workspace=yt-service --include-workspace-root
 COPY tsconfig.base.json ./
 COPY packages/yt-downloader/ packages/yt-downloader/
 RUN npm run build --workspace=yt-downloader

@@ -89,9 +89,24 @@ jobs:
               - 'packages/*/package.json'
               - 'packages/yt-service/proto/**'
               - 'docker-compose.yml'
+      - name: Set up Docker Buildx
+        if: steps.filter.outputs.docker == 'true'
+        uses: docker/setup-buildx-action@v4
       - name: Build yt-api Docker image
         if: steps.filter.outputs.docker == 'true'
-        run: docker build -f packages/yt-api/Dockerfile .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: packages/yt-api/Dockerfile
+          push: false
+          cache-from: type=gha,scope=yt-api
+          cache-to: type=gha,mode=max,scope=yt-api
       - name: Build yt-service Docker image
         if: steps.filter.outputs.docker == 'true'
-        run: docker build -f packages/yt-service/Dockerfile .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: packages/yt-service/Dockerfile
+          push: false
+          cache-from: type=gha,scope=yt-service
+          cache-to: type=gha,mode=max,scope=yt-service
