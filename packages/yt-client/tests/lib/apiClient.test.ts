@@ -38,16 +38,42 @@ describe("fetchMetadata", () => {
     );
   });
 
-  it("throws on HTTP error", async () => {
+  it("throws on HTTP error with JSON body", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 404,
-      json: async () => ({ message: "Video not found" }),
+      text: async () => JSON.stringify({ message: "Video not found" }),
     });
 
     await expect(
       fetchMetadata("https://www.youtube.com/watch?v=bad"),
     ).rejects.toThrow("Video not found");
+  });
+
+  it("throws with text body when response is not JSON", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      text: async () => "Bad Gateway",
+    });
+
+    await expect(
+      fetchMetadata("https://www.youtube.com/watch?v=bad"),
+    ).rejects.toThrow("Bad Gateway");
+  });
+
+  it("throws with HTTP status when body is unreadable", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => {
+        throw new Error("body consumed");
+      },
+    });
+
+    await expect(
+      fetchMetadata("https://www.youtube.com/watch?v=bad"),
+    ).rejects.toThrow("HTTP 500");
   });
 });
 

@@ -4,6 +4,7 @@ export interface YtDlpConfig {
   proxy: string | undefined;
   cookiesFile: string | undefined;
   socketTimeout: number;
+  processTimeout: number;
 }
 
 export function loadYtDlpConfig(): YtDlpConfig {
@@ -15,5 +16,6 @@ export function loadYtDlpConfig(): YtDlpConfig {
     proxy: process.env.YT_DLP_PROXY || undefined,
     cookiesFile: process.env.YT_DLP_COOKIES_FILE || undefined,
     socketTimeout: Number(process.env.YT_DLP_SOCKET_TIMEOUT ?? 30),
+    processTimeout: Number(process.env.YT_DLP_PROCESS_TIMEOUT ?? 3600),
   };
 }

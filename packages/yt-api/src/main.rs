@@ -7,6 +7,7 @@ use axum::Json;
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::IntoResponse;
 use tokio::signal;
+use tokio_util::sync::CancellationToken;
 use tower::ServiceBuilder;
 use tower::timeout::TimeoutLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -121,12 +122,22 @@ async fn main() {
         .install_recorder()
         .expect("Failed to install Prometheus recorder");
 
-    // Spawn periodic upkeep for the metrics recorder
+    // Spawn periodic upkeep for the metrics recorder with cancellation support
+    let cancel_token = CancellationToken::new();
+    let final_metrics_handle = metrics_handle.clone();
     let upkeep_handle = metrics_handle.clone();
+    let upkeep_token = cancel_token.clone();
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            upkeep_handle.run_upkeep();
+            tokio::select! {
+                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
+                    upkeep_handle.run_upkeep();
+                }
+                _ = upkeep_token.cancelled() => {
+                    tracing::info!("Metrics upkeep task stopping");
+                    break;
+                }
+            }
         }
     });
 
@@ -145,7 +156,7 @@ async fn main() {
     };
 
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);
-    let streaming_timeout = Duration::from_secs(600);
+    let streaming_timeout = Duration::from_secs(config.streaming_timeout_secs);
 
     let governor_layer = build_governor_layer(config.governor_period_secs(), 10);
 
@@ -177,10 +188,10 @@ async fn main() {
 
     let api_routes = regular_routes
         .merge(streaming_routes)
+        .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(governor_layer);
 
     let app = api_routes
-        .merge(yt_api::routes::metrics_router().with_state(state))
         .layer(axum::middleware::from_fn(yt_api::middleware::securityHeaders::security_headers_middleware))
         .layer(cors_layer);
 
@@ -206,5 +217,7 @@ async fn main() {
         }
     }
 
-    tracing::info!("Server shut down gracefully");
+    cancel_token.cancel();
+    final_metrics_handle.run_upkeep();
+    tracing::info!("Final metrics flush completed, server shut down gracefully");
 }

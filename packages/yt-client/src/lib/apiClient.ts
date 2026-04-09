@@ -10,8 +10,19 @@ export const BASE_URL =
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.message || `HTTP ${response.status}`);
+    let message = `HTTP ${response.status}`;
+    try {
+      const text = await response.text();
+      try {
+        const body = JSON.parse(text);
+        if (body.message) message = body.message;
+      } catch {
+        if (text) message = text.slice(0, 500);
+      }
+    } catch {
+      // Body unreadable, use default message
+    }
+    throw new Error(message);
   }
   return response.json();
 }
