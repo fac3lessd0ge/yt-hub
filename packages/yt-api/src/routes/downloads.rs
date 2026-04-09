@@ -170,12 +170,14 @@ pub async fn serve_file<C: GrpcClientTrait>(
         return Err(AppError::Validation("Invalid filename".to_string()));
     }
 
-    let metadata = tokio::fs::metadata(&canonical_file).await.map_err(|_| {
+    // Open file first, then get metadata from the handle to avoid TOCTOU race
+    let file = File::open(&canonical_file).await.map_err(|e| {
+        tracing::error!(error = %e, filename = %filename, "Failed to open file");
         AppError::NotFound(format!("File not found: {filename}"))
     })?;
 
-    let file = File::open(&canonical_file).await.map_err(|e| {
-        tracing::error!(error = %e, filename = %filename, "Failed to open file");
+    let metadata = file.metadata().await.map_err(|e| {
+        tracing::error!(error = %e, filename = %filename, "Failed to read file metadata");
         AppError::NotFound(format!("File not found: {filename}"))
     })?;
 

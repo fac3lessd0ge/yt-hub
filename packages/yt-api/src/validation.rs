@@ -116,6 +116,9 @@ pub fn validate_filename(filename: &str) -> Result<(), String> {
 }
 
 pub fn validate_destination(dest: &str) -> Result<(), String> {
+    if dest.is_empty() {
+        return Ok(());
+    }
     if dest.len() > MAX_DESTINATION_LENGTH {
         return Err(format!(
             "Destination must not exceed {MAX_DESTINATION_LENGTH} characters"
@@ -123,6 +126,15 @@ pub fn validate_destination(dest: &str) -> Result<(), String> {
     }
     if dest.contains('\0') {
         return Err("Destination must not contain null bytes".to_string());
+    }
+    if dest.contains("..") {
+        return Err("Destination must not contain path traversal sequences".to_string());
+    }
+    if dest.contains('\\') {
+        return Err("Destination must not contain backslash characters".to_string());
+    }
+    if !dest.starts_with('/') {
+        return Err("Destination must be an absolute path".to_string());
     }
     Ok(())
 }
@@ -267,5 +279,20 @@ mod tests {
     #[test]
     fn destination_empty_is_allowed() {
         assert!(validate_destination("").is_ok());
+    }
+
+    #[test]
+    fn destination_traversal_is_rejected() {
+        assert!(validate_destination("/tmp/../etc/passwd").is_err());
+    }
+
+    #[test]
+    fn destination_backslash_is_rejected() {
+        assert!(validate_destination("/tmp\\etc").is_err());
+    }
+
+    #[test]
+    fn destination_relative_path_is_rejected() {
+        assert!(validate_destination("relative/path").is_err());
     }
 }
