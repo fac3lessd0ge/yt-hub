@@ -48,7 +48,10 @@ ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
 ipcMain.handle(
   "dialog:saveDownload",
   async (_event, downloadUrl: string, suggestedFilename: string) => {
-    if (typeof downloadUrl !== "string" || typeof suggestedFilename !== "string") {
+    if (
+      typeof downloadUrl !== "string" ||
+      typeof suggestedFilename !== "string"
+    ) {
       throw new Error("Invalid arguments");
     }
 

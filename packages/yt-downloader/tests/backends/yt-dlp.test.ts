@@ -202,12 +202,19 @@ describe("YtDlpBackend", () => {
 
 describe("sanitizeCustomArgs", () => {
   it("passes through safe flags", () => {
-    const result = sanitizeCustomArgs(["--no-overwrites", "--prefer-free-formats"]);
+    const result = sanitizeCustomArgs([
+      "--no-overwrites",
+      "--prefer-free-formats",
+    ]);
     expect(result).toEqual(["--no-overwrites", "--prefer-free-formats"]);
   });
 
   it("blocks --exec flag", () => {
-    const result = sanitizeCustomArgs(["--no-overwrites", "--exec", "rm -rf /"]);
+    const result = sanitizeCustomArgs([
+      "--no-overwrites",
+      "--exec",
+      "rm -rf /",
+    ]);
     expect(result).toEqual(["--no-overwrites", "rm -rf /"]);
   });
 
@@ -223,9 +230,15 @@ describe("sanitizeCustomArgs", () => {
 
   it("blocks all dangerous flags", () => {
     const dangerous = [
-      "--exec", "--exec-before-dl", "--exec-after-dl",
-      "--ffmpeg-location", "--batch-file", "--download-archive",
-      "--config-location", "--config-locations", "--plugin-dirs",
+      "--exec",
+      "--exec-before-dl",
+      "--exec-after-dl",
+      "--ffmpeg-location",
+      "--batch-file",
+      "--download-archive",
+      "--config-location",
+      "--config-locations",
+      "--plugin-dirs",
     ];
     const result = sanitizeCustomArgs(dangerous);
     expect(result).toEqual([]);
