@@ -35,12 +35,23 @@ export class NodeProcessSpawner implements IProcessSpawner {
         );
       }
 
+      let timeoutId: NodeJS.Timeout | undefined;
+      if (options.timeout) {
+        timeoutId = setTimeout(() => {
+          proc.kill("SIGTERM");
+          setTimeout(() => {
+            if (!proc.killed) proc.kill("SIGKILL");
+          }, 5000);
+        }, options.timeout);
+      }
+
       if (isPiped && options.onStdout && proc.stdout) {
         const rl = createInterface({ input: proc.stdout });
         rl.on("line", (line) => options.onStdout?.(line));
       }
 
       proc.on("close", (code) => {
+        if (timeoutId) clearTimeout(timeoutId);
         resolve({ exitCode: code ?? 1 });
       });
     });

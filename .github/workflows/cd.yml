@@ -32,6 +32,8 @@ jobs:
           context: .
           file: packages/yt-api/Dockerfile
           push: true
+          cache-from: type=gha,scope=yt-api
+          cache-to: type=gha,mode=max,scope=yt-api
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-api:${{ steps.tag.outputs.version }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-api:latest
@@ -60,6 +62,8 @@ jobs:
           context: .
           file: packages/yt-service/Dockerfile
           push: true
+          cache-from: type=gha,scope=yt-service
+          cache-to: type=gha,mode=max,scope=yt-service
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-service:${{ steps.tag.outputs.version }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-service:latest

@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/yt-downloader/package.json packages/yt-downloader/
 COPY packages/yt-service/package.json packages/yt-service/
-RUN npm ci --workspace=yt-downloader --workspace=yt-service --include-workspace-root
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=yt-downloader --workspace=yt-service --include-workspace-root
 COPY tsconfig.base.json ./
 COPY packages/yt-downloader/ packages/yt-downloader/
 RUN npm run build --workspace=yt-downloader
@@ -12,9 +13,12 @@ RUN npm run build --workspace=yt-downloader
 # ---- Stage 3: Runtime ----
 FROM node:20-bookworm-slim AS runtime
 ARG YT_DLP_VERSION=2026.03.17
+# Update this hash when bumping YT_DLP_VERSION (from SHA2-256SUMS in the release)
+ARG YT_DLP_SHA256=3bda0968a01cde70d26720653003b28553c71be14dcb2e5f4c24e9921fdad745
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg curl python3 ca-certificates && \
     curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" -o /usr/local/bin/yt-dlp && \
+    echo "${YT_DLP_SHA256}  /usr/local/bin/yt-dlp" | sha256sum -c - && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 1001 appuser && \

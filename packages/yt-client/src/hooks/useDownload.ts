@@ -48,8 +48,16 @@ export function useDownload() {
               if (saveResult) {
                 setLocalPath(saveResult.filePath);
               }
-            } catch {
-              // Save failed — still show complete with server info
+            } catch (saveErr) {
+              setError({
+                code: "SAVE_FAILED",
+                message:
+                  saveErr instanceof Error
+                    ? saveErr.message
+                    : "Failed to save file to disk",
+              });
+              setState("error");
+              return;
             }
             setState("complete");
           },

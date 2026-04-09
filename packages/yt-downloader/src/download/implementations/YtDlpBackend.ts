@@ -95,6 +95,9 @@ export class YtDlpBackend implements IDownloadBackend {
       stdout: usePipe ? "pipe" : "inherit",
       stderr: usePipe ? "pipe" : "inherit",
       signal,
+      timeout: this.config?.processTimeout
+        ? this.config.processTimeout * 1000
+        : undefined,
       onStdout: onProgress
         ? (line) => {
             const progress = this.progressParser.parseLine(line);

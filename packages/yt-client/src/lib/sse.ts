@@ -59,16 +59,25 @@ export async function streamDownload(
 
       if (!eventType || !data) continue;
 
-      const parsed = JSON.parse(data);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(data);
+      } catch {
+        callbacks.onError({
+          code: "PARSE_ERROR",
+          message: `Failed to parse SSE event: ${data.slice(0, 200)}`,
+        });
+        continue;
+      }
       switch (eventType) {
         case "progress":
-          callbacks.onProgress(parsed);
+          callbacks.onProgress(parsed as DownloadProgress);
           break;
         case "complete":
-          callbacks.onComplete(parsed);
+          callbacks.onComplete(parsed as DownloadComplete);
           break;
         case "error":
-          callbacks.onError(parsed);
+          callbacks.onError(parsed as DownloadError);
           break;
       }
     }

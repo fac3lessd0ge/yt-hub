@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sanitizeCustomArgs } from "~/config";
 import { DownloadError, YtDlpBackend } from "~/download";
 import type { IProcessSpawner, SpawnOptions, SpawnResult } from "~/process";
 
@@ -196,5 +197,50 @@ describe("YtDlpBackend", () => {
       speed: "3.00MiB/s",
       eta: "00:01",
     });
+  });
+});
+
+describe("sanitizeCustomArgs", () => {
+  it("passes through safe flags", () => {
+    const result = sanitizeCustomArgs([
+      "--no-overwrites",
+      "--prefer-free-formats",
+    ]);
+    expect(result).toEqual(["--no-overwrites", "--prefer-free-formats"]);
+  });
+
+  it("blocks --exec flag", () => {
+    const result = sanitizeCustomArgs([
+      "--no-overwrites",
+      "--exec",
+      "rm -rf /",
+    ]);
+    expect(result).toEqual(["--no-overwrites", "rm -rf /"]);
+  });
+
+  it("blocks --ffmpeg-location flag", () => {
+    const result = sanitizeCustomArgs(["--ffmpeg-location", "/evil/bin"]);
+    expect(result).toEqual(["/evil/bin"]);
+  });
+
+  it("blocks flags with = syntax", () => {
+    const result = sanitizeCustomArgs(["--exec=/bin/sh"]);
+    expect(result).toEqual([]);
+  });
+
+  it("blocks all dangerous flags", () => {
+    const dangerous = [
+      "--exec",
+      "--exec-before-dl",
+      "--exec-after-dl",
+      "--ffmpeg-location",
+      "--batch-file",
+      "--download-archive",
+      "--config-location",
+      "--config-locations",
+      "--plugin-dirs",
+    ];
+    const result = sanitizeCustomArgs(dangerous);
+    expect(result).toEqual([]);
   });
 });

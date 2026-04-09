@@ -173,6 +173,48 @@ describe("useDownload", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("transitions to error with SAVE_FAILED when save throws", async () => {
+    const completeData = {
+      output_path: "/tmp/test.mp3",
+      download_url: "/api/downloads/test.mp3",
+      title: "Video",
+      author_name: "Author",
+      format_id: "mp3",
+      format_label: "MP3 audio",
+    };
+
+    mockStreamDownload.mockImplementation(
+      async (_request: any, callbacks: any) => {
+        callbacks.onComplete(completeData);
+      },
+    );
+
+    vi.stubGlobal("window", {
+      ...window,
+      electronAPI: {
+        saveDownload: vi.fn().mockRejectedValue(new Error("Disk full")),
+      },
+    });
+
+    const { result } = renderHook(() => useDownload());
+
+    await act(async () => {
+      await result.current.start({
+        link: "https://youtube.com/watch?v=abc",
+        format: "mp3",
+        name: "test",
+      });
+    });
+
+    expect(result.current.state).toBe("error");
+    expect(result.current.error).toEqual({
+      code: "SAVE_FAILED",
+      message: "Disk full",
+    });
+
+    vi.unstubAllGlobals();
+  });
+
   it("returns to idle state when abort occurs", async () => {
     mockStreamDownload.mockImplementation(
       async (_request: any, _callbacks: any, _signal: AbortSignal) => {

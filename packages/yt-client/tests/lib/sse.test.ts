@@ -96,6 +96,28 @@ describe("streamDownload", () => {
     );
   });
 
+  it("calls onError with PARSE_ERROR for malformed JSON", async () => {
+    const stream = createMockStream([
+      "event: progress\ndata: {invalid json\n\n",
+    ]);
+
+    mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
+
+    const onProgress = vi.fn();
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+
+    await streamDownload(
+      { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" },
+      { onProgress, onComplete, onError },
+    );
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "PARSE_ERROR" }),
+    );
+    expect(onProgress).not.toHaveBeenCalled();
+  });
+
   it("handles multiple progress events in a single chunk", async () => {
     const stream = createMockStream([
       'event: progress\ndata: {"percent":25,"speed":"1.00MiB/s","eta":"00:06"}\n\nevent: progress\ndata: {"percent":75,"speed":"3.00MiB/s","eta":"00:01"}\n\n',
