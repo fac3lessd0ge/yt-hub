@@ -13,6 +13,9 @@ const createWindow = () => {
     height: 700,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -31,12 +34,29 @@ ipcMain.handle("dialog:selectFolder", async () => {
 });
 
 ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
-  shell.showItemInFolder(filePath);
+  if (typeof filePath !== "string" || filePath.includes("\0")) {
+    throw new Error("Invalid file path");
+  }
+  const resolved = path.resolve(filePath);
+  const home = app.getPath("home");
+  if (!resolved.startsWith(home)) {
+    throw new Error("File path must be within user home directory");
+  }
+  shell.showItemInFolder(resolved);
 });
 
 ipcMain.handle(
   "dialog:saveDownload",
   async (_event, downloadUrl: string, suggestedFilename: string) => {
+    if (typeof downloadUrl !== "string" || typeof suggestedFilename !== "string") {
+      throw new Error("Invalid arguments");
+    }
+
+    const parsed = new URL(downloadUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("Only http and https URLs are allowed");
+    }
+
     const result = await dialog.showSaveDialog({
       defaultPath: suggestedFilename,
       filters: [{ name: "All Files", extensions: ["*"] }],
