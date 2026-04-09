@@ -15,6 +15,7 @@ pub mod error_codes {
     pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
     pub const SERIALIZATION_ERROR: &str = "SERIALIZATION_ERROR";
     pub const GRPC_ERROR: &str = "GRPC_ERROR";
+    pub const FILE_NOT_FOUND: &str = "FILE_NOT_FOUND";
 }
 
 #[derive(serde::Serialize)]
@@ -30,6 +31,7 @@ pub enum AppError {
     GrpcCall(tonic::Status),
     BadRequest(String),
     Validation(String),
+    NotFound(String),
 }
 
 impl IntoResponse for AppError {
@@ -124,6 +126,14 @@ impl IntoResponse for AppError {
                     retryable: false,
                 },
             ),
+            AppError::NotFound(msg) => (
+                StatusCode::NOT_FOUND,
+                ErrorResponse {
+                    code: error_codes::FILE_NOT_FOUND,
+                    message: msg,
+                    retryable: false,
+                },
+            ),
         };
 
         (status, Json(error_response)).into_response()
@@ -133,7 +143,7 @@ impl IntoResponse for AppError {
 fn code_to_http_status(code: &str) -> StatusCode {
     match code {
         error_codes::VALIDATION_ERROR | error_codes::INVALID_URL => StatusCode::BAD_REQUEST,
-        error_codes::VIDEO_NOT_FOUND => StatusCode::NOT_FOUND,
+        error_codes::VIDEO_NOT_FOUND | error_codes::FILE_NOT_FOUND => StatusCode::NOT_FOUND,
         error_codes::METADATA_FAILED => StatusCode::BAD_GATEWAY,
         error_codes::DOWNLOAD_FAILED
         | error_codes::DEPENDENCY_MISSING
@@ -159,6 +169,7 @@ fn match_code_str(code: &str) -> &'static str {
         "INTERNAL_ERROR" => error_codes::INTERNAL_ERROR,
         "SERIALIZATION_ERROR" => error_codes::SERIALIZATION_ERROR,
         "GRPC_ERROR" => error_codes::GRPC_ERROR,
+        "FILE_NOT_FOUND" => error_codes::FILE_NOT_FOUND,
         _ => error_codes::GRPC_ERROR,
     }
 }

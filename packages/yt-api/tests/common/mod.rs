@@ -165,6 +165,7 @@ pub fn make_app(mock: MockGrpcClient) -> Router {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(false)),
         metrics_handle: test_metrics_handle(),
+        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
     };
     yt_api::routes::router::<MockGrpcClient>()
         .with_state(state)
@@ -178,6 +179,7 @@ pub fn make_app_shutting_down(mock: MockGrpcClient) -> Router {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(true)),
         metrics_handle: test_metrics_handle(),
+        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
     };
     yt_api::routes::router::<MockGrpcClient>()
         .with_state(state)

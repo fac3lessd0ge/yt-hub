@@ -22,6 +22,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.prod
+    volumes:
+      - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader:ro
     depends_on:
       yt-service:
         condition: service_healthy
@@ -50,7 +52,7 @@ services:
     env_file:
       - .env.prod
     volumes:
-      - downloads:/home/appuser/Downloads/yt-downloader
+      - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader
     healthcheck:
       test: ["CMD", "node", "-e", "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"]
       interval: 10s
@@ -66,6 +68,3 @@ networks:
     name: yt-hub_proxy
   internal:
     name: yt-hub_internal
-
-volumes:
-  downloads:

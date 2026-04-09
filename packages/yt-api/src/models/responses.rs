@@ -68,6 +68,7 @@ pub struct DownloadProgress {
 #[derive(Serialize)]
 pub struct DownloadComplete {
     pub output_path: String,
+    pub download_url: String,
     pub title: String,
     pub author_name: String,
     pub format_id: String,
