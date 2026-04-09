@@ -1,4 +1,5 @@
 use std::pin::Pin;
+use std::time::Duration;
 
 use tokio_stream::Stream;
 use tonic::transport::Channel;
@@ -8,6 +9,10 @@ use crate::proto::{
     DownloadRequest, DownloadResponse, GetMetadataRequest, GetMetadataResponse,
     ListBackendsRequest, ListBackendsResponse, ListFormatsRequest, ListFormatsResponse,
 };
+
+const GRPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const UNARY_RPC_TIMEOUT: Duration = Duration::from_secs(30);
+const STREAMING_RPC_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// A type-erased stream of download responses, usable both with tonic::Streaming and test mocks.
 pub type DownloadStream =
@@ -54,7 +59,12 @@ fn inject_request_id<T>(req: &mut tonic::Request<T>, request_id: Option<&str>) {
 
 impl GrpcClient {
     pub async fn connect(addr: &str) -> Result<Self, tonic::transport::Error> {
-        let inner = YtServiceClient::connect(addr.to_string()).await?;
+        let channel = tonic::transport::Endpoint::from_shared(addr.to_string())
+            .expect("invalid gRPC address")
+            .connect_timeout(GRPC_CONNECT_TIMEOUT)
+            .connect()
+            .await?;
+        let inner = YtServiceClient::new(channel);
         Ok(Self { inner })
     }
 }
@@ -70,6 +80,7 @@ impl GrpcClientTrait for GrpcClient {
             link: link.to_string(),
         });
         inject_request_id(&mut request, request_id);
+        request.set_timeout(UNARY_RPC_TIMEOUT);
         let start = std::time::Instant::now();
         let result = self.inner.clone().get_metadata(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
@@ -92,6 +103,7 @@ impl GrpcClientTrait for GrpcClient {
     ) -> Result<ListFormatsResponse, tonic::Status> {
         let mut request = tonic::Request::new(ListFormatsRequest {});
         inject_request_id(&mut request, request_id);
+        request.set_timeout(UNARY_RPC_TIMEOUT);
         let start = std::time::Instant::now();
         let result = self.inner.clone().list_formats(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
@@ -114,6 +126,7 @@ impl GrpcClientTrait for GrpcClient {
     ) -> Result<ListBackendsResponse, tonic::Status> {
         let mut request = tonic::Request::new(ListBackendsRequest {});
         inject_request_id(&mut request, request_id);
+        request.set_timeout(UNARY_RPC_TIMEOUT);
         let start = std::time::Instant::now();
         let result = self.inner.clone().list_backends(request).await.map(|r| r.into_inner());
         let duration_ms = start.elapsed().as_millis();
@@ -137,6 +150,7 @@ impl GrpcClientTrait for GrpcClient {
     ) -> Result<DownloadStream, tonic::Status> {
         let mut request = tonic::Request::new(download_req);
         inject_request_id(&mut request, request_id);
+        request.set_timeout(STREAMING_RPC_TIMEOUT);
         let start = std::time::Instant::now();
         let result = self
             .inner

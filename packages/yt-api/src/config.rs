@@ -25,6 +25,10 @@ fn default_max_body_size_bytes() -> usize {
     1_048_576
 }
 
+fn default_streaming_timeout_secs() -> u64 {
+    600
+}
+
 fn default_rate_limit_rpm() -> u32 {
     30
 }
@@ -48,6 +52,9 @@ struct RawConfig {
     #[serde(default = "default_request_timeout_ms")]
     request_timeout_ms: u64,
 
+    #[serde(default = "default_streaming_timeout_secs")]
+    streaming_timeout_secs: u64,
+
     #[serde(default = "default_max_body_size_bytes")]
     max_body_size_bytes: usize,
 
@@ -61,6 +68,7 @@ pub struct Config {
     pub grpc_target: String,
     pub log_level: String,
     pub request_timeout_ms: u64,
+    pub streaming_timeout_secs: u64,
     pub max_body_size_bytes: usize,
     pub rate_limit_rpm: u32,
     pub allowed_origins: Vec<String>,
@@ -98,6 +106,10 @@ impl Config {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(default_request_timeout_ms),
+                streaming_timeout_secs: env::var("STREAMING_TIMEOUT_SECS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(default_streaming_timeout_secs),
                 max_body_size_bytes: env::var("MAX_BODY_SIZE_BYTES")
                     .ok()
                     .and_then(|v| v.parse().ok())
@@ -115,6 +127,7 @@ impl Config {
             grpc_target: raw.grpc_target,
             log_level: raw.log_level,
             request_timeout_ms: raw.request_timeout_ms,
+            streaming_timeout_secs: raw.streaming_timeout_secs,
             max_body_size_bytes: raw.max_body_size_bytes,
             rate_limit_rpm: raw.rate_limit_rpm,
             allowed_origins: parse_allowed_origins(),
@@ -128,6 +141,7 @@ impl Config {
             grpc_target = %config.grpc_target,
             log_level = %config.log_level,
             request_timeout_ms = config.request_timeout_ms,
+            streaming_timeout_secs = config.streaming_timeout_secs,
             max_body_size_bytes = config.max_body_size_bytes,
             rate_limit_rpm = config.rate_limit_rpm,
             "Resolved yt-api config"

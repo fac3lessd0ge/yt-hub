@@ -156,7 +156,7 @@ async fn main() {
     };
 
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);
-    let streaming_timeout = Duration::from_secs(600);
+    let streaming_timeout = Duration::from_secs(config.streaming_timeout_secs);
 
     let governor_layer = build_governor_layer(config.governor_period_secs(), 10);
 
