@@ -1,5 +1,4 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import {
   status as GrpcStatus,
   type handleServerStreamingCall,
@@ -24,8 +23,7 @@ import { ErrorMapper } from "~/mapping";
 import { ServerError } from "../errors/ServerError";
 import type { IGrpcServer } from "../types/IGrpcServer";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROTO_PATH = resolve(__dirname, "../../../proto/yt_service.proto");
+const PROTO_PATH = resolve(process.cwd(), "proto/yt_service.proto");
 
 const SHUTDOWN_TIMEOUT_MS = 8000;
 
