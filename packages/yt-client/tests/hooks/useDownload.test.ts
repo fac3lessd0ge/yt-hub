@@ -236,4 +236,102 @@ describe("useDownload", () => {
 
     expect(result.current.state).toBe("idle");
   });
+
+  it("aborts the previous controller when start is called concurrently", async () => {
+    let firstSignal: AbortSignal | undefined;
+
+    mockStreamDownload.mockImplementation(
+      (_request: any, _callbacks: any, signal: AbortSignal) => {
+        if (!firstSignal) {
+          firstSignal = signal;
+          // First call: never resolve (simulates in-progress download)
+          return new Promise(() => {});
+        }
+        // Second call: resolve immediately
+        return Promise.resolve();
+      },
+    );
+
+    const { result } = renderHook(() => useDownload());
+
+    // Start first download (does not await — it hangs)
+    act(() => {
+      result.current.start({
+        link: "https://youtube.com/watch?v=first",
+        format: "mp3",
+        name: "first",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("downloading");
+    });
+
+    expect(firstSignal).toBeDefined();
+    expect(firstSignal?.aborted).toBe(false);
+
+    // Start second download — should abort the first
+    await act(async () => {
+      await result.current.start({
+        link: "https://youtube.com/watch?v=second",
+        format: "mp3",
+        name: "second",
+      });
+    });
+
+    expect(firstSignal?.aborted).toBe(true);
+  });
+
+  it("runs save logic after streamDownload resolves (downloading → saving → complete)", async () => {
+    const stateTransitions: string[] = [];
+
+    const completeData = {
+      output_path: "/tmp/test.mp3",
+      download_url: "/api/downloads/test.mp3",
+      title: "Video",
+      author_name: "Author",
+      format_id: "mp3",
+      format_label: "MP3 audio",
+    };
+
+    vi.stubGlobal("window", {
+      ...window,
+      electronAPI: {
+        saveDownload: vi
+          .fn()
+          .mockResolvedValue({ filePath: "/saved/test.mp3" }),
+      },
+    });
+
+    mockStreamDownload.mockImplementation(
+      async (_request: any, callbacks: any) => {
+        stateTransitions.push("streamDownload:before-complete");
+        callbacks.onComplete(completeData);
+        stateTransitions.push("streamDownload:after-complete");
+        // onComplete is synchronous — save logic should NOT have run yet
+      },
+    );
+
+    const { result } = renderHook(() => useDownload());
+
+    await act(async () => {
+      await result.current.start({
+        link: "https://youtube.com/watch?v=abc",
+        format: "mp3",
+        name: "test",
+      });
+    });
+
+    // Save should have been called after streamDownload resolved
+    expect(window.electronAPI?.saveDownload).toHaveBeenCalledWith(
+      "http://localhost:3000/api/downloads/test.mp3",
+      "test.mp3",
+    );
+
+    expect(result.current.state).toBe("complete");
+    expect(result.current.localPath).toBe("/saved/test.mp3");
+    expect(result.current.result).toEqual(completeData);
+
+    vi.unstubAllGlobals();
+  });
 });
