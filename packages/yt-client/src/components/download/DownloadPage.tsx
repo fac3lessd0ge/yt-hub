@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { useDownload } from "@/hooks/useDownload";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { DownloadForm } from "./DownloadForm";
 import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
@@ -15,6 +17,12 @@ export function DownloadPage() {
     cancel,
     reset,
   } = useDownload();
+
+  const shortcuts = useMemo(
+    () => (state === "downloading" ? { Escape: cancel } : {}),
+    [state, cancel],
+  );
+  useKeyboardShortcuts(shortcuts);
 
   return (
     <div className="mx-auto max-w-lg">
