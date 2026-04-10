@@ -3,6 +3,8 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 
 pub mod error_codes {
+    use axum::http::StatusCode;
+
     pub const VALIDATION_ERROR: &str = "VALIDATION_ERROR";
     pub const INVALID_URL: &str = "INVALID_URL";
     pub const VIDEO_NOT_FOUND: &str = "VIDEO_NOT_FOUND";
@@ -16,6 +18,37 @@ pub mod error_codes {
     pub const SERIALIZATION_ERROR: &str = "SERIALIZATION_ERROR";
     pub const GRPC_ERROR: &str = "GRPC_ERROR";
     pub const FILE_NOT_FOUND: &str = "FILE_NOT_FOUND";
+
+    /// Map a code string to its static constant, falling back to GRPC_ERROR.
+    pub fn to_static(code: &str) -> &'static str {
+        match code {
+            "VALIDATION_ERROR" => VALIDATION_ERROR,
+            "INVALID_URL" => INVALID_URL,
+            "VIDEO_NOT_FOUND" => VIDEO_NOT_FOUND,
+            "METADATA_FAILED" => METADATA_FAILED,
+            "DOWNLOAD_FAILED" => DOWNLOAD_FAILED,
+            "DEPENDENCY_MISSING" => DEPENDENCY_MISSING,
+            "SERVICE_UNAVAILABLE" => SERVICE_UNAVAILABLE,
+            "REQUEST_TIMEOUT" => REQUEST_TIMEOUT,
+            "CANCELLED" => CANCELLED,
+            "INTERNAL_ERROR" => INTERNAL_ERROR,
+            "SERIALIZATION_ERROR" => SERIALIZATION_ERROR,
+            "GRPC_ERROR" => GRPC_ERROR,
+            "FILE_NOT_FOUND" => FILE_NOT_FOUND,
+            _ => GRPC_ERROR,
+        }
+    }
+
+    pub fn to_http_status(code: &str) -> StatusCode {
+        match code {
+            VALIDATION_ERROR | INVALID_URL | CANCELLED => StatusCode::BAD_REQUEST,
+            VIDEO_NOT_FOUND | FILE_NOT_FOUND => StatusCode::NOT_FOUND,
+            METADATA_FAILED => StatusCode::BAD_GATEWAY,
+            SERVICE_UNAVAILABLE => StatusCode::SERVICE_UNAVAILABLE,
+            REQUEST_TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -25,11 +58,9 @@ pub struct ErrorResponse {
     pub retryable: bool,
 }
 
-#[allow(dead_code)]
 pub enum AppError {
     GrpcConnection(tonic::transport::Error),
     GrpcCall(tonic::Status),
-    BadRequest(String),
     Validation(String),
     NotFound(String),
 }
@@ -45,79 +76,7 @@ impl IntoResponse for AppError {
                     retryable: true,
                 },
             ),
-            AppError::GrpcCall(grpc_status) => {
-                // Try to parse JSON from gRPC status message
-                if let Ok(parsed) =
-                    serde_json::from_str::<serde_json::Value>(grpc_status.message())
-                {
-                    if let (Some(code), Some(message)) = (
-                        parsed.get("code").and_then(|c| c.as_str()),
-                        parsed.get("message").and_then(|m| m.as_str()),
-                    ) {
-                        let retryable = parsed
-                            .get("retryable")
-                            .and_then(|r| r.as_bool())
-                            .unwrap_or(false);
-                        let http_status = code_to_http_status(code);
-                        // code is from parsed JSON (a &str), but we need &'static str.
-                        // Map known codes to their static constants, fallback to GRPC_ERROR.
-                        let static_code = match_code_str(code);
-                        return (
-                            http_status,
-                            Json(ErrorResponse {
-                                code: static_code,
-                                message: message.to_string(),
-                                retryable,
-                            }),
-                        )
-                            .into_response();
-                    }
-                }
-
-                // Fallback: map gRPC status code
-                let (http_status, code, retryable) = match grpc_status.code() {
-                    tonic::Code::NotFound => {
-                        (StatusCode::NOT_FOUND, error_codes::VIDEO_NOT_FOUND, false)
-                    }
-                    tonic::Code::InvalidArgument => {
-                        (StatusCode::BAD_REQUEST, error_codes::VALIDATION_ERROR, false)
-                    }
-                    tonic::Code::Unavailable => (
-                        StatusCode::SERVICE_UNAVAILABLE,
-                        error_codes::SERVICE_UNAVAILABLE,
-                        true,
-                    ),
-                    tonic::Code::DeadlineExceeded => (
-                        StatusCode::GATEWAY_TIMEOUT,
-                        error_codes::REQUEST_TIMEOUT,
-                        true,
-                    ),
-                    tonic::Code::Cancelled => {
-                        (StatusCode::BAD_REQUEST, error_codes::CANCELLED, false)
-                    }
-                    _ => (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        error_codes::INTERNAL_ERROR,
-                        false,
-                    ),
-                };
-                (
-                    http_status,
-                    ErrorResponse {
-                        code,
-                        message: grpc_status.message().to_string(),
-                        retryable,
-                    },
-                )
-            }
-            AppError::BadRequest(msg) => (
-                StatusCode::BAD_REQUEST,
-                ErrorResponse {
-                    code: error_codes::VALIDATION_ERROR,
-                    message: msg,
-                    retryable: false,
-                },
-            ),
+            AppError::GrpcCall(grpc_status) => return grpc_status_to_response(grpc_status),
             AppError::Validation(msg) => (
                 StatusCode::BAD_REQUEST,
                 ErrorResponse {
@@ -140,38 +99,70 @@ impl IntoResponse for AppError {
     }
 }
 
-fn code_to_http_status(code: &str) -> StatusCode {
-    match code {
-        error_codes::VALIDATION_ERROR | error_codes::INVALID_URL => StatusCode::BAD_REQUEST,
-        error_codes::VIDEO_NOT_FOUND | error_codes::FILE_NOT_FOUND => StatusCode::NOT_FOUND,
-        error_codes::METADATA_FAILED => StatusCode::BAD_GATEWAY,
-        error_codes::DOWNLOAD_FAILED
-        | error_codes::DEPENDENCY_MISSING
-        | error_codes::INTERNAL_ERROR => StatusCode::INTERNAL_SERVER_ERROR,
-        error_codes::SERVICE_UNAVAILABLE => StatusCode::SERVICE_UNAVAILABLE,
-        error_codes::REQUEST_TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
-        error_codes::CANCELLED => StatusCode::BAD_REQUEST,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
+/// Convert a gRPC status to an HTTP response.
+/// First tries to parse structured JSON from the status message (sent by yt-service ErrorMapper),
+/// then falls back to mapping the gRPC status code directly.
+fn grpc_status_to_response(grpc_status: tonic::Status) -> Response {
+    // Try to parse JSON error payload from yt-service
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(grpc_status.message()) {
+        if let (Some(code), Some(message)) = (
+            parsed.get("code").and_then(|c| c.as_str()),
+            parsed.get("message").and_then(|m| m.as_str()),
+        ) {
+            let retryable = parsed
+                .get("retryable")
+                .and_then(|r| r.as_bool())
+                .unwrap_or(false);
+            let static_code = error_codes::to_static(code);
+            let http_status = error_codes::to_http_status(code);
+            return (
+                http_status,
+                Json(ErrorResponse {
+                    code: static_code,
+                    message: message.to_string(),
+                    retryable,
+                }),
+            )
+                .into_response();
+        }
     }
-}
 
-fn match_code_str(code: &str) -> &'static str {
-    match code {
-        "VALIDATION_ERROR" => error_codes::VALIDATION_ERROR,
-        "INVALID_URL" => error_codes::INVALID_URL,
-        "VIDEO_NOT_FOUND" => error_codes::VIDEO_NOT_FOUND,
-        "METADATA_FAILED" => error_codes::METADATA_FAILED,
-        "DOWNLOAD_FAILED" => error_codes::DOWNLOAD_FAILED,
-        "DEPENDENCY_MISSING" => error_codes::DEPENDENCY_MISSING,
-        "SERVICE_UNAVAILABLE" => error_codes::SERVICE_UNAVAILABLE,
-        "REQUEST_TIMEOUT" => error_codes::REQUEST_TIMEOUT,
-        "CANCELLED" => error_codes::CANCELLED,
-        "INTERNAL_ERROR" => error_codes::INTERNAL_ERROR,
-        "SERIALIZATION_ERROR" => error_codes::SERIALIZATION_ERROR,
-        "GRPC_ERROR" => error_codes::GRPC_ERROR,
-        "FILE_NOT_FOUND" => error_codes::FILE_NOT_FOUND,
-        _ => error_codes::GRPC_ERROR,
-    }
+    // Fallback: map gRPC status code directly
+    let (http_status, code, retryable) = match grpc_status.code() {
+        tonic::Code::NotFound => {
+            (StatusCode::NOT_FOUND, error_codes::VIDEO_NOT_FOUND, false)
+        }
+        tonic::Code::InvalidArgument => {
+            (StatusCode::BAD_REQUEST, error_codes::VALIDATION_ERROR, false)
+        }
+        tonic::Code::Unavailable => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            error_codes::SERVICE_UNAVAILABLE,
+            true,
+        ),
+        tonic::Code::DeadlineExceeded => (
+            StatusCode::GATEWAY_TIMEOUT,
+            error_codes::REQUEST_TIMEOUT,
+            true,
+        ),
+        tonic::Code::Cancelled => {
+            (StatusCode::BAD_REQUEST, error_codes::CANCELLED, false)
+        }
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            error_codes::INTERNAL_ERROR,
+            false,
+        ),
+    };
+    (
+        http_status,
+        Json(ErrorResponse {
+            code,
+            message: grpc_status.message().to_string(),
+            retryable,
+        }),
+    )
+        .into_response()
 }
 
 impl From<tonic::transport::Error> for AppError {
@@ -201,16 +192,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn bad_request_returns_400() {
-        let err = AppError::BadRequest("missing field".into());
-        let (status, json) = response_to_json(err.into_response()).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(json["code"], "VALIDATION_ERROR");
-        assert_eq!(json["message"], "missing field");
-        assert_eq!(json["retryable"], false);
-    }
-
-    #[tokio::test]
     async fn validation_returns_400() {
         let err = AppError::Validation("bad url".into());
         let (status, json) = response_to_json(err.into_response()).await;
@@ -218,6 +199,15 @@ mod tests {
         assert_eq!(json["code"], "VALIDATION_ERROR");
         assert_eq!(json["message"], "bad url");
         assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn not_found_returns_404() {
+        let err = AppError::NotFound("file missing".into());
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(json["code"], "FILE_NOT_FOUND");
+        assert_eq!(json["message"], "file missing");
     }
 
     #[tokio::test]
