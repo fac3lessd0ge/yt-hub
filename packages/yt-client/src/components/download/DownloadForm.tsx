@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
+import { getUrlValidationError } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
 
@@ -13,7 +14,11 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
   const { formats } = useFormats();
-  const { metadata, loading: metadataLoading } = useMetadata(link);
+
+  const urlError = getUrlValidationError(link);
+  const { metadata, loading: metadataLoading } = useMetadata(
+    urlError ? "" : link,
+  );
 
   useEffect(() => {
     if (metadata?.title && !name) {
@@ -29,11 +34,11 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!link || !name || !format) return;
+    if (!link || urlError || !name || !format) return;
     onSubmit({ link, format, name });
   };
 
-  const isValid = link && name && format;
+  const isValid = link && !urlError && name && format;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -49,6 +54,9 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           placeholder="https://www.youtube.com/watch?v=..."
           className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
+        {urlError && (
+          <p className="text-xs text-destructive">{urlError}</p>
+        )}
         {metadataLoading && (
           <p className="text-xs text-muted-foreground">Fetching metadata...</p>
         )}
