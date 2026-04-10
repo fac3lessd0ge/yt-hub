@@ -12,6 +12,15 @@ RUN npm run build --workspace=yt-downloader
 COPY packages/yt-service/ packages/yt-service/
 RUN npm run build --workspace=yt-service
 
+# ---- Stage 2: Production deps only ----
+FROM node:20-bookworm-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/yt-downloader/package.json packages/yt-downloader/
+COPY packages/yt-service/package.json packages/yt-service/
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=yt-downloader --workspace=yt-service --include-workspace-root --omit=dev
+
 # ---- Stage 3: Runtime ----
 FROM node:20-bookworm-slim AS runtime
 ARG YT_DLP_VERSION=2026.03.17
@@ -27,10 +36,10 @@ RUN groupadd --gid 1001 appuser && \
     useradd --uid 1001 --gid 1001 --create-home appuser
 WORKDIR /app
 
-# Copy node_modules from build stage (production dependencies only needed at runtime)
-COPY --from=build /app/node_modules/ node_modules/
-COPY --from=build /app/packages/yt-service/node_modules/ packages/yt-service/node_modules/
-COPY --from=build /app/packages/yt-downloader/node_modules/ packages/yt-downloader/node_modules/
+# Copy production-only node_modules from deps stage (no devDeps like tsx, vitest, etc.)
+COPY --from=deps /app/node_modules/ node_modules/
+COPY --from=deps /app/packages/yt-service/node_modules/ packages/yt-service/node_modules/
+COPY --from=deps /app/packages/yt-downloader/node_modules/ packages/yt-downloader/node_modules/
 
 # Copy built yt-downloader dist and package.json
 COPY --from=build /app/packages/yt-downloader/dist/ packages/yt-downloader/dist/
