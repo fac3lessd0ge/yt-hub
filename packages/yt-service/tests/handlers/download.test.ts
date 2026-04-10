@@ -63,7 +63,7 @@ describe("DownloadHandler", () => {
     });
   });
 
-  it("sends error message on failure", async () => {
+  it("sends error message on failure and re-throws mapped error", async () => {
     const handler = new DownloadHandler(
       fakeDownloadService({ throwError: new ValidationError("bad link") }),
       new ErrorMapper(),
@@ -71,13 +71,22 @@ describe("DownloadHandler", () => {
     );
 
     const messages: any[] = [];
-    await handler.handle({ link: "bad", format: "mp3", name: "test" }, (msg) =>
-      messages.push(msg),
-    );
+    const thrown = await handler
+      .handle({ link: "bad", format: "mp3", name: "test" }, (msg) =>
+        messages.push(msg),
+      )
+      .catch((e: unknown) => e);
 
     expect(messages).toHaveLength(1);
     expect(messages[0]).toEqual({
       error: { code: "VALIDATION_ERROR", message: "bad link" },
+    });
+
+    expect(thrown).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "bad link",
+      grpcStatus: expect.any(Number),
+      retryable: false,
     });
   });
 
