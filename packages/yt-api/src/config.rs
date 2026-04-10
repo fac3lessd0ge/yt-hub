@@ -33,6 +33,10 @@ fn default_rate_limit_rpm() -> u32 {
     30
 }
 
+fn default_download_dir() -> String {
+    "/home/appuser/Downloads/yt-downloader".into()
+}
+
 /// Intermediate struct used by envy for env-var deserialization.
 /// `allowed_origins` is handled manually after parsing.
 #[derive(Deserialize)]
@@ -60,6 +64,9 @@ struct RawConfig {
 
     #[serde(default = "default_rate_limit_rpm")]
     rate_limit_rpm: u32,
+
+    #[serde(default = "default_download_dir")]
+    download_dir: String,
 }
 
 pub struct Config {
@@ -72,6 +79,7 @@ pub struct Config {
     pub max_body_size_bytes: usize,
     pub rate_limit_rpm: u32,
     pub allowed_origins: Vec<String>,
+    pub download_dir: std::path::PathBuf,
 }
 
 fn default_allowed_origins() -> Vec<String> {
@@ -118,6 +126,7 @@ impl Config {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(default_rate_limit_rpm),
+                download_dir: env::var("DOWNLOAD_DIR").unwrap_or_else(|_| default_download_dir()),
             }
         });
 
@@ -131,6 +140,7 @@ impl Config {
             max_body_size_bytes: raw.max_body_size_bytes,
             rate_limit_rpm: raw.rate_limit_rpm,
             allowed_origins: parse_allowed_origins(),
+            download_dir: std::path::PathBuf::from(raw.download_dir),
         };
 
         config.validate();
@@ -144,6 +154,7 @@ impl Config {
             streaming_timeout_secs = config.streaming_timeout_secs,
             max_body_size_bytes = config.max_body_size_bytes,
             rate_limit_rpm = config.rate_limit_rpm,
+            download_dir = %config.download_dir.display(),
             "Resolved yt-api config"
         );
 

@@ -143,10 +143,7 @@ async fn main() {
 
     let shutting_down = Arc::new(AtomicBool::new(false));
 
-    let downloads_dir = std::env::var("DOWNLOADS_DIR")
-        .unwrap_or_else(|_| "/home/appuser/Downloads/yt-downloader".to_string());
-    let downloads_dir = std::path::PathBuf::from(downloads_dir);
-    tracing::info!(downloads_dir = %downloads_dir.display(), "Downloads directory configured");
+    let downloads_dir = config.download_dir.clone();
 
     let state = AppState {
         grpc_client,
