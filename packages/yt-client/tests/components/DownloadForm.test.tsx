@@ -69,6 +69,16 @@ describe("DownloadForm", () => {
     expect(button).not.toBeDisabled();
   });
 
+  it("link input has aria-required", () => {
+    render(<DownloadForm onSubmit={vi.fn()} />);
+    expect(screen.getByLabelText("YouTube Link")).toHaveAttribute("aria-required", "true");
+  });
+
+  it("link input gets autofocus", () => {
+    render(<DownloadForm onSubmit={vi.fn()} />);
+    expect(screen.getByLabelText("YouTube Link")).toHaveFocus();
+  });
+
   it("calls onSubmit with link, format, and name when form is submitted", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();

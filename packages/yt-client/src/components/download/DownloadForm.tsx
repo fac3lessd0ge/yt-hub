@@ -53,8 +53,12 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           onChange={(e) => setLink(e.target.value)}
           placeholder="https://www.youtube.com/watch?v=..."
           className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-required="true"
+          aria-invalid={!!urlError}
+          aria-describedby={urlError ? "link-error" : undefined}
+          autoFocus
         />
-        {urlError && <p className="text-xs text-destructive">{urlError}</p>}
+        {urlError && <p id="link-error" role="alert" className="text-xs text-destructive">{urlError}</p>}
         {metadataLoading && (
           <p className="text-xs text-muted-foreground">Fetching metadata...</p>
         )}
@@ -74,6 +78,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           value={format}
           onChange={(e) => setFormat(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-required="true"
         >
           {formats.map((f: FormatInfo) => (
             <option key={f.id} value={f.id}>
@@ -94,6 +99,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter file name"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-required="true"
         />
       </div>
 
