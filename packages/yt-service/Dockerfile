@@ -9,6 +9,8 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY tsconfig.base.json ./
 COPY packages/yt-downloader/ packages/yt-downloader/
 RUN npm run build --workspace=yt-downloader
+COPY packages/yt-service/ packages/yt-service/
+RUN npm run build --workspace=yt-service
 
 # ---- Stage 3: Runtime ----
 FROM node:20-bookworm-slim AS runtime
@@ -25,7 +27,7 @@ RUN groupadd --gid 1001 appuser && \
     useradd --uid 1001 --gid 1001 --create-home appuser
 WORKDIR /app
 
-# Copy all node_modules from build stage (includes tsx and its dependencies)
+# Copy node_modules from build stage (production dependencies only needed at runtime)
 COPY --from=build /app/node_modules/ node_modules/
 COPY --from=build /app/packages/yt-service/node_modules/ packages/yt-service/node_modules/
 COPY --from=build /app/packages/yt-downloader/node_modules/ packages/yt-downloader/node_modules/
@@ -34,15 +36,13 @@ COPY --from=build /app/packages/yt-downloader/node_modules/ packages/yt-download
 COPY --from=build /app/packages/yt-downloader/dist/ packages/yt-downloader/dist/
 COPY --from=build /app/packages/yt-downloader/package.json packages/yt-downloader/
 
-# Copy yt-service source and configs
-COPY packages/yt-service/src/ packages/yt-service/src/
+# Copy compiled yt-service dist, proto files (needed at runtime by @grpc/proto-loader), and package.json
+COPY --from=build /app/packages/yt-service/dist/ packages/yt-service/dist/
 COPY packages/yt-service/proto/ packages/yt-service/proto/
 COPY packages/yt-service/package.json packages/yt-service/
-COPY packages/yt-service/tsconfig.json packages/yt-service/
 
-# Root package.json and tsconfig needed for workspace resolution and path aliases
+# Root package.json needed for workspace resolution
 COPY package.json ./
-COPY tsconfig.base.json ./
 
 # Create downloads directory
 RUN mkdir -p /home/appuser/Downloads/yt-downloader && \
@@ -57,4 +57,4 @@ EXPOSE 50051
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD node -e "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"
 WORKDIR /app/packages/yt-service
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]
