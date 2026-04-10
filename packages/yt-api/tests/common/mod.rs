@@ -188,6 +188,37 @@ pub fn make_app_shutting_down(mock: MockGrpcClient) -> Router {
         ))
 }
 
+pub fn make_full_app(mock: MockGrpcClient) -> Router {
+    use axum::http::{HeaderValue, Method, header};
+    use tower_http::cors::{AllowOrigin, CorsLayer};
+
+    let state = AppState {
+        grpc_client: mock,
+        shutting_down: Arc::new(AtomicBool::new(false)),
+        metrics_handle: test_metrics_handle(),
+        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
+    };
+
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::list([
+            "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+        ]))
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::ACCEPT])
+        .allow_credentials(false)
+        .max_age(std::time::Duration::from_secs(3600));
+
+    yt_api::routes::router::<MockGrpcClient>()
+        .with_state(state)
+        .layer(axum::middleware::from_fn(
+            yt_api::middleware::request_id::request_id_middleware,
+        ))
+        .layer(axum::middleware::from_fn(
+            yt_api::middleware::securityHeaders::security_headers_middleware,
+        ))
+        .layer(cors)
+}
+
 /// Helper to create a mock download stream from a vector of responses.
 pub fn mock_download_stream(
     items: Vec<Result<DownloadResponse, tonic::Status>>,
