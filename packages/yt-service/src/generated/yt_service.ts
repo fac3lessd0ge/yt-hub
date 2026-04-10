@@ -16,8 +16,7 @@ export interface GetMetadataResponse {
   author_name: string;
 }
 
-export interface ListFormatsRequest {
-}
+export type ListFormatsRequest = {};
 
 export interface ListFormatsResponse {
   formats: FormatInfo[];
@@ -28,8 +27,7 @@ export interface FormatInfo {
   label: string;
 }
 
-export interface ListBackendsRequest {
-}
+export type ListBackendsRequest = {};
 
 export interface ListBackendsResponse {
   backends: string[];
@@ -44,10 +42,14 @@ export interface DownloadRequest {
 }
 
 export interface DownloadResponse {
-  payload?: { $case: "progress"; progress: DownloadProgress } | { $case: "complete"; complete: DownloadComplete } | {
-    $case: "error";
-    error: DownloadError;
-  } | undefined;
+  payload?:
+    | { $case: "progress"; progress: DownloadProgress }
+    | { $case: "complete"; complete: DownloadComplete }
+    | {
+        $case: "error";
+        error: DownloadError;
+      }
+    | undefined;
 }
 
 export interface DownloadProgress {
@@ -74,15 +76,22 @@ function createBaseGetMetadataRequest(): GetMetadataRequest {
 }
 
 export const GetMetadataRequest: MessageFns<GetMetadataRequest> = {
-  encode(message: GetMetadataRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: GetMetadataRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.link !== "") {
       writer.uint32(10).string(message.link);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetMetadataRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): GetMetadataRequest {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseGetMetadataRequest();
     while (reader.pos < end) {
@@ -117,10 +126,14 @@ export const GetMetadataRequest: MessageFns<GetMetadataRequest> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<GetMetadataRequest>, I>>(base?: I): GetMetadataRequest {
+  create<I extends Exact<DeepPartial<GetMetadataRequest>, I>>(
+    base?: I,
+  ): GetMetadataRequest {
     return GetMetadataRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetMetadataRequest>, I>>(object: I): GetMetadataRequest {
+  fromPartial<I extends Exact<DeepPartial<GetMetadataRequest>, I>>(
+    object: I,
+  ): GetMetadataRequest {
     const message = createBaseGetMetadataRequest();
     message.link = object.link ?? "";
     return message;
@@ -132,7 +145,10 @@ function createBaseGetMetadataResponse(): GetMetadataResponse {
 }
 
 export const GetMetadataResponse: MessageFns<GetMetadataResponse> = {
-  encode(message: GetMetadataResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: GetMetadataResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.title !== "") {
       writer.uint32(10).string(message.title);
     }
@@ -142,8 +158,12 @@ export const GetMetadataResponse: MessageFns<GetMetadataResponse> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetMetadataResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): GetMetadataResponse {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseGetMetadataResponse();
     while (reader.pos < end) {
@@ -180,8 +200,8 @@ export const GetMetadataResponse: MessageFns<GetMetadataResponse> = {
       author_name: isSet(object.authorName)
         ? globalThis.String(object.authorName)
         : isSet(object.author_name)
-        ? globalThis.String(object.author_name)
-        : "",
+          ? globalThis.String(object.author_name)
+          : "",
     };
   },
 
@@ -196,10 +216,14 @@ export const GetMetadataResponse: MessageFns<GetMetadataResponse> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<GetMetadataResponse>, I>>(base?: I): GetMetadataResponse {
+  create<I extends Exact<DeepPartial<GetMetadataResponse>, I>>(
+    base?: I,
+  ): GetMetadataResponse {
     return GetMetadataResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetMetadataResponse>, I>>(object: I): GetMetadataResponse {
+  fromPartial<I extends Exact<DeepPartial<GetMetadataResponse>, I>>(
+    object: I,
+  ): GetMetadataResponse {
     const message = createBaseGetMetadataResponse();
     message.title = object.title ?? "";
     message.author_name = object.author_name ?? "";
@@ -212,12 +236,19 @@ function createBaseListFormatsRequest(): ListFormatsRequest {
 }
 
 export const ListFormatsRequest: MessageFns<ListFormatsRequest> = {
-  encode(_: ListFormatsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    _: ListFormatsRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListFormatsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): ListFormatsRequest {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseListFormatsRequest();
     while (reader.pos < end) {
@@ -241,10 +272,14 @@ export const ListFormatsRequest: MessageFns<ListFormatsRequest> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListFormatsRequest>, I>>(base?: I): ListFormatsRequest {
+  create<I extends Exact<DeepPartial<ListFormatsRequest>, I>>(
+    base?: I,
+  ): ListFormatsRequest {
     return ListFormatsRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListFormatsRequest>, I>>(_: I): ListFormatsRequest {
+  fromPartial<I extends Exact<DeepPartial<ListFormatsRequest>, I>>(
+    _: I,
+  ): ListFormatsRequest {
     const message = createBaseListFormatsRequest();
     return message;
   },
@@ -255,15 +290,22 @@ function createBaseListFormatsResponse(): ListFormatsResponse {
 }
 
 export const ListFormatsResponse: MessageFns<ListFormatsResponse> = {
-  encode(message: ListFormatsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: ListFormatsResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     for (const v of message.formats) {
       FormatInfo.encode(v!, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListFormatsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): ListFormatsResponse {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseListFormatsResponse();
     while (reader.pos < end) {
@@ -288,7 +330,9 @@ export const ListFormatsResponse: MessageFns<ListFormatsResponse> = {
 
   fromJSON(object: any): ListFormatsResponse {
     return {
-      formats: globalThis.Array.isArray(object?.formats) ? object.formats.map((e: any) => FormatInfo.fromJSON(e)) : [],
+      formats: globalThis.Array.isArray(object?.formats)
+        ? object.formats.map((e: any) => FormatInfo.fromJSON(e))
+        : [],
     };
   },
 
@@ -300,12 +344,17 @@ export const ListFormatsResponse: MessageFns<ListFormatsResponse> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListFormatsResponse>, I>>(base?: I): ListFormatsResponse {
+  create<I extends Exact<DeepPartial<ListFormatsResponse>, I>>(
+    base?: I,
+  ): ListFormatsResponse {
     return ListFormatsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListFormatsResponse>, I>>(object: I): ListFormatsResponse {
+  fromPartial<I extends Exact<DeepPartial<ListFormatsResponse>, I>>(
+    object: I,
+  ): ListFormatsResponse {
     const message = createBaseListFormatsResponse();
-    message.formats = object.formats?.map((e) => FormatInfo.fromPartial(e)) || [];
+    message.formats =
+      object.formats?.map((e) => FormatInfo.fromPartial(e)) || [];
     return message;
   },
 };
@@ -315,7 +364,10 @@ function createBaseFormatInfo(): FormatInfo {
 }
 
 export const FormatInfo: MessageFns<FormatInfo> = {
-  encode(message: FormatInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: FormatInfo,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.id !== "") {
       writer.uint32(10).string(message.id);
     }
@@ -326,7 +378,8 @@ export const FormatInfo: MessageFns<FormatInfo> = {
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): FormatInfo {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseFormatInfo();
     while (reader.pos < end) {
@@ -378,7 +431,9 @@ export const FormatInfo: MessageFns<FormatInfo> = {
   create<I extends Exact<DeepPartial<FormatInfo>, I>>(base?: I): FormatInfo {
     return FormatInfo.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<FormatInfo>, I>>(object: I): FormatInfo {
+  fromPartial<I extends Exact<DeepPartial<FormatInfo>, I>>(
+    object: I,
+  ): FormatInfo {
     const message = createBaseFormatInfo();
     message.id = object.id ?? "";
     message.label = object.label ?? "";
@@ -391,12 +446,19 @@ function createBaseListBackendsRequest(): ListBackendsRequest {
 }
 
 export const ListBackendsRequest: MessageFns<ListBackendsRequest> = {
-  encode(_: ListBackendsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    _: ListBackendsRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListBackendsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): ListBackendsRequest {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseListBackendsRequest();
     while (reader.pos < end) {
@@ -420,10 +482,14 @@ export const ListBackendsRequest: MessageFns<ListBackendsRequest> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListBackendsRequest>, I>>(base?: I): ListBackendsRequest {
+  create<I extends Exact<DeepPartial<ListBackendsRequest>, I>>(
+    base?: I,
+  ): ListBackendsRequest {
     return ListBackendsRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListBackendsRequest>, I>>(_: I): ListBackendsRequest {
+  fromPartial<I extends Exact<DeepPartial<ListBackendsRequest>, I>>(
+    _: I,
+  ): ListBackendsRequest {
     const message = createBaseListBackendsRequest();
     return message;
   },
@@ -434,15 +500,22 @@ function createBaseListBackendsResponse(): ListBackendsResponse {
 }
 
 export const ListBackendsResponse: MessageFns<ListBackendsResponse> = {
-  encode(message: ListBackendsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: ListBackendsResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     for (const v of message.backends) {
       writer.uint32(10).string(v!);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListBackendsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+  decode(
+    input: BinaryReader | Uint8Array,
+    length?: number,
+  ): ListBackendsResponse {
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseListBackendsResponse();
     while (reader.pos < end) {
@@ -467,7 +540,9 @@ export const ListBackendsResponse: MessageFns<ListBackendsResponse> = {
 
   fromJSON(object: any): ListBackendsResponse {
     return {
-      backends: globalThis.Array.isArray(object?.backends) ? object.backends.map((e: any) => globalThis.String(e)) : [],
+      backends: globalThis.Array.isArray(object?.backends)
+        ? object.backends.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -479,10 +554,14 @@ export const ListBackendsResponse: MessageFns<ListBackendsResponse> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ListBackendsResponse>, I>>(base?: I): ListBackendsResponse {
+  create<I extends Exact<DeepPartial<ListBackendsResponse>, I>>(
+    base?: I,
+  ): ListBackendsResponse {
     return ListBackendsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListBackendsResponse>, I>>(object: I): ListBackendsResponse {
+  fromPartial<I extends Exact<DeepPartial<ListBackendsResponse>, I>>(
+    object: I,
+  ): ListBackendsResponse {
     const message = createBaseListBackendsResponse();
     message.backends = object.backends?.map((e) => e) || [];
     return message;
@@ -490,11 +569,20 @@ export const ListBackendsResponse: MessageFns<ListBackendsResponse> = {
 };
 
 function createBaseDownloadRequest(): DownloadRequest {
-  return { link: "", format: "", name: "", destination: undefined, backend: undefined };
+  return {
+    link: "",
+    format: "",
+    name: "",
+    destination: undefined,
+    backend: undefined,
+  };
 }
 
 export const DownloadRequest: MessageFns<DownloadRequest> = {
-  encode(message: DownloadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: DownloadRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.link !== "") {
       writer.uint32(10).string(message.link);
     }
@@ -514,7 +602,8 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): DownloadRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseDownloadRequest();
     while (reader.pos < end) {
@@ -574,8 +663,12 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
       link: isSet(object.link) ? globalThis.String(object.link) : "",
       format: isSet(object.format) ? globalThis.String(object.format) : "",
       name: isSet(object.name) ? globalThis.String(object.name) : "",
-      destination: isSet(object.destination) ? globalThis.String(object.destination) : undefined,
-      backend: isSet(object.backend) ? globalThis.String(object.backend) : undefined,
+      destination: isSet(object.destination)
+        ? globalThis.String(object.destination)
+        : undefined,
+      backend: isSet(object.backend)
+        ? globalThis.String(object.backend)
+        : undefined,
     };
   },
 
@@ -599,10 +692,14 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<DownloadRequest>, I>>(base?: I): DownloadRequest {
+  create<I extends Exact<DeepPartial<DownloadRequest>, I>>(
+    base?: I,
+  ): DownloadRequest {
     return DownloadRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<DownloadRequest>, I>>(object: I): DownloadRequest {
+  fromPartial<I extends Exact<DeepPartial<DownloadRequest>, I>>(
+    object: I,
+  ): DownloadRequest {
     const message = createBaseDownloadRequest();
     message.link = object.link ?? "";
     message.format = object.format ?? "";
@@ -618,23 +715,36 @@ function createBaseDownloadResponse(): DownloadResponse {
 }
 
 export const DownloadResponse: MessageFns<DownloadResponse> = {
-  encode(message: DownloadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: DownloadResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     switch (message.payload?.$case) {
       case "progress":
-        DownloadProgress.encode(message.payload.progress, writer.uint32(10).fork()).join();
+        DownloadProgress.encode(
+          message.payload.progress,
+          writer.uint32(10).fork(),
+        ).join();
         break;
       case "complete":
-        DownloadComplete.encode(message.payload.complete, writer.uint32(18).fork()).join();
+        DownloadComplete.encode(
+          message.payload.complete,
+          writer.uint32(18).fork(),
+        ).join();
         break;
       case "error":
-        DownloadError.encode(message.payload.error, writer.uint32(26).fork()).join();
+        DownloadError.encode(
+          message.payload.error,
+          writer.uint32(26).fork(),
+        ).join();
         break;
     }
     return writer;
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): DownloadResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseDownloadResponse();
     while (reader.pos < end) {
@@ -645,7 +755,10 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
             break;
           }
 
-          message.payload = { $case: "progress", progress: DownloadProgress.decode(reader, reader.uint32()) };
+          message.payload = {
+            $case: "progress",
+            progress: DownloadProgress.decode(reader, reader.uint32()),
+          };
           continue;
         }
         case 2: {
@@ -653,7 +766,10 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
             break;
           }
 
-          message.payload = { $case: "complete", complete: DownloadComplete.decode(reader, reader.uint32()) };
+          message.payload = {
+            $case: "complete",
+            complete: DownloadComplete.decode(reader, reader.uint32()),
+          };
           continue;
         }
         case 3: {
@@ -661,7 +777,10 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
             break;
           }
 
-          message.payload = { $case: "error", error: DownloadError.decode(reader, reader.uint32()) };
+          message.payload = {
+            $case: "error",
+            error: DownloadError.decode(reader, reader.uint32()),
+          };
           continue;
         }
       }
@@ -676,12 +795,18 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
   fromJSON(object: any): DownloadResponse {
     return {
       payload: isSet(object.progress)
-        ? { $case: "progress", progress: DownloadProgress.fromJSON(object.progress) }
+        ? {
+            $case: "progress",
+            progress: DownloadProgress.fromJSON(object.progress),
+          }
         : isSet(object.complete)
-        ? { $case: "complete", complete: DownloadComplete.fromJSON(object.complete) }
-        : isSet(object.error)
-        ? { $case: "error", error: DownloadError.fromJSON(object.error) }
-        : undefined,
+          ? {
+              $case: "complete",
+              complete: DownloadComplete.fromJSON(object.complete),
+            }
+          : isSet(object.error)
+            ? { $case: "error", error: DownloadError.fromJSON(object.error) }
+            : undefined,
     };
   },
 
@@ -697,27 +822,49 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<DownloadResponse>, I>>(base?: I): DownloadResponse {
+  create<I extends Exact<DeepPartial<DownloadResponse>, I>>(
+    base?: I,
+  ): DownloadResponse {
     return DownloadResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<DownloadResponse>, I>>(object: I): DownloadResponse {
+  fromPartial<I extends Exact<DeepPartial<DownloadResponse>, I>>(
+    object: I,
+  ): DownloadResponse {
     const message = createBaseDownloadResponse();
     switch (object.payload?.$case) {
       case "progress": {
-        if (object.payload?.progress !== undefined && object.payload?.progress !== null) {
-          message.payload = { $case: "progress", progress: DownloadProgress.fromPartial(object.payload.progress) };
+        if (
+          object.payload?.progress !== undefined &&
+          object.payload?.progress !== null
+        ) {
+          message.payload = {
+            $case: "progress",
+            progress: DownloadProgress.fromPartial(object.payload.progress),
+          };
         }
         break;
       }
       case "complete": {
-        if (object.payload?.complete !== undefined && object.payload?.complete !== null) {
-          message.payload = { $case: "complete", complete: DownloadComplete.fromPartial(object.payload.complete) };
+        if (
+          object.payload?.complete !== undefined &&
+          object.payload?.complete !== null
+        ) {
+          message.payload = {
+            $case: "complete",
+            complete: DownloadComplete.fromPartial(object.payload.complete),
+          };
         }
         break;
       }
       case "error": {
-        if (object.payload?.error !== undefined && object.payload?.error !== null) {
-          message.payload = { $case: "error", error: DownloadError.fromPartial(object.payload.error) };
+        if (
+          object.payload?.error !== undefined &&
+          object.payload?.error !== null
+        ) {
+          message.payload = {
+            $case: "error",
+            error: DownloadError.fromPartial(object.payload.error),
+          };
         }
         break;
       }
@@ -731,7 +878,10 @@ function createBaseDownloadProgress(): DownloadProgress {
 }
 
 export const DownloadProgress: MessageFns<DownloadProgress> = {
-  encode(message: DownloadProgress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: DownloadProgress,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.percent !== 0) {
       writer.uint32(13).float(message.percent);
     }
@@ -745,7 +895,8 @@ export const DownloadProgress: MessageFns<DownloadProgress> = {
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): DownloadProgress {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseDownloadProgress();
     while (reader.pos < end) {
@@ -806,10 +957,14 @@ export const DownloadProgress: MessageFns<DownloadProgress> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<DownloadProgress>, I>>(base?: I): DownloadProgress {
+  create<I extends Exact<DeepPartial<DownloadProgress>, I>>(
+    base?: I,
+  ): DownloadProgress {
     return DownloadProgress.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<DownloadProgress>, I>>(object: I): DownloadProgress {
+  fromPartial<I extends Exact<DeepPartial<DownloadProgress>, I>>(
+    object: I,
+  ): DownloadProgress {
     const message = createBaseDownloadProgress();
     message.percent = object.percent ?? 0;
     message.speed = object.speed ?? "";
@@ -819,11 +974,20 @@ export const DownloadProgress: MessageFns<DownloadProgress> = {
 };
 
 function createBaseDownloadComplete(): DownloadComplete {
-  return { output_path: "", title: "", author_name: "", format_id: "", format_label: "" };
+  return {
+    output_path: "",
+    title: "",
+    author_name: "",
+    format_id: "",
+    format_label: "",
+  };
 }
 
 export const DownloadComplete: MessageFns<DownloadComplete> = {
-  encode(message: DownloadComplete, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: DownloadComplete,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.output_path !== "") {
       writer.uint32(10).string(message.output_path);
     }
@@ -843,7 +1007,8 @@ export const DownloadComplete: MessageFns<DownloadComplete> = {
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): DownloadComplete {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseDownloadComplete();
     while (reader.pos < end) {
@@ -903,24 +1068,24 @@ export const DownloadComplete: MessageFns<DownloadComplete> = {
       output_path: isSet(object.outputPath)
         ? globalThis.String(object.outputPath)
         : isSet(object.output_path)
-        ? globalThis.String(object.output_path)
-        : "",
+          ? globalThis.String(object.output_path)
+          : "",
       title: isSet(object.title) ? globalThis.String(object.title) : "",
       author_name: isSet(object.authorName)
         ? globalThis.String(object.authorName)
         : isSet(object.author_name)
-        ? globalThis.String(object.author_name)
-        : "",
+          ? globalThis.String(object.author_name)
+          : "",
       format_id: isSet(object.formatId)
         ? globalThis.String(object.formatId)
         : isSet(object.format_id)
-        ? globalThis.String(object.format_id)
-        : "",
+          ? globalThis.String(object.format_id)
+          : "",
       format_label: isSet(object.formatLabel)
         ? globalThis.String(object.formatLabel)
         : isSet(object.format_label)
-        ? globalThis.String(object.format_label)
-        : "",
+          ? globalThis.String(object.format_label)
+          : "",
     };
   },
 
@@ -944,10 +1109,14 @@ export const DownloadComplete: MessageFns<DownloadComplete> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<DownloadComplete>, I>>(base?: I): DownloadComplete {
+  create<I extends Exact<DeepPartial<DownloadComplete>, I>>(
+    base?: I,
+  ): DownloadComplete {
     return DownloadComplete.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<DownloadComplete>, I>>(object: I): DownloadComplete {
+  fromPartial<I extends Exact<DeepPartial<DownloadComplete>, I>>(
+    object: I,
+  ): DownloadComplete {
     const message = createBaseDownloadComplete();
     message.output_path = object.output_path ?? "";
     message.title = object.title ?? "";
@@ -963,7 +1132,10 @@ function createBaseDownloadError(): DownloadError {
 }
 
 export const DownloadError: MessageFns<DownloadError> = {
-  encode(message: DownloadError, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: DownloadError,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.code !== "") {
       writer.uint32(10).string(message.code);
     }
@@ -974,7 +1146,8 @@ export const DownloadError: MessageFns<DownloadError> = {
   },
 
   decode(input: BinaryReader | Uint8Array, length?: number): DownloadError {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const reader =
+      input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseDownloadError();
     while (reader.pos < end) {
@@ -1023,10 +1196,14 @@ export const DownloadError: MessageFns<DownloadError> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<DownloadError>, I>>(base?: I): DownloadError {
+  create<I extends Exact<DeepPartial<DownloadError>, I>>(
+    base?: I,
+  ): DownloadError {
     return DownloadError.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<DownloadError>, I>>(object: I): DownloadError {
+  fromPartial<I extends Exact<DeepPartial<DownloadError>, I>>(
+    object: I,
+  ): DownloadError {
     const message = createBaseDownloadError();
     message.code = object.code ?? "";
     message.message = object.message ?? "";
@@ -1034,18 +1211,35 @@ export const DownloadError: MessageFns<DownloadError> = {
   },
 };
 
-type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+type Builtin =
+  | Date
+  | Function
+  | Uint8Array
+  | string
+  | number
+  | boolean
+  | undefined;
 
-type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends { $case: string }
+        ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & {
+            $case: T["$case"];
+          }
+        : T extends {}
+          ? { [K in keyof T]?: DeepPartial<T[K]> }
+          : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-type Exact<P, I extends P> = P extends Builtin ? P
-  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+type Exact<P, I extends P> = P extends Builtin
+  ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & {
+      [K in Exclude<keyof I, KeysOfUnion<P>>]: never;
+    };
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

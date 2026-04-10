@@ -5,12 +5,12 @@ import type {
   VideoMetadata,
 } from "yt-downloader";
 import type {
+  GetMetadataResponse,
+  ListFormatsResponse,
   DownloadComplete as ProtoDownloadComplete,
   DownloadError as ProtoDownloadError,
   DownloadProgress as ProtoDownloadProgress,
   FormatInfo as ProtoFormatInfo,
-  GetMetadataResponse,
-  ListFormatsResponse,
 } from "~/generated/yt_service";
 
 // proto-loader uses flat oneof fields (not $case discriminated unions).

@@ -1,10 +1,15 @@
 import type { DownloadService } from "yt-downloader";
 import type { DownloadRequest } from "~/generated/yt_service";
 import type { ErrorMapper } from "~/mapping";
-import type { DownloadStreamMessage, ResponseMapper } from "~/mapping/ResponseMapper";
+import type {
+  DownloadStreamMessage,
+  ResponseMapper,
+} from "~/mapping/ResponseMapper";
 import type { IStreamHandler } from "../types/IHandler";
 
-export class DownloadHandler implements IStreamHandler<DownloadRequest, DownloadStreamMessage> {
+export class DownloadHandler
+  implements IStreamHandler<DownloadRequest, DownloadStreamMessage>
+{
   constructor(
     private downloadService: DownloadService,
     private errorMapper: ErrorMapper,

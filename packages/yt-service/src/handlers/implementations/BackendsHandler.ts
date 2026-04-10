@@ -1,5 +1,8 @@
 import type { DownloadService } from "yt-downloader";
-import type { ListBackendsRequest, ListBackendsResponse } from "~/generated/yt_service";
+import type {
+  ListBackendsRequest,
+  ListBackendsResponse,
+} from "~/generated/yt_service";
 import type { IUnaryHandler } from "../types/IHandler";
 
 export class BackendsHandler
