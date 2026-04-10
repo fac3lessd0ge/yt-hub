@@ -12,7 +12,7 @@ export function DownloadResult({
   onReset,
 }: DownloadResultProps) {
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div role="status" className="rounded-lg border border-border p-4">
       <h3 className="mb-2 text-sm font-medium text-green-600">
         Download Complete
       </h3>

@@ -91,4 +91,9 @@ describe("DownloadResult", () => {
 
     expect(onReset).toHaveBeenCalledOnce();
   });
+
+  it("has role=status for screen reader announcement", () => {
+    render(<DownloadResult result={mockResult} localPath={null} onReset={vi.fn()} />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
 });
