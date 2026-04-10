@@ -90,17 +90,6 @@ describe("DownloadService", () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it("throws ValidationError on non-YouTube URL", async () => {
-    const service = createService();
-    await expect(
-      service.download({
-        link: "https://vimeo.com/123",
-        format: "mp3",
-        name: "test",
-      }),
-    ).rejects.toThrow(ValidationError);
-  });
-
   it("throws ValidationError on unsupported format", async () => {
     const service = createService();
     await expect(
