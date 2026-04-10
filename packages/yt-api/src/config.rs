@@ -143,7 +143,10 @@ impl Config {
             download_dir: std::path::PathBuf::from(raw.download_dir),
         };
 
-        config.validate();
+        if let Err(msg) = config.validate() {
+            tracing::error!(%msg, "Invalid configuration");
+            std::process::exit(1);
+        }
 
         tracing::info!(
             host = %config.yt_api_host,
@@ -161,18 +164,22 @@ impl Config {
         config
     }
 
-    fn validate(&self) {
-        assert!(
-            self.yt_api_port >= 1,
-            "YT_API_PORT must be between 1 and 65535, got {}",
-            self.yt_api_port
-        );
+    fn validate(&self) -> Result<(), String> {
+        if self.yt_api_port < 1 {
+            return Err(format!(
+                "YT_API_PORT must be between 1 and 65535, got {}",
+                self.yt_api_port
+            ));
+        }
 
-        assert!(
-            self.grpc_target.starts_with("http://") || self.grpc_target.starts_with("https://"),
-            "GRPC_TARGET must start with http:// or https://, got '{}'",
-            self.grpc_target
-        );
+        if !self.grpc_target.starts_with("http://") && !self.grpc_target.starts_with("https://") {
+            return Err(format!(
+                "GRPC_TARGET must start with http:// or https://, got '{}'",
+                self.grpc_target
+            ));
+        }
+
+        Ok(())
     }
 
     pub fn addr(&self) -> String {
