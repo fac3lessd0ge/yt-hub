@@ -17,12 +17,13 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
       <h1 className="mb-4 px-2 text-lg font-semibold text-sidebar-foreground">
         YT Hub
       </h1>
-      <nav className="flex flex-col gap-1">
+      <nav aria-label="Main navigation" className="flex flex-col gap-1">
         {navItems.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => onNavigate(item.id)}
+            aria-current={activePage === item.id ? "page" : undefined}
             className={cn(
               "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
               activePage === item.id
@@ -30,7 +31,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
             )}
           >
-            <item.icon className="h-4 w-4" />
+            <item.icon aria-hidden="true" className="h-4 w-4" />
             {item.label}
           </button>
         ))}

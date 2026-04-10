@@ -40,4 +40,19 @@ describe("DownloadProgress", () => {
 
     expect(onCancel).toHaveBeenCalledOnce();
   });
+
+  it("progress bar has role=progressbar with aria-value attributes", () => {
+    const progress = { percent: 42.5, speed: "2.50MiB/s", eta: "00:15" };
+    render(<DownloadProgress progress={progress} onCancel={vi.fn()} />);
+
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "42.5");
+    expect(bar).toHaveAttribute("aria-valuemin", "0");
+    expect(bar).toHaveAttribute("aria-valuemax", "100");
+  });
+
+  it("status text is in an aria-live region", () => {
+    render(<DownloadProgress progress={null} onCancel={vi.fn()} />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
 });

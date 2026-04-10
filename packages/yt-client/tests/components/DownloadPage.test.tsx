@@ -34,6 +34,7 @@ function makeHookReturn(overrides: Record<string, unknown> = {}) {
     result: null,
     localPath: null,
     error: null,
+    reconnecting: false,
     start: vi.fn(),
     cancel: vi.fn(),
     reset: vi.fn(),
@@ -114,5 +115,25 @@ describe("DownloadPage", () => {
     render(<DownloadPage />);
 
     expect(screen.queryByText("Download Failed")).not.toBeInTheDocument();
+  });
+
+  it("error block has role=alert", () => {
+    mockUseDownload.mockReturnValue(
+      makeHookReturn({
+        state: "error",
+        error: { code: "NETWORK_ERROR", message: "Connection failed" },
+      }),
+    );
+    render(<DownloadPage />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("saving state has aria-busy", () => {
+    mockUseDownload.mockReturnValue(makeHookReturn({ state: "saving" }));
+    render(<DownloadPage />);
+    expect(screen.getByText("Saving file...")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 });
