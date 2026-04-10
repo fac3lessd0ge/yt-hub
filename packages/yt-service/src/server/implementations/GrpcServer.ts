@@ -277,6 +277,16 @@ export class GrpcServer implements IGrpcServer {
         );
         log.info("Download completed successfully");
         call.end();
+      } catch (err) {
+        const mapped =
+          err && typeof err === "object" && "grpcStatus" in err
+            ? (err as { grpcStatus: number; code: string; message: string })
+            : this.errorMapper.mapError(err);
+        log.error({ err: mapped }, "Download failed");
+        const grpcErr = Object.assign(new Error(mapped.message), {
+          code: mapped.grpcStatus,
+        });
+        call.destroy(grpcErr);
       } finally {
         this._activeStreams.delete(call);
         this._onStreamComplete?.();
