@@ -22,38 +22,48 @@ export function parseRetryAfter(header: string | null): number {
   return 5000;
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  return withRetry(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      throw new Error("You are offline. Please check your connection.");
-    }
-    const response = await fetch(url);
-    if (!response.ok) {
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
-        throw new RateLimitError(parseRetryAfter(retryAfter));
+async function fetchJson<T>(
+  url: string,
+  options?: { signal?: AbortSignal },
+): Promise<T> {
+  return withRetry(
+    async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        throw new Error("You are offline. Please check your connection.");
       }
-      let message = `HTTP ${response.status}`;
-      try {
-        const text = await response.text();
-        try {
-          const body = JSON.parse(text);
-          if (body.message) message = body.message;
-        } catch {
-          if (text) message = text.slice(0, 500);
+      const response = await fetch(url, { signal: options?.signal });
+      if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After");
+          throw new RateLimitError(parseRetryAfter(retryAfter));
         }
-      } catch {
-        // Body unreadable, use default message
+        let message = `HTTP ${response.status}`;
+        try {
+          const text = await response.text();
+          try {
+            const body = JSON.parse(text);
+            if (body.message) message = body.message;
+          } catch {
+            if (text) message = text.slice(0, 500);
+          }
+        } catch {
+          // Body unreadable, use default message
+        }
+        throw new HttpError(response.status, message);
       }
-      throw new HttpError(response.status, message);
-    }
-    return response.json();
-  });
+      return response.json();
+    },
+    { signal: options?.signal },
+  );
 }
 
-export function fetchMetadata(link: string): Promise<MetadataResponse> {
+export function fetchMetadata(
+  link: string,
+  options?: { signal?: AbortSignal },
+): Promise<MetadataResponse> {
   return fetchJson(
     `${getBaseUrl()}/api/metadata?link=${encodeURIComponent(link)}`,
+    options,
   );
 }
 

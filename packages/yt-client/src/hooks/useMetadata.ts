@@ -7,24 +7,49 @@ export function useMetadata(link: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setMetadata(null);
     setError(null);
 
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+
     if (!link) return;
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setLoading(true);
-      fetchMetadata(link)
-        .then(setMetadata)
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+      fetchMetadata(link, { signal: controller.signal })
+        .then((data) => {
+          if (!controller.signal.aborted) {
+            setMetadata(data);
+          }
+        })
+        .catch((err) => {
+          if (!controller.signal.aborted) {
+            setError(err.message);
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+          }
+        });
     }, 500);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
     };
   }, [link]);
 

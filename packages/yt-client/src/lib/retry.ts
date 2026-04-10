@@ -19,6 +19,7 @@ export class RateLimitError extends Error {
 export interface RetryOptions {
   maxAttempts: number;
   baseDelayMs: number;
+  signal?: AbortSignal;
 }
 
 const defaults: RetryOptions = { maxAttempts: 3, baseDelayMs: 1000 };
@@ -29,18 +30,26 @@ function isClientError(err: unknown): boolean {
   return false;
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options?: Partial<RetryOptions>,
 ): Promise<T> {
-  const { maxAttempts, baseDelayMs } = { ...defaults, ...options };
+  const { maxAttempts, baseDelayMs, signal } = { ...defaults, ...options };
 
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
     try {
       return await fn();
     } catch (err) {
       lastError = err;
+      if (isAbortError(err)) throw err;
       if (isClientError(err)) throw err;
       if (attempt + 1 >= maxAttempts) throw err;
 
