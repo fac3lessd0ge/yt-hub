@@ -66,6 +66,7 @@ export class YtDlpBackend implements IDownloadBackend {
       "yt-dlp",
       ...formatArgs,
       "--no-playlist",
+      "--continue",
       "-o",
       outputPath,
       "--progress",
