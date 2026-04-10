@@ -14,7 +14,7 @@ export function DownloadProgress({
   const percent = progress?.percent ?? 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div role="status" aria-live="polite" className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">
           {reconnecting ? "Reconnecting..." : "Downloading..."}
@@ -22,7 +22,14 @@ export function DownloadProgress({
         <span className="text-muted-foreground">{percent.toFixed(1)}%</span>
       </div>
 
-      <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div
+        role="progressbar"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Download progress"
+        className="h-2 w-full overflow-hidden rounded-full bg-secondary"
+      >
         <div
           className="h-full bg-primary transition-all duration-300"
           style={{ width: `${percent}%` }}
