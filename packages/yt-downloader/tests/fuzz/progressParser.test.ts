@@ -6,8 +6,14 @@ describe("YtDlpProgressParser fuzz", () => {
 
   it("never throws on random input", () => {
     const inputs = [
-      "", " ", "\0", "\n", "random text",
-      "[download]", "[download] ", "[download] 50%",
+      "",
+      " ",
+      "\0",
+      "\n",
+      "random text",
+      "[download]",
+      "[download] ",
+      "[download] 50%",
       "[download] abc% of 10MiB at 1MiB/s ETA 00:01",
       "[download] -1% of 10MiB at 1MiB/s ETA 00:01",
       "[download] 999% of 10MiB at 1MiB/s ETA 00:01",

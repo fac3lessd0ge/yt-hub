@@ -28,7 +28,11 @@ function createMockStream(chunks: string[]) {
   });
 }
 
-const req = { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" };
+const req = {
+  link: "https://youtube.com/watch?v=abc",
+  format: "mp3",
+  name: "test",
+};
 const completeEvent =
   'event: complete\ndata: {"output_path":"/t.mp3","title":"T","author_name":"A","format_id":"mp3","format_label":"MP3"}\n\n';
 
@@ -38,12 +42,19 @@ describe("SSE parser fuzz", () => {
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
 
     const onComplete = vi.fn();
-    await streamDownload(req, { onProgress: vi.fn(), onComplete, onError: vi.fn() });
+    await streamDownload(req, {
+      onProgress: vi.fn(),
+      onComplete,
+      onError: vi.fn(),
+    });
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
   it("handles missing event type gracefully", async () => {
-    const stream = createMockStream(['data: {"percent":50}\n\n', completeEvent]);
+    const stream = createMockStream([
+      'data: {"percent":50}\n\n',
+      completeEvent,
+    ]);
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
 
     const onProgress = vi.fn();
@@ -65,25 +76,35 @@ describe("SSE parser fuzz", () => {
   });
 
   it("handles binary-like data in event stream", async () => {
-    const stream = createMockStream(["event: progress\ndata: \x00\x01\x02\n\n", completeEvent]);
+    const stream = createMockStream([
+      "event: progress\ndata: \x00\x01\x02\n\n",
+      completeEvent,
+    ]);
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
 
     const onError = vi.fn();
     const onComplete = vi.fn();
     await streamDownload(req, { onProgress: vi.fn(), onComplete, onError });
-    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: "PARSE_ERROR" }));
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "PARSE_ERROR" }),
+    );
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
   it("handles extremely long data lines", async () => {
     const longData = "a".repeat(100000);
-    const stream = createMockStream([`event: progress\ndata: ${longData}\n\n`, completeEvent]);
+    const stream = createMockStream([
+      `event: progress\ndata: ${longData}\n\n`,
+      completeEvent,
+    ]);
     mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
 
     const onError = vi.fn();
     const onComplete = vi.fn();
     await streamDownload(req, { onProgress: vi.fn(), onComplete, onError });
-    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: "PARSE_ERROR" }));
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "PARSE_ERROR" }),
+    );
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 });
