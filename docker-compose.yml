@@ -14,6 +14,16 @@ services:
       - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader
     restart: unless-stopped
     stop_grace_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '2.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "node", "-e", "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"]
       interval: 10s
@@ -37,6 +47,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
     stop_grace_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 10s
