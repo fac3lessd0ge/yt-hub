@@ -20,6 +20,8 @@ export function useDownload() {
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(async (request: DownloadRequest) => {
+    abortRef.current?.abort();
+
     setState("downloading");
     setProgress(null);
     setResult(null);
@@ -30,6 +32,8 @@ export function useDownload() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    let completeData: DownloadComplete | null = null;
+
     try {
       await streamDownload(
         request,
@@ -39,33 +43,9 @@ export function useDownload() {
             setProgress(data);
           },
           onReconnecting: () => setReconnecting(true),
-          onComplete: async (data) => {
+          onComplete: (data) => {
+            completeData = data;
             setResult(data);
-            setState("saving");
-
-            const filename = data.download_url.split("/").pop() ?? "download";
-            const fullUrl = `${getBaseUrl()}${data.download_url}`;
-
-            try {
-              const saveResult = await window.electronAPI?.saveDownload(
-                fullUrl,
-                filename,
-              );
-              if (saveResult) {
-                setLocalPath(saveResult.filePath);
-              }
-            } catch (saveErr) {
-              setError({
-                code: "SAVE_FAILED",
-                message:
-                  saveErr instanceof Error
-                    ? saveErr.message
-                    : "Failed to save file to disk",
-              });
-              setState("error");
-              return;
-            }
-            setState("complete");
           },
           onError: (data) => {
             setError(data);
@@ -84,7 +64,38 @@ export function useDownload() {
         });
         setState("error");
       }
+      return;
     }
+
+    if (!completeData) return;
+
+    setState("saving");
+
+    const data = completeData as DownloadComplete;
+    const filename = data.download_url.split("/").pop() ?? "download";
+    const fullUrl = `${getBaseUrl()}${data.download_url}`;
+
+    try {
+      const saveResult = await window.electronAPI?.saveDownload(
+        fullUrl,
+        filename,
+      );
+      if (saveResult) {
+        setLocalPath(saveResult.filePath);
+      }
+    } catch (saveErr) {
+      setError({
+        code: "SAVE_FAILED",
+        message:
+          saveErr instanceof Error
+            ? saveErr.message
+            : "Failed to save file to disk",
+      });
+      setState("error");
+      return;
+    }
+
+    setState("complete");
   }, []);
 
   const cancel = useCallback(() => {
