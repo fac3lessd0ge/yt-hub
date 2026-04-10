@@ -66,6 +66,7 @@ export class YtDlpBackend implements IDownloadBackend {
       "yt-dlp",
       ...formatArgs,
       "--no-playlist",
+      "--continue",
       "-o",
       outputPath,
       "--progress",
@@ -106,8 +107,12 @@ export class YtDlpBackend implements IDownloadBackend {
         : undefined,
     });
 
+    if (result.exitCode === 0 && onProgress) {
+      onProgress({ percent: 100, speed: "done", eta: "00:00" });
+    }
+
     if (result.exitCode !== 0) {
-      throw new DownloadError(result.exitCode);
+      throw new DownloadError(result.exitCode, result.stderr);
     }
   }
 }
