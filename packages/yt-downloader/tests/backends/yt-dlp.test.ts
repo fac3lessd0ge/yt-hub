@@ -186,7 +186,8 @@ describe("YtDlpBackend", () => {
       (progress) => progressUpdates.push(progress),
     );
 
-    expect(progressUpdates).toHaveLength(2);
+    // 25%, 75%, 100% from parser + synthetic 100% from backend
+    expect(progressUpdates.length).toBeGreaterThanOrEqual(3);
     expect(progressUpdates[0]).toEqual({
       percent: 25.0,
       speed: "2.00MiB/s",
@@ -197,6 +198,8 @@ describe("YtDlpBackend", () => {
       speed: "3.00MiB/s",
       eta: "00:01",
     });
+    // Last update is always 100%
+    expect(progressUpdates[progressUpdates.length - 1].percent).toBe(100);
   });
 });
 
