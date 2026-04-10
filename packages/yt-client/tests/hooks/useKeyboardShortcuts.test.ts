@@ -21,7 +21,9 @@ describe("useKeyboardShortcuts", () => {
 
   it("cleans up listener on unmount", () => {
     const handler = vi.fn();
-    const { unmount } = renderHook(() => useKeyboardShortcuts({ Escape: handler }));
+    const { unmount } = renderHook(() =>
+      useKeyboardShortcuts({ Escape: handler }),
+    );
 
     unmount();
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));

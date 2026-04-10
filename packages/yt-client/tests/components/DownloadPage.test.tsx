@@ -131,6 +131,9 @@ describe("DownloadPage", () => {
   it("saving state has aria-busy", () => {
     mockUseDownload.mockReturnValue(makeHookReturn({ state: "saving" }));
     render(<DownloadPage />);
-    expect(screen.getByText("Saving file...")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByText("Saving file...")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 });

@@ -4,7 +4,12 @@ export function useKeyboardShortcuts(shortcuts: Record<string, () => void>) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      )
+        return;
       shortcuts[e.key]?.();
     };
     window.addEventListener("keydown", handler);

@@ -71,7 +71,10 @@ describe("DownloadForm", () => {
 
   it("link input has aria-required", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText("YouTube Link")).toHaveAttribute("aria-required", "true");
+    expect(screen.getByLabelText("YouTube Link")).toHaveAttribute(
+      "aria-required",
+      "true",
+    );
   });
 
   it("link input gets autofocus", () => {

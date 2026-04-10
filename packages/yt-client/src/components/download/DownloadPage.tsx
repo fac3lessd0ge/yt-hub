@@ -19,7 +19,8 @@ export function DownloadPage() {
   } = useDownload();
 
   const shortcuts = useMemo(
-    () => (state === "downloading" ? { Escape: cancel } : {}),
+    (): Record<string, () => void> =>
+      state === "downloading" ? { Escape: cancel } : {},
     [state, cancel],
   );
   useKeyboardShortcuts(shortcuts);
@@ -40,15 +41,24 @@ export function DownloadPage() {
         )}
 
         {state === "saving" && (
-          <p aria-busy="true" className="text-sm text-muted-foreground">Saving file...</p>
+          <p aria-busy="true" className="text-sm text-muted-foreground">
+            Saving file...
+          </p>
         )}
 
         {state === "complete" && result && (
-          <DownloadResult result={result} localPath={localPath} onReset={reset} />
+          <DownloadResult
+            result={result}
+            localPath={localPath}
+            onReset={reset}
+          />
         )}
 
         {state === "error" && error && (
-          <div role="alert" className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/50 bg-destructive/10 p-4"
+          >
             <h3 className="mb-1 text-sm font-medium text-destructive">
               Download Failed
             </h3>

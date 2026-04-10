@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
 import { getUrlValidationError } from "@/lib/urlValidation";
@@ -13,7 +13,12 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
   const [link, setLink] = useState("");
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
+  const linkRef = useRef<HTMLInputElement>(null);
   const { formats } = useFormats();
+
+  useEffect(() => {
+    linkRef.current?.focus();
+  }, []);
 
   const urlError = getUrlValidationError(link);
   const { metadata, loading: metadataLoading } = useMetadata(
@@ -47,6 +52,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           YouTube Link
         </label>
         <input
+          ref={linkRef}
           id="link"
           type="text"
           value={link}
@@ -56,9 +62,12 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           aria-required="true"
           aria-invalid={!!urlError}
           aria-describedby={urlError ? "link-error" : undefined}
-          autoFocus
         />
-        {urlError && <p id="link-error" role="alert" className="text-xs text-destructive">{urlError}</p>}
+        {urlError && (
+          <p id="link-error" role="alert" className="text-xs text-destructive">
+            {urlError}
+          </p>
+        )}
         {metadataLoading && (
           <p className="text-xs text-muted-foreground">Fetching metadata...</p>
         )}
