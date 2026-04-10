@@ -28,7 +28,11 @@ function createMockStream(chunks: string[]) {
   });
 }
 
-const req = { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" };
+const req = {
+  link: "https://youtube.com/watch?v=abc",
+  format: "mp3",
+  name: "test",
+};
 
 describe("streamDownload", () => {
   it("dispatches progress and complete events", async () => {

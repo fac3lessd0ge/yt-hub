@@ -100,5 +100,15 @@ export function useDownload() {
     setReconnecting(false);
   }, []);
 
-  return { state, progress, result, localPath, error, reconnecting, start, cancel, reset };
+  return {
+    state,
+    progress,
+    result,
+    localPath,
+    error,
+    reconnecting,
+    start,
+    cancel,
+    reset,
+  };
 }

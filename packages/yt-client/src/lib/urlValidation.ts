@@ -7,7 +7,8 @@ export function isValidYoutubeUrl(url: string): boolean {
 
 export function getUrlValidationError(url: string): string | null {
   if (!url) return null;
-  if (!/^https?:\/\//.test(url)) return "URL must start with http:// or https://";
+  if (!/^https?:\/\//.test(url))
+    return "URL must start with http:// or https://";
   if (!isValidYoutubeUrl(url)) return "Not a recognized YouTube URL";
   return null;
 }
