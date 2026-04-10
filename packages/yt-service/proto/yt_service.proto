@@ -1,6 +1,9 @@
 syntax = "proto3";
 
-package yt_service;
+// Package versioning: bump major version (v1 → v2) only for breaking changes
+// (removing fields, renaming RPCs, changing field types).
+// Additive changes (new fields, new RPCs) are backward-compatible within v1.
+package yt_hub.v1;
 
 service YtService {
   rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);

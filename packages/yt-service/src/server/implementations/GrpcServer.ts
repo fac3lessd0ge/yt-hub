@@ -86,7 +86,7 @@ export class GrpcServer implements IGrpcServer {
 
     const grpc = await import("@grpc/grpc-js");
     const proto = grpc.loadPackageDefinition(packageDefinition) as any;
-    const service = proto.yt_service.YtService.service;
+    const service = proto.yt_hub.v1.YtService.service;
 
     this.server.addService(service, {
       GetMetadata: this.createGetMetadata(),
