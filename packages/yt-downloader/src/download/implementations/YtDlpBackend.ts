@@ -107,7 +107,7 @@ export class YtDlpBackend implements IDownloadBackend {
     });
 
     if (result.exitCode !== 0) {
-      throw new DownloadError(result.exitCode);
+      throw new DownloadError(result.exitCode, result.stderr);
     }
   }
 }
