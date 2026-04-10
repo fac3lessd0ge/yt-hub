@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { BASE_URL } from "@/lib/apiClient";
+import { getBaseUrl } from "@/lib/apiClient";
 import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
@@ -16,6 +16,7 @@ export function useDownload() {
   const [result, setResult] = useState<DownloadComplete | null>(null);
   const [localPath, setLocalPath] = useState<string | null>(null);
   const [error, setError] = useState<DownloadError | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(async (request: DownloadRequest) => {
@@ -24,6 +25,7 @@ export function useDownload() {
     setResult(null);
     setLocalPath(null);
     setError(null);
+    setReconnecting(false);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -32,13 +34,17 @@ export function useDownload() {
       await streamDownload(
         request,
         {
-          onProgress: (data) => setProgress(data),
+          onProgress: (data) => {
+            setReconnecting(false);
+            setProgress(data);
+          },
+          onReconnecting: () => setReconnecting(true),
           onComplete: async (data) => {
             setResult(data);
             setState("saving");
 
             const filename = data.download_url.split("/").pop() ?? "download";
-            const fullUrl = `${BASE_URL}${data.download_url}`;
+            const fullUrl = `${getBaseUrl()}${data.download_url}`;
 
             try {
               const saveResult = await window.electronAPI?.saveDownload(
@@ -91,7 +97,18 @@ export function useDownload() {
     setResult(null);
     setLocalPath(null);
     setError(null);
+    setReconnecting(false);
   }, []);
 
-  return { state, progress, result, localPath, error, start, cancel, reset };
+  return {
+    state,
+    progress,
+    result,
+    localPath,
+    error,
+    reconnecting,
+    start,
+    cancel,
+    reset,
+  };
 }

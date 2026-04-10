@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  getApiBaseUrl: (): string | undefined =>
+    ipcRenderer.sendSync("config:getApiBaseUrl") || undefined,
   selectFolder: (): Promise<string | null> =>
     ipcRenderer.invoke("dialog:selectFolder"),
   showItemInFolder: (filePath: string): Promise<void> =>
