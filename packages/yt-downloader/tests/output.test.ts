@@ -51,9 +51,7 @@ describe("OutputPathBuilder", () => {
 
   it("returns original path when file does not exist", () => {
     const exists = () => false;
-    expect(builder.build("song", "mp3", "/tmp", exists)).toBe(
-      "/tmp/song.mp3",
-    );
+    expect(builder.build("song", "mp3", "/tmp", exists)).toBe("/tmp/song.mp3");
   });
 
   it("appends _1 suffix when file exists", () => {

@@ -57,9 +57,7 @@ describe("YtDlpProgressParser", () => {
   });
 
   it("parses 100% completion line", () => {
-    const result = parser.parseLine(
-      "[download] 100% of   12.34MiB in 00:04",
-    );
+    const result = parser.parseLine("[download] 100% of   12.34MiB in 00:04");
     expect(result).toEqual({
       percent: 100,
       speed: "done",

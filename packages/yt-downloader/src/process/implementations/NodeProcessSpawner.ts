@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { type Interface, createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import { CancellationError } from "~/download/errors/CancellationError";
 import type {
   IProcessSpawner,
@@ -64,8 +64,7 @@ export class NodeProcessSpawner implements IProcessSpawner {
         if (timeoutId) clearTimeout(timeoutId);
         resolve({
           exitCode: code ?? 1,
-          stderr:
-            stderrLines.length > 0 ? stderrLines.join("\n") : undefined,
+          stderr: stderrLines.length > 0 ? stderrLines.join("\n") : undefined,
         });
       });
     });

@@ -3,8 +3,7 @@ import type { DownloadProgress } from "../types/DownloadProgress";
 const PROGRESS_RE =
   /\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+~?\s*\S+\s+at\s+(.+?)\s+ETA\s+(\S+)/;
 
-const COMPLETE_RE =
-  /\[download\]\s+100(?:\.0)?%\s+of\s+~?\s*\S+\s+in\s+\S+/;
+const COMPLETE_RE = /\[download\]\s+100(?:\.0)?%\s+of\s+~?\s*\S+\s+in\s+\S+/;
 
 export class YtDlpProgressParser {
   parseLine(line: string): DownloadProgress | null {
