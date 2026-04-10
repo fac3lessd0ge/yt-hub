@@ -9,7 +9,7 @@ vi.mock("@/lib/sse", () => ({
 }));
 
 vi.mock("@/lib/apiClient", () => ({
-  BASE_URL: "http://localhost:3000",
+  getBaseUrl: () => "http://localhost:3000",
 }));
 
 describe("useDownload", () => {

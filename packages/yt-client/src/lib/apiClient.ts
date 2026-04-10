@@ -4,8 +4,13 @@ import type {
   MetadataResponse,
 } from "@/types/api";
 
-export const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+export function getBaseUrl(): string {
+  if (typeof window !== "undefined" && window.electronAPI?.getApiBaseUrl) {
+    const url = window.electronAPI.getApiBaseUrl();
+    if (url) return url;
+  }
+  return import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+}
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -28,17 +33,19 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export function fetchMetadata(link: string): Promise<MetadataResponse> {
-  return fetchJson(`${BASE_URL}/api/metadata?link=${encodeURIComponent(link)}`);
+  return fetchJson(
+    `${getBaseUrl()}/api/metadata?link=${encodeURIComponent(link)}`,
+  );
 }
 
 export function fetchFormats(): Promise<FormatsResponse> {
-  return fetchJson(`${BASE_URL}/api/formats`);
+  return fetchJson(`${getBaseUrl()}/api/formats`);
 }
 
 export function fetchBackends(): Promise<BackendsResponse> {
-  return fetchJson(`${BASE_URL}/api/backends`);
+  return fetchJson(`${getBaseUrl()}/api/backends`);
 }
 
 export function getDownloadUrl(): string {
-  return `${BASE_URL}/api/downloads`;
+  return `${getBaseUrl()}/api/downloads`;
 }

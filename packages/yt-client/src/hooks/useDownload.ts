@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { BASE_URL } from "@/lib/apiClient";
+import { getBaseUrl } from "@/lib/apiClient";
 import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
@@ -38,7 +38,7 @@ export function useDownload() {
             setState("saving");
 
             const filename = data.download_url.split("/").pop() ?? "download";
-            const fullUrl = `${BASE_URL}${data.download_url}`;
+            const fullUrl = `${getBaseUrl()}${data.download_url}`;
 
             try {
               const saveResult = await window.electronAPI?.saveDownload(
