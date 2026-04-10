@@ -1,0 +1,12 @@
+version: v2
+plugins:
+  - local: protoc-gen-ts_proto
+    out: src/generated
+    opt:
+      - esModuleInterop=true
+      - outputServices=false
+      - env=node
+      - useOptionals=messages
+      - oneof=unions
+      - snakeToCamel=false
+      - exportCommonSymbols=false

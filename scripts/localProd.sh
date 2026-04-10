@@ -3,7 +3,8 @@ set -euo pipefail
 
 # =============================================================================
 # Local Docker testing — builds and runs the full stack without Traefik
-# Uses docker-compose.yml directly, exposing yt-api on localhost:3000.
+# Uses docker-compose.yml + docker-compose.monitoring.yml, exposing:
+#   yt-api on localhost:3000, Grafana on localhost:3001
 #
 # Usage:
 #   bash scripts/localProd.sh up      — build images, start stack, verify health
@@ -40,14 +41,14 @@ ensure_env() {
 start_stack() {
   ensure_env
 
-  log "Building and starting stack..."
-  docker compose up -d --build --remove-orphans
+  log "Building and starting stack (app + monitoring)..."
+  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build --remove-orphans
 
   log "Waiting for yt-api to become healthy (timeout: 90s)..."
   TIMEOUT=90
   INTERVAL=3
   ELAPSED=0
-  CONTAINER=$(docker compose ps -q yt-api)
+  CONTAINER=$(docker compose -f docker-compose.yml -f docker-compose.monitoring.yml ps -q yt-api)
 
   while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
     STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo "starting")
@@ -62,17 +63,19 @@ start_stack() {
 
   if [ "$STATUS" != "healthy" ]; then
     error "yt-api did not become healthy within ${TIMEOUT}s"
-    docker compose logs yt-api --tail=20
+    docker compose -f docker-compose.yml -f docker-compose.monitoring.yml logs yt-api --tail=20
     exit 1
   fi
 
   ok "Stack is running"
   echo ""
-  docker compose ps
+  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml ps
   echo ""
   info "Endpoints:"
-  info "  API:    ${API_URL}/health"
-  info "  gRPC:   localhost:50051"
+  info "  API:        ${API_URL}/health"
+  info "  gRPC:       localhost:50051"
+  info "  Grafana:    http://localhost:3001  (admin/admin)"
+  info "  Prometheus: http://localhost:9090"
   echo ""
   info "Run smoke tests:   bash scripts/localProd.sh test"
   info "Stop everything:   bash scripts/localProd.sh down"
@@ -138,7 +141,7 @@ run_tests() {
 
 stop_stack() {
   log "Stopping stack..."
-  docker compose down -v 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml down -v 2>/dev/null || true
   ok "Stack stopped"
 }
 

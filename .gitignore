@@ -5,6 +5,7 @@ bun.lock
 Downloads/
 downloads/
 .nx/
+.env
 .fingerprint
 deps
 incremental

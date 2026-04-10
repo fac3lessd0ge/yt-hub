@@ -25,6 +25,6 @@
     "indentWidth": 2
   },
   "files": {
-    "includes": ["**/*.ts", "**/*.tsx", "**/*.json", "!**/dist/**", "!**/.vite/**", "!**/out/**"]
+    "includes": ["**/*.ts", "**/*.tsx", "**/*.json", "!**/dist/**", "!**/.vite/**", "!**/out/**", "!**/generated/**"]
   }
 }

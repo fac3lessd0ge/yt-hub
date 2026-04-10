@@ -73,7 +73,7 @@ beforeAll(async () => {
     oneofs: true,
   });
   const proto = grpc.loadPackageDefinition(packageDefinition) as any;
-  client = new proto.yt_service.YtService(
+  client = new proto.yt_hub.v1.YtService(
     `127.0.0.1:${port}`,
     grpc.credentials.createInsecure(),
   );
