@@ -56,7 +56,12 @@ function fakeBackend(downloadExitCode: number = 0): IDownloadBackend {
 
 const allResolved: IBinaryResolver = { resolve: () => "/usr/bin/mock" };
 const fakeFs: IFileSystem = { mkdirRecursive: () => {} };
-const fakeLogger: ILogger = { info: () => {}, error: () => {} };
+const fakeLogger: ILogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
 
 function createApp(
   overrides: {

@@ -14,7 +14,9 @@ import { GrpcServer } from "~/server";
 const logger = createLogger(process.env.LOG_LEVEL ?? "info");
 const config = loadConfig(logger);
 
-const downloadLogger = new PinoLoggerAdapter(logger.child({ component: "yt-downloader" }));
+const downloadLogger = new PinoLoggerAdapter(
+  logger.child({ component: "yt-downloader" }),
+);
 const downloadService = new DownloadService({ logger: downloadLogger });
 const errorMapper = new ErrorMapper();
 const responseMapper = new ResponseMapper();
