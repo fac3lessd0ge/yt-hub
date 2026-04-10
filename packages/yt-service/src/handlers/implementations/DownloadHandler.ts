@@ -1,16 +1,10 @@
 import type { DownloadService } from "yt-downloader";
-import type { ErrorMapper, ResponseMapper } from "~/mapping";
+import type { DownloadRequest } from "~/generated/yt_service";
+import type { ErrorMapper } from "~/mapping";
+import type { DownloadStreamMessage, ResponseMapper } from "~/mapping/ResponseMapper";
 import type { IStreamHandler } from "../types/IHandler";
 
-interface DownloadRequest {
-  link: string;
-  format: string;
-  name: string;
-  destination?: string;
-  backend?: string;
-}
-
-export class DownloadHandler implements IStreamHandler<DownloadRequest, any> {
+export class DownloadHandler implements IStreamHandler<DownloadRequest, DownloadStreamMessage> {
   constructor(
     private downloadService: DownloadService,
     private errorMapper: ErrorMapper,
@@ -19,7 +13,7 @@ export class DownloadHandler implements IStreamHandler<DownloadRequest, any> {
 
   async handle(
     request: DownloadRequest,
-    write: (msg: any) => void,
+    write: (msg: DownloadStreamMessage) => void,
     signal?: AbortSignal,
   ) {
     try {

@@ -1,19 +1,18 @@
 import type { DownloadService } from "yt-downloader";
+import type { ListFormatsRequest, ListFormatsResponse } from "~/generated/yt_service";
 import type { ResponseMapper } from "~/mapping";
 import type { IUnaryHandler } from "../types/IHandler";
 
 export class FormatsHandler
-  implements IUnaryHandler<Record<string, never>, any>
+  implements IUnaryHandler<ListFormatsRequest, ListFormatsResponse>
 {
   constructor(
     private downloadService: DownloadService,
     private responseMapper: ResponseMapper,
   ) {}
 
-  async handle() {
+  async handle(): Promise<ListFormatsResponse> {
     const formats = this.downloadService.listFormats();
-    return {
-      formats: formats.map((f) => this.responseMapper.toFormatInfo(f)),
-    };
+    return this.responseMapper.toFormatsResponse(formats);
   }
 }
