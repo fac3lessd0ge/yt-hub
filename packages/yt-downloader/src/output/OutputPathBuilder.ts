@@ -24,18 +24,32 @@ export function sanitizeFilename(name: string): string {
 }
 
 export class OutputPathBuilder {
-  build(name: string, formatId: string, destination: string): string {
+  build(
+    name: string,
+    formatId: string,
+    destination: string,
+    exists?: (path: string) => boolean,
+  ): string {
     const sanitized = sanitizeFilename(name);
     const baseName = extname(sanitized)
       ? sanitized.slice(0, -extname(sanitized).length)
       : sanitized;
-    const fullPath = resolve(destination, `${baseName}.${formatId}`);
 
     const resolvedDestination = resolve(destination);
-    if (!fullPath.startsWith(resolvedDestination)) {
+    let candidate = resolve(destination, `${baseName}.${formatId}`);
+
+    if (!candidate.startsWith(resolvedDestination)) {
       throw new Error("Path traversal detected");
     }
 
-    return fullPath;
+    if (exists) {
+      let suffix = 1;
+      while (exists(candidate) && suffix <= 999) {
+        candidate = resolve(destination, `${baseName}_${suffix}.${formatId}`);
+        suffix++;
+      }
+    }
+
+    return candidate;
   }
 }

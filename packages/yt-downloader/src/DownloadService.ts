@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { YtDlpConfig } from "~/config";
@@ -89,6 +89,7 @@ export class DownloadService {
       params.name,
       params.format.toLowerCase(),
       destination,
+      existsSync,
     );
 
     await this.activeBackend.download(
@@ -114,6 +115,9 @@ export class DownloadService {
     return this.backends.names();
   }
 
+  // URL validation is handled at the API gateway (yt-api/src/validation.rs).
+  // CLI path validates via InputValidator. DownloadService only checks
+  // required fields and format support.
   private validateParams(params: DownloadParams): void {
     if (!params.link || !params.name) {
       throw new ValidationError("link and name are required.");
@@ -130,32 +134,6 @@ export class DownloadService {
         `Unsupported format "${params.format}". Use ${supportedIds.join(" or ")}.`,
       );
     }
-
-    if (!DownloadService.isValidYouTubeUrl(params.link)) {
-      throw new ValidationError("URL does not look like a YouTube link.");
-    }
-  }
-
-  private static isValidYouTubeUrl(input: string): boolean {
-    let url: URL;
-    try {
-      url = new URL(input);
-    } catch {
-      return false;
-    }
-    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    const host = url.hostname.replace(/^(www\.|m\.)/, "");
-    if (host === "youtube.com") {
-      if (url.pathname === "/watch" && url.searchParams.get("v")) return true;
-      if (
-        url.pathname.startsWith("/shorts/") &&
-        url.pathname.length > "/shorts/".length
-      )
-        return true;
-      return false;
-    }
-    if (host === "youtu.be") return url.pathname.length > 1;
-    return false;
   }
 
   private static defaultBackends(ytDlpConfig?: YtDlpConfig): BackendRegistry {

@@ -1,5 +1,6 @@
 export interface SpawnResult {
   exitCode: number;
+  stderr?: string;
 }
 
 export interface SpawnOptions {

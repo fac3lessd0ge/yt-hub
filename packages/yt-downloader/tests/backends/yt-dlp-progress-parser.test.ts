@@ -56,9 +56,23 @@ describe("YtDlpProgressParser", () => {
     expect(parser.parseLine("")).toBeNull();
   });
 
-  it("returns null for 100% completion line (no ETA)", () => {
-    expect(
-      parser.parseLine("[download] 100% of   12.34MiB in 00:04"),
-    ).toBeNull();
+  it("parses 100% completion line", () => {
+    const result = parser.parseLine("[download] 100% of   12.34MiB in 00:04");
+    expect(result).toEqual({
+      percent: 100,
+      speed: "done",
+      eta: "00:00",
+    });
+  });
+
+  it("handles Unknown speed and ETA", () => {
+    const result = parser.parseLine(
+      "[download]  25.0% of  10.00MiB at Unknown speed ETA Unknown",
+    );
+    expect(result).toEqual({
+      percent: 25.0,
+      speed: "unknown",
+      eta: "unknown",
+    });
   });
 });

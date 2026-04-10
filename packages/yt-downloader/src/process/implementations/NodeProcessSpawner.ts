@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import { CancellationError } from "~/download/errors/CancellationError";
 import type {
   IProcessSpawner,
@@ -45,14 +45,27 @@ export class NodeProcessSpawner implements IProcessSpawner {
         }, options.timeout);
       }
 
+      let rl: Interface | undefined;
       if (isPiped && options.onStdout && proc.stdout) {
-        const rl = createInterface({ input: proc.stdout });
+        rl = createInterface({ input: proc.stdout });
         rl.on("line", (line) => options.onStdout?.(line));
       }
 
+      const stderrLines: string[] = [];
+      let rlStderr: Interface | undefined;
+      if (isPiped && proc.stderr) {
+        rlStderr = createInterface({ input: proc.stderr });
+        rlStderr.on("line", (line) => stderrLines.push(line));
+      }
+
       proc.on("close", (code) => {
+        rl?.close();
+        rlStderr?.close();
         if (timeoutId) clearTimeout(timeoutId);
-        resolve({ exitCode: code ?? 1 });
+        resolve({
+          exitCode: code ?? 1,
+          stderr: stderrLines.length > 0 ? stderrLines.join("\n") : undefined,
+        });
       });
     });
   }

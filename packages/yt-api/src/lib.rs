@@ -6,7 +6,7 @@ pub mod routes;
 pub mod validation;
 
 pub mod proto {
-    tonic::include_proto!("yt_service");
+    tonic::include_proto!("yt_hub.v1");
 }
 
 use std::path::PathBuf;
