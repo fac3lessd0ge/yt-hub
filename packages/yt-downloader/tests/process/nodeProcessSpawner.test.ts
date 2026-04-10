@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { NodeProcessSpawner } from "~/process/implementations/NodeProcessSpawner";
 import { CancellationError } from "~/download/errors/CancellationError";
 import { TimeoutError } from "~/download/errors/TimeoutError";
+import { NodeProcessSpawner } from "~/process/implementations/NodeProcessSpawner";
 
 describe("NodeProcessSpawner", () => {
   const spawner = new NodeProcessSpawner();
