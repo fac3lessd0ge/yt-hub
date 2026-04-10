@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { YtDlpConfig } from "~/config";
@@ -89,6 +89,7 @@ export class DownloadService {
       params.name,
       params.format.toLowerCase(),
       destination,
+      existsSync,
     );
 
     await this.activeBackend.download(
