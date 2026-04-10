@@ -50,6 +50,9 @@ export class NodeProcessSpawner implements IProcessSpawner {
       if (options.timeout) {
         const timeoutMs = options.timeout;
         timeoutId = setTimeout(() => {
+          if (onAbort && options.signal) {
+            options.signal.removeEventListener("abort", onAbort);
+          }
           proc.kill("SIGTERM");
           settle(reject, new TimeoutError(timeoutMs));
           setTimeout(() => {
