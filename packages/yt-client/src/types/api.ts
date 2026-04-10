@@ -50,4 +50,5 @@ export interface DownloadComplete {
 export interface DownloadError {
   code: string;
   message: string;
+  retryable?: boolean;
 }
