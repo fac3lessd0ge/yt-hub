@@ -45,7 +45,7 @@ describe("Handler error scenarios", () => {
   });
 
   describe("DownloadHandler error propagation", () => {
-    it("writes an error message when download service throws", async () => {
+    it("writes an error message when download service throws and re-throws mapped error", async () => {
       const error = new Error("download backend crashed");
       const handler = new DownloadHandler(
         fakeDownloadServiceThatThrows(error),
@@ -54,22 +54,25 @@ describe("Handler error scenarios", () => {
       );
 
       const messages: any[] = [];
-      await handler.handle(
-        {
-          link: "https://youtube.com/watch?v=abc",
-          format: "mp3",
-          name: "test",
-        },
-        (msg) => messages.push(msg),
-      );
+      const thrown = await handler
+        .handle(
+          {
+            link: "https://youtube.com/watch?v=abc",
+            format: "mp3",
+            name: "test",
+          },
+          (msg) => messages.push(msg),
+        )
+        .catch((e: unknown) => e);
 
       expect(messages).toHaveLength(1);
       expect(messages[0].error).toBeDefined();
       expect(messages[0].error.code).toBe("INTERNAL_ERROR");
       expect(messages[0].error.message).toBe("download backend crashed");
+      expect(thrown).toMatchObject({ code: "INTERNAL_ERROR" });
     });
 
-    it("writes VALIDATION_ERROR when download service throws ValidationError", async () => {
+    it("writes VALIDATION_ERROR when download service throws ValidationError and re-throws", async () => {
       const error = Object.assign(new Error("bad url"), {
         name: "ValidationError",
       });
@@ -82,18 +85,20 @@ describe("Handler error scenarios", () => {
       );
 
       const messages: any[] = [];
-      await handler.handle(
-        { link: "bad", format: "mp3", name: "test" },
-        (msg) => messages.push(msg),
-      );
+      const thrown = await handler
+        .handle({ link: "bad", format: "mp3", name: "test" }, (msg) =>
+          messages.push(msg),
+        )
+        .catch((e: unknown) => e);
 
       expect(messages).toHaveLength(1);
       expect(messages[0].error).toBeDefined();
       // This falls through to INTERNAL_ERROR since it's not a real ValidationError instance
       expect(messages[0].error.code).toBe("INTERNAL_ERROR");
+      expect(thrown).toMatchObject({ code: "INTERNAL_ERROR" });
     });
 
-    it("writes error message during stream without crashing the handler", async () => {
+    it("writes error message during stream and re-throws mapped error", async () => {
       const service = {
         download: async (_params: any, onProgress?: ProgressCallback) => {
           // Emit some progress before failing
@@ -111,14 +116,16 @@ describe("Handler error scenarios", () => {
       );
 
       const messages: any[] = [];
-      await handler.handle(
-        {
-          link: "https://youtube.com/watch?v=abc",
-          format: "mp3",
-          name: "test",
-        },
-        (msg) => messages.push(msg),
-      );
+      const thrown = await handler
+        .handle(
+          {
+            link: "https://youtube.com/watch?v=abc",
+            format: "mp3",
+            name: "test",
+          },
+          (msg) => messages.push(msg),
+        )
+        .catch((e: unknown) => e);
 
       // Should have one progress message and one error message
       expect(messages).toHaveLength(2);
@@ -126,6 +133,10 @@ describe("Handler error scenarios", () => {
       expect(messages[0].progress.percent).toBe(25);
       expect(messages[1].error).toBeDefined();
       expect(messages[1].error.message).toBe("mid-stream failure");
+      expect(thrown).toMatchObject({
+        code: "INTERNAL_ERROR",
+        message: "mid-stream failure",
+      });
     });
   });
 });

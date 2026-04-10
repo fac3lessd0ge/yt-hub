@@ -39,6 +39,7 @@ export class DownloadHandler
     } catch (err) {
       const mapped = this.errorMapper.mapError(err);
       write(this.responseMapper.toDownloadError(mapped.code, mapped.message));
+      throw mapped;
     }
   }
 }
