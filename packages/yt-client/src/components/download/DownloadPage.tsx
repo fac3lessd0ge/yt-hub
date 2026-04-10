@@ -4,7 +4,7 @@ import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
 
 export function DownloadPage() {
-  const { state, progress, result, localPath, error, start, cancel, reset } =
+  const { state, progress, result, localPath, error, reconnecting, start, cancel, reset } =
     useDownload();
 
   return (
@@ -14,7 +14,7 @@ export function DownloadPage() {
       {state === "idle" && <DownloadForm onSubmit={start} />}
 
       {state === "downloading" && (
-        <DownloadProgress progress={progress} onCancel={cancel} />
+        <DownloadProgress progress={progress} reconnecting={reconnecting} onCancel={cancel} />
       )}
 
       {state === "saving" && (

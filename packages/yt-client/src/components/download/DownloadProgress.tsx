@@ -2,11 +2,13 @@ import type { DownloadProgress as DownloadProgressData } from "@/types/api";
 
 interface DownloadProgressProps {
   progress: DownloadProgressData | null;
+  reconnecting?: boolean;
   onCancel: () => void;
 }
 
 export function DownloadProgress({
   progress,
+  reconnecting,
   onCancel,
 }: DownloadProgressProps) {
   const percent = progress?.percent ?? 0;
@@ -14,7 +16,9 @@ export function DownloadProgress({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">Downloading...</span>
+        <span className="font-medium">
+          {reconnecting ? "Reconnecting..." : "Downloading..."}
+        </span>
         <span className="text-muted-foreground">{percent.toFixed(1)}%</span>
       </div>
 
