@@ -16,10 +16,7 @@ export class NodeProcessSpawner implements IProcessSpawner {
     return new Promise((resolve, reject) => {
       let settled = false;
 
-      const settle = <T>(
-        fn: (value: T) => void,
-        value: T,
-      ): void => {
+      const settle = <T>(fn: (value: T) => void, value: T): void => {
         if (settled) return;
         settled = true;
         fn(value);
