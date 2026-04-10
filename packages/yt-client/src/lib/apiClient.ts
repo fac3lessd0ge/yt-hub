@@ -24,6 +24,9 @@ export function parseRetryAfter(header: string | null): number {
 
 async function fetchJson<T>(url: string): Promise<T> {
   return withRetry(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      throw new Error("You are offline. Please check your connection.");
+    }
     const response = await fetch(url);
     if (!response.ok) {
       if (response.status === 429) {
