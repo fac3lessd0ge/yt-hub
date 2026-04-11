@@ -13,3 +13,4 @@ export const INTERNAL_ERROR = "INTERNAL_ERROR" as const;
 export const SERIALIZATION_ERROR = "SERIALIZATION_ERROR" as const;
 export const GRPC_ERROR = "GRPC_ERROR" as const;
 export const FILE_NOT_FOUND = "FILE_NOT_FOUND" as const;
+export const RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED" as const;

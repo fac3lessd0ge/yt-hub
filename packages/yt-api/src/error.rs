@@ -18,6 +18,7 @@ pub mod error_codes {
     pub const SERIALIZATION_ERROR: &str = "SERIALIZATION_ERROR";
     pub const GRPC_ERROR: &str = "GRPC_ERROR";
     pub const FILE_NOT_FOUND: &str = "FILE_NOT_FOUND";
+    pub const RATE_LIMIT_EXCEEDED: &str = "RATE_LIMIT_EXCEEDED";
 
     /// Map a code string to its static constant, falling back to GRPC_ERROR.
     pub fn to_static(code: &str) -> &'static str {
@@ -35,6 +36,7 @@ pub mod error_codes {
             "SERIALIZATION_ERROR" => SERIALIZATION_ERROR,
             "GRPC_ERROR" => GRPC_ERROR,
             "FILE_NOT_FOUND" => FILE_NOT_FOUND,
+            "RATE_LIMIT_EXCEEDED" => RATE_LIMIT_EXCEEDED,
             _ => GRPC_ERROR,
         }
     }
@@ -43,6 +45,7 @@ pub mod error_codes {
         match code {
             VALIDATION_ERROR | INVALID_URL | CANCELLED => StatusCode::BAD_REQUEST,
             VIDEO_NOT_FOUND | FILE_NOT_FOUND => StatusCode::NOT_FOUND,
+            RATE_LIMIT_EXCEEDED => StatusCode::TOO_MANY_REQUESTS,
             METADATA_FAILED => StatusCode::BAD_GATEWAY,
             SERVICE_UNAVAILABLE => StatusCode::SERVICE_UNAVAILABLE,
             REQUEST_TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
