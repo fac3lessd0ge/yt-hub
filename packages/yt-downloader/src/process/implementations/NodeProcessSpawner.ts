@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createInterface, type Interface } from "node:readline";
 import { CancellationError } from "~/download/errors/CancellationError";
+import { TimeoutError } from "~/download/errors/TimeoutError";
 import type {
   IProcessSpawner,
   SpawnOptions,
@@ -13,36 +14,48 @@ export class NodeProcessSpawner implements IProcessSpawner {
     const isPiped = options.stdout === "pipe";
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+
+      const settle = <T>(fn: (value: T) => void, value: T): void => {
+        if (settled) return;
+        settled = true;
+        fn(value);
+      };
+
       const proc = spawn(command, rest, {
         stdio: isPiped
           ? ["ignore", "pipe", "pipe"]
           : [options.stdout, options.stdout, options.stderr],
       });
 
+      let onAbort: (() => void) | undefined;
+
       if (options.signal) {
         if (options.signal.aborted) {
           proc.kill("SIGTERM");
-          reject(new CancellationError());
+          settle(reject, new CancellationError());
           return;
         }
-        options.signal.addEventListener(
-          "abort",
-          () => {
-            proc.kill("SIGTERM");
-            reject(new CancellationError());
-          },
-          { once: true },
-        );
+        onAbort = () => {
+          proc.kill("SIGTERM");
+          settle(reject, new CancellationError());
+        };
+        options.signal.addEventListener("abort", onAbort, { once: true });
       }
 
       let timeoutId: NodeJS.Timeout | undefined;
       if (options.timeout) {
+        const timeoutMs = options.timeout;
         timeoutId = setTimeout(() => {
+          if (onAbort && options.signal) {
+            options.signal.removeEventListener("abort", onAbort);
+          }
           proc.kill("SIGTERM");
+          settle(reject, new TimeoutError(timeoutMs));
           setTimeout(() => {
             if (!proc.killed) proc.kill("SIGKILL");
           }, 5000);
-        }, options.timeout);
+        }, timeoutMs);
       }
 
       let rl: Interface | undefined;
@@ -62,7 +75,10 @@ export class NodeProcessSpawner implements IProcessSpawner {
         rl?.close();
         rlStderr?.close();
         if (timeoutId) clearTimeout(timeoutId);
-        resolve({
+        if (onAbort && options.signal) {
+          options.signal.removeEventListener("abort", onAbort);
+        }
+        settle(resolve, {
           exitCode: code ?? 1,
           stderr: stderrLines.length > 0 ? stderrLines.join("\n") : undefined,
         });

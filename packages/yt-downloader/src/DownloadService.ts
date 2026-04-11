@@ -10,6 +10,8 @@ import type {
   ProgressCallback,
 } from "~/download";
 import { BackendRegistry, YtDlpBackend } from "~/download";
+import { ConsoleLogger } from "~/infra/implementations/ConsoleLogger";
+import type { ILogger } from "~/infra/types/ILogger";
 import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
@@ -38,6 +40,7 @@ export class DownloadService {
   private metadataFetcher: IMetadataFetcher;
   private dependencyChecker: DependencyChecker;
   private outputPathBuilder: OutputPathBuilder;
+  private logger: ILogger;
 
   constructor(
     options: {
@@ -46,6 +49,7 @@ export class DownloadService {
       metadataFetcher?: IMetadataFetcher;
       backends?: BackendRegistry;
       ytDlpConfig?: YtDlpConfig;
+      logger?: ILogger;
     } = {},
   ) {
     this.backends =
@@ -55,6 +59,7 @@ export class DownloadService {
       options.binaryResolver ?? new NodeBinaryResolver(),
     );
     this.outputPathBuilder = new OutputPathBuilder();
+    this.logger = options.logger ?? new ConsoleLogger();
 
     const backendName = options.backend ?? "yt-dlp";
     const backend = this.backends.get(backendName);

@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Fetch base branch
-        run: git fetch origin dev
+        run: git fetch origin ${{ github.event.pull_request.base.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -33,7 +33,7 @@ jobs:
       - name: Build yt-downloader (prerequisite for yt-service)
         run: npx nx build yt-downloader
       - name: Nx affected lint, test, typecheck
-        run: npx nx affected -t lint,test,typecheck --base=origin/dev --head=HEAD
+        run: npx nx affected -t lint,test,typecheck --base=origin/${{ github.event.pull_request.base.ref }} --head=HEAD
 
   proto-check:
     runs-on: ubuntu-latest

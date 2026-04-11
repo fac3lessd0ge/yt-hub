@@ -1,5 +1,4 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import {
   status as GrpcStatus,
   type handleServerStreamingCall,
@@ -24,8 +23,7 @@ import { ErrorMapper } from "~/mapping";
 import { ServerError } from "../errors/ServerError";
 import type { IGrpcServer } from "../types/IGrpcServer";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROTO_PATH = resolve(__dirname, "../../../proto/yt_service.proto");
+const PROTO_PATH = resolve(process.cwd(), "proto/yt_service.proto");
 
 const SHUTDOWN_TIMEOUT_MS = 8000;
 
@@ -277,6 +275,16 @@ export class GrpcServer implements IGrpcServer {
         );
         log.info("Download completed successfully");
         call.end();
+      } catch (err) {
+        const mapped =
+          err && typeof err === "object" && "grpcStatus" in err
+            ? (err as { grpcStatus: number; code: string; message: string })
+            : this.errorMapper.mapError(err);
+        log.error({ err: mapped }, "Download failed");
+        const grpcErr = Object.assign(new Error(mapped.message), {
+          code: mapped.grpcStatus,
+        });
+        call.destroy(grpcErr);
       } finally {
         this._activeStreams.delete(call);
         this._onStreamComplete?.();

@@ -10,6 +10,15 @@ route:
 
 receivers:
   - name: 'default'
+    # CONFIGURE: Replace with your actual alert destination.
+    # Examples:
+    #   Slack:    url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #   Telegram: url: 'http://alertmanager-telegram-bot:9087/alert'
+    #   PagerDuty: use pagerduty_configs instead of webhook_configs
+    #
+    # The previous config sent alerts to AlertManager itself (localhost:9093) —
+    # a silent no-op. This placeholder URL will fail visibly (connection refused)
+    # so missing alert configuration is obvious, not silent.
     webhook_configs:
-      - url: 'http://localhost:9093/api/v2/alerts'
+      - url: 'http://host.docker.internal:19093/webhook'
         send_resolved: true

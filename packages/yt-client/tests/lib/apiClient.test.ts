@@ -24,6 +24,7 @@ describe("fetchMetadata", () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/metadata?link="),
+      expect.objectContaining({}),
     );
     expect(result.title).toBe("Test Video");
     expect(result.author_name).toBe("Test Author");
