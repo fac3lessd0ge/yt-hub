@@ -188,6 +188,20 @@ pub fn make_app_shutting_down(mock: MockGrpcClient) -> Router {
         ))
 }
 
+pub fn make_app_with_downloads_dir(mock: MockGrpcClient, downloads_dir: std::path::PathBuf) -> Router {
+    let state = AppState {
+        grpc_client: mock,
+        shutting_down: Arc::new(AtomicBool::new(false)),
+        metrics_handle: test_metrics_handle(),
+        downloads_dir,
+    };
+    yt_api::routes::router::<MockGrpcClient>()
+        .with_state(state)
+        .layer(axum::middleware::from_fn(
+            yt_api::middleware::request_id::request_id_middleware,
+        ))
+}
+
 pub fn make_full_app(mock: MockGrpcClient) -> Router {
     use axum::http::{HeaderValue, Method, header};
     use tower_http::cors::{AllowOrigin, CorsLayer};
