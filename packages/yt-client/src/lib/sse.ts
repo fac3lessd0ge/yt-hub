@@ -1,13 +1,13 @@
-import {
-  DownloadCompleteSchema,
-  DownloadErrorSchema,
-  DownloadProgressSchema,
-} from "@/types/api";
 import type {
   DownloadComplete,
   DownloadError,
   DownloadProgress,
   DownloadRequest,
+} from "@/types/api";
+import {
+  DownloadCompleteSchema,
+  DownloadErrorSchema,
+  DownloadProgressSchema,
 } from "@/types/api";
 import { getDownloadUrl } from "./apiClient";
 

@@ -6,16 +6,8 @@ import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
 
 export function DownloadPage() {
-  const {
-    state,
-    progress,
-    result,
-    localPath,
-    error,
-    start,
-    cancel,
-    reset,
-  } = useDownload();
+  const { state, progress, result, localPath, error, start, cancel, reset } =
+    useDownload();
 
   const shortcuts = useMemo(
     (): Record<string, () => void> =>
@@ -32,10 +24,7 @@ export function DownloadPage() {
         {state === "idle" && <DownloadForm onSubmit={start} />}
 
         {state === "downloading" && (
-          <DownloadProgress
-            progress={progress}
-            onCancel={cancel}
-          />
+          <DownloadProgress progress={progress} onCancel={cancel} />
         )}
 
         {state === "saving" && (
