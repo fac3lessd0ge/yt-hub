@@ -47,7 +47,7 @@ USER appuser
 ENV YT_API_HOST=0.0.0.0
 ENV YT_API_PORT=3000
 ENV GRPC_TARGET=http://yt-service:50051
-ENV DOWNLOADS_DIR=/home/appuser/Downloads/yt-downloader
+ENV DOWNLOAD_DIR=/home/appuser/Downloads/yt-downloader
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
