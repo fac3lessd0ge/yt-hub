@@ -16,7 +16,6 @@ export function useDownload() {
   const [result, setResult] = useState<DownloadComplete | null>(null);
   const [localPath, setLocalPath] = useState<string | null>(null);
   const [error, setError] = useState<DownloadError | null>(null);
-  const [reconnecting, setReconnecting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(async (request: DownloadRequest) => {
@@ -27,7 +26,6 @@ export function useDownload() {
     setResult(null);
     setLocalPath(null);
     setError(null);
-    setReconnecting(false);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -39,10 +37,8 @@ export function useDownload() {
         request,
         {
           onProgress: (data) => {
-            setReconnecting(false);
             setProgress(data);
           },
-          onReconnecting: () => setReconnecting(true),
           onComplete: (data) => {
             completeData = data;
             setResult(data);
@@ -108,7 +104,6 @@ export function useDownload() {
     setResult(null);
     setLocalPath(null);
     setError(null);
-    setReconnecting(false);
   }, []);
 
   return {
@@ -117,7 +112,6 @@ export function useDownload() {
     result,
     localPath,
     error,
-    reconnecting,
     start,
     cancel,
     reset,
