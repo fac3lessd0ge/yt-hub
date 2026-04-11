@@ -1,3 +1,8 @@
+import {
+  DownloadCompleteSchema,
+  DownloadErrorSchema,
+  DownloadProgressSchema,
+} from "@/types/api";
 import type {
   DownloadComplete,
   DownloadError,
@@ -60,17 +65,44 @@ async function readStream(
           continue;
         }
         switch (eventType) {
-          case "progress":
-            callbacks.onProgress(parsed as DownloadProgress);
+          case "progress": {
+            const result = DownloadProgressSchema.safeParse(parsed);
+            if (result.success) {
+              callbacks.onProgress(result.data);
+            } else {
+              callbacks.onError({
+                code: "PARSE_ERROR",
+                message: `Invalid progress event: ${result.error.issues[0].message}`,
+              });
+            }
             break;
-          case "complete":
-            callbacks.onComplete(parsed as DownloadComplete);
+          }
+          case "complete": {
+            const result = DownloadCompleteSchema.safeParse(parsed);
+            if (result.success) {
+              callbacks.onComplete(result.data);
+            } else {
+              callbacks.onError({
+                code: "PARSE_ERROR",
+                message: `Invalid complete event: ${result.error.issues[0].message}`,
+              });
+            }
             terminal = true;
             break;
-          case "error":
-            callbacks.onError(parsed as DownloadError);
+          }
+          case "error": {
+            const result = DownloadErrorSchema.safeParse(parsed);
+            if (result.success) {
+              callbacks.onError(result.data);
+            } else {
+              callbacks.onError({
+                code: "PARSE_ERROR",
+                message: `Invalid error event: ${result.error.issues[0].message}`,
+              });
+            }
             terminal = true;
             break;
+          }
         }
       }
     }
