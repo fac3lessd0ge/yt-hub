@@ -7,6 +7,7 @@ describe("RequestValidator", () => {
 
   describe("validateMetadataRequest", () => {
     it("throws with INVALID_ARGUMENT when link is empty string", () => {
+      expect.assertions(2);
       expect(() => validator.validateMetadataRequest({ link: "" })).toThrow(
         "link is required",
       );
@@ -77,6 +78,7 @@ describe("RequestValidator", () => {
     });
 
     it("attaches INVALID_ARGUMENT gRPC status code to thrown errors", () => {
+      expect.assertions(1);
       try {
         validator.validateDownloadRequest({});
       } catch (err: any) {
