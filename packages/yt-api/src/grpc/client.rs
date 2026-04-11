@@ -57,6 +57,28 @@ fn inject_request_id<T>(req: &mut tonic::Request<T>, request_id: Option<&str>) {
     }
 }
 
+macro_rules! grpc_call {
+    ($self:expr, $method:expr, $request_body:expr, $request_id:expr, $timeout:expr, $call:ident) => {{
+        let mut request = tonic::Request::new($request_body);
+        inject_request_id(&mut request, $request_id);
+        request.set_timeout($timeout);
+        let start = std::time::Instant::now();
+        let result = $self.inner.clone().$call(request).await.map(|r| r.into_inner());
+        let duration_ms = start.elapsed().as_millis();
+        match &result {
+            Ok(_) => {
+                record_grpc_call($method, "ok");
+                tracing::info!(grpc_method = $method, duration_ms, outcome = "ok", "gRPC call completed");
+            }
+            Err(status) => {
+                record_grpc_call($method, "error");
+                tracing::warn!(grpc_method = $method, duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
+            }
+        }
+        result
+    }};
+}
+
 impl GrpcClient {
     pub async fn connect(addr: &str) -> Result<Self, tonic::transport::Error> {
         let channel = tonic::transport::Endpoint::from_shared(addr.to_string())
@@ -76,71 +98,21 @@ impl GrpcClientTrait for GrpcClient {
         link: &str,
         request_id: Option<&str>,
     ) -> Result<GetMetadataResponse, tonic::Status> {
-        let mut request = tonic::Request::new(GetMetadataRequest {
-            link: link.to_string(),
-        });
-        inject_request_id(&mut request, request_id);
-        request.set_timeout(UNARY_RPC_TIMEOUT);
-        let start = std::time::Instant::now();
-        let result = self.inner.clone().get_metadata(request).await.map(|r| r.into_inner());
-        let duration_ms = start.elapsed().as_millis();
-        match &result {
-            Ok(_) => {
-                record_grpc_call("get_metadata", "ok");
-                tracing::info!(grpc_method = "get_metadata", duration_ms, outcome = "ok", "gRPC call completed");
-            }
-            Err(status) => {
-                record_grpc_call("get_metadata", "error");
-                tracing::warn!(grpc_method = "get_metadata", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
-            }
-        }
-        result
+        grpc_call!(self, "get_metadata", GetMetadataRequest { link: link.to_string() }, request_id, UNARY_RPC_TIMEOUT, get_metadata)
     }
 
     async fn list_formats(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListFormatsResponse, tonic::Status> {
-        let mut request = tonic::Request::new(ListFormatsRequest {});
-        inject_request_id(&mut request, request_id);
-        request.set_timeout(UNARY_RPC_TIMEOUT);
-        let start = std::time::Instant::now();
-        let result = self.inner.clone().list_formats(request).await.map(|r| r.into_inner());
-        let duration_ms = start.elapsed().as_millis();
-        match &result {
-            Ok(_) => {
-                record_grpc_call("list_formats", "ok");
-                tracing::info!(grpc_method = "list_formats", duration_ms, outcome = "ok", "gRPC call completed");
-            }
-            Err(status) => {
-                record_grpc_call("list_formats", "error");
-                tracing::warn!(grpc_method = "list_formats", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
-            }
-        }
-        result
+        grpc_call!(self, "list_formats", ListFormatsRequest {}, request_id, UNARY_RPC_TIMEOUT, list_formats)
     }
 
     async fn list_backends(
         &self,
         request_id: Option<&str>,
     ) -> Result<ListBackendsResponse, tonic::Status> {
-        let mut request = tonic::Request::new(ListBackendsRequest {});
-        inject_request_id(&mut request, request_id);
-        request.set_timeout(UNARY_RPC_TIMEOUT);
-        let start = std::time::Instant::now();
-        let result = self.inner.clone().list_backends(request).await.map(|r| r.into_inner());
-        let duration_ms = start.elapsed().as_millis();
-        match &result {
-            Ok(_) => {
-                record_grpc_call("list_backends", "ok");
-                tracing::info!(grpc_method = "list_backends", duration_ms, outcome = "ok", "gRPC call completed");
-            }
-            Err(status) => {
-                record_grpc_call("list_backends", "error");
-                tracing::warn!(grpc_method = "list_backends", duration_ms, outcome = "error", grpc_code = %status.code(), "gRPC call failed");
-            }
-        }
-        result
+        grpc_call!(self, "list_backends", ListBackendsRequest {}, request_id, UNARY_RPC_TIMEOUT, list_backends)
     }
 
     async fn download(
