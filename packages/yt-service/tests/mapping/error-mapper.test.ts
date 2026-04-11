@@ -1,20 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DownloadError, ValidationError } from "yt-downloader";
+import {
+  DependencyError,
+  DownloadError,
+  MetadataError,
+  ValidationError,
+} from "yt-downloader";
 import { ErrorMapper } from "~/mapping";
-
-class MetadataError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "MetadataError";
-  }
-}
-
-class DependencyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DependencyError";
-  }
-}
 
 describe("ErrorMapper", () => {
   const mapper = new ErrorMapper();
@@ -37,9 +28,10 @@ describe("ErrorMapper", () => {
   });
 
   it("maps DependencyError to DEPENDENCY_MISSING code", () => {
-    const result = mapper.mapError(new DependencyError("missing ffmpeg"));
+    const err = new DependencyError("ffmpeg", "apt install ffmpeg");
+    const result = mapper.mapError(err);
     expect(result.code).toBe("DEPENDENCY_MISSING");
-    expect(result.message).toBe("missing ffmpeg");
+    expect(result.message).toBe(err.message);
   });
 
   it("maps unknown Error to INTERNAL_ERROR code", () => {

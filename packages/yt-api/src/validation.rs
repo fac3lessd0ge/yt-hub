@@ -115,7 +115,7 @@ pub fn validate_filename(filename: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn validate_destination(dest: &str) -> Result<(), String> {
+pub fn validate_destination(dest: &str, downloads_dir: &std::path::Path) -> Result<(), String> {
     if dest.is_empty() {
         return Ok(());
     }
@@ -135,6 +135,13 @@ pub fn validate_destination(dest: &str) -> Result<(), String> {
     }
     if !dest.starts_with('/') {
         return Err("Destination must be an absolute path".to_string());
+    }
+    // Verify destination is within allowed directory
+    let dest_path = std::path::Path::new(dest);
+    if let Ok(canonical_base) = downloads_dir.canonicalize() {
+        if !dest_path.starts_with(&canonical_base) {
+            return Err("Destination must be within the downloads directory".to_string());
+        }
     }
     Ok(())
 }
@@ -256,15 +263,19 @@ mod tests {
 
     // --- validate_destination ---
 
+    fn test_downloads_dir() -> std::path::PathBuf {
+        std::env::temp_dir().join("yt-hub-test-downloads")
+    }
+
     #[test]
     fn destination_too_long_is_rejected() {
         let long = "a".repeat(MAX_DESTINATION_LENGTH + 1);
-        assert!(validate_destination(&long).is_err());
+        assert!(validate_destination(&long, &test_downloads_dir()).is_err());
     }
 
     #[test]
     fn destination_null_byte_is_rejected() {
-        let err = validate_destination("/tmp/foo\0bar").unwrap_err();
+        let err = validate_destination("/tmp/foo\0bar", &test_downloads_dir()).unwrap_err();
         assert!(
             err.contains("null"),
             "expected 'null' in: {err}"
@@ -273,26 +284,36 @@ mod tests {
 
     #[test]
     fn destination_valid() {
-        assert!(validate_destination("/tmp/downloads").is_ok());
+        let dir = tempfile::TempDir::new().unwrap();
+        // Canonicalize base so the path check aligns on systems where /tmp is a symlink
+        let canonical_base = dir.path().canonicalize().unwrap();
+        let dest = canonical_base.join("subdir").to_string_lossy().into_owned();
+        assert!(validate_destination(&dest, dir.path()).is_ok());
     }
 
     #[test]
     fn destination_empty_is_allowed() {
-        assert!(validate_destination("").is_ok());
+        assert!(validate_destination("", &test_downloads_dir()).is_ok());
     }
 
     #[test]
     fn destination_traversal_is_rejected() {
-        assert!(validate_destination("/tmp/../etc/passwd").is_err());
+        assert!(validate_destination("/tmp/../etc/passwd", &test_downloads_dir()).is_err());
     }
 
     #[test]
     fn destination_backslash_is_rejected() {
-        assert!(validate_destination("/tmp\\etc").is_err());
+        assert!(validate_destination("/tmp\\etc", &test_downloads_dir()).is_err());
     }
 
     #[test]
     fn destination_relative_path_is_rejected() {
-        assert!(validate_destination("relative/path").is_err());
+        assert!(validate_destination("relative/path", &test_downloads_dir()).is_err());
+    }
+
+    #[test]
+    fn destination_outside_downloads_dir_is_rejected() {
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(validate_destination("/etc/passwd", dir.path()).is_err());
     }
 }

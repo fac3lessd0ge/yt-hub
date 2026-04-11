@@ -1,25 +1,24 @@
 import { status as GrpcStatus } from "@grpc/grpc-js";
+import { DownloadRequestSchema, MetadataRequestSchema } from "yt-downloader";
 
+/**
+ * Minimal validation: field existence only.
+ * Full input validation (URL format, path safety, length limits) is
+ * handled by yt-api gateway. These checks are a safety net for direct
+ * gRPC access.
+ */
 export class RequestValidator {
-  validateMetadataRequest(request: { link?: string }): void {
-    if (!request.link || request.link.trim() === "") {
-      throw this.createError("link is required");
+  validateMetadataRequest(request: unknown): void {
+    const result = MetadataRequestSchema.safeParse(request);
+    if (!result.success) {
+      throw this.createError(result.error.issues[0].message);
     }
   }
 
-  validateDownloadRequest(request: {
-    link?: string;
-    format?: string;
-    name?: string;
-  }): void {
-    if (!request.link || request.link.trim() === "") {
-      throw this.createError("link is required");
-    }
-    if (!request.format || request.format.trim() === "") {
-      throw this.createError("format is required");
-    }
-    if (!request.name || request.name.trim() === "") {
-      throw this.createError("name is required");
+  validateDownloadRequest(request: unknown): void {
+    const result = DownloadRequestSchema.safeParse(request);
+    if (!result.success) {
+      throw this.createError(result.error.issues[0].message);
     }
   }
 
