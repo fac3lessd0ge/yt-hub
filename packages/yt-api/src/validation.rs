@@ -311,6 +311,62 @@ mod tests {
         assert!(validate_destination("relative/path", &test_downloads_dir()).is_err());
     }
 
+    // --- validate_filename ---
+    #[test]
+    fn filename_valid_simple() {
+        assert!(validate_filename("video.mp4").is_ok());
+    }
+
+    #[test]
+    fn filename_valid_with_spaces_and_parens() {
+        assert!(validate_filename("my file (1).mp3").is_ok());
+    }
+
+    #[test]
+    fn filename_valid_unicode() {
+        assert!(validate_filename("名前.mp3").is_ok());
+    }
+
+    #[test]
+    fn filename_empty_is_rejected() {
+        let err = validate_filename("").unwrap_err();
+        assert!(err.contains("empty"), "expected 'empty' in: {err}");
+    }
+
+    #[test]
+    fn filename_too_long_is_rejected() {
+        let long = "a".repeat(MAX_NAME_LENGTH + 1);
+        assert!(validate_filename(&long).is_err());
+    }
+
+    #[test]
+    fn filename_null_byte_is_rejected() {
+        let err = validate_filename("file\0name").unwrap_err();
+        assert!(err.contains("null"), "expected 'null' in: {err}");
+    }
+
+    #[test]
+    fn filename_forward_slash_is_rejected() {
+        let err = validate_filename("path/file").unwrap_err();
+        assert!(err.contains("separator"), "expected 'separator' in: {err}");
+    }
+
+    #[test]
+    fn filename_backslash_is_rejected() {
+        assert!(validate_filename("path\\file").is_err());
+    }
+
+    #[test]
+    fn filename_dot_dot_is_rejected() {
+        assert!(validate_filename("..secret").is_err());
+    }
+
+    #[test]
+    fn filename_dot_prefix_is_rejected() {
+        let err = validate_filename(".hidden").unwrap_err();
+        assert!(err.contains("dot"), "expected 'dot' in: {err}");
+    }
+
     #[test]
     fn destination_outside_downloads_dir_is_rejected() {
         let dir = tempfile::TempDir::new().unwrap();
