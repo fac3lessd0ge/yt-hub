@@ -16,22 +16,37 @@ jobs:
           fetch-depth: 0
       - name: Verify CI passed for this commit
         run: |
-          COMMIT_SHA=$(git rev-list -1 ${{ github.ref }})
-          echo "Checking CI status for commit $COMMIT_SHA"
+          MERGE_SHA=$(git rev-list -1 ${{ github.ref }})
+          echo "Tag points to merge commit: $MERGE_SHA"
+
+          # For merge commits, CI ran on the PR head (second parent), not on
+          # the merge commit itself. Check the PR head's check runs first,
+          # then fall back to the merge commit if it's not a merge.
+          PR_HEAD=$(git rev-parse ${MERGE_SHA}^2 2>/dev/null || echo "")
+
+          if [ -n "$PR_HEAD" ]; then
+            CHECK_SHA=$PR_HEAD
+            echo "Merge commit detected — checking PR head: $CHECK_SHA"
+          else
+            CHECK_SHA=$MERGE_SHA
+            echo "Not a merge commit — checking directly: $CHECK_SHA"
+          fi
 
           for i in $(seq 1 30); do
-            STATUS=$(gh api repos/${{ github.repository }}/commits/$COMMIT_SHA/status --jq '.state' 2>/dev/null || echo "pending")
-            echo "Attempt $i: status=$STATUS"
-            if [ "$STATUS" = "success" ]; then
-              echo "CI passed"
+            CI_RESULT=$(gh api repos/${{ github.repository }}/commits/$CHECK_SHA/check-runs \
+              --jq '[.check_runs[] | select(.name == "ci")] | if length == 0 then "not_found" elif .[0].status != "completed" then "pending" else .[0].conclusion end' \
+              2>/dev/null || echo "pending")
+            echo "Attempt $i: ci=$CI_RESULT"
+            if [ "$CI_RESULT" = "success" ]; then
+              echo "CI passed on $CHECK_SHA"
               exit 0
-            elif [ "$STATUS" = "failure" ] || [ "$STATUS" = "error" ]; then
+            elif [ "$CI_RESULT" = "failure" ] || [ "$CI_RESULT" = "cancelled" ]; then
               echo "CI failed — aborting CD"
               exit 1
             fi
             sleep 10
           done
-          echo "CI status not found after 5 minutes — aborting CD"
+          echo "CI check not found after 5 minutes — aborting CD"
           exit 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
