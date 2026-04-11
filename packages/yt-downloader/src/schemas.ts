@@ -64,3 +64,14 @@ export const FormatsResponseSchema = z.object({
 export const BackendsResponseSchema = z.object({
   backends: z.array(z.string()),
 });
+
+// Inferred types for consumer use
+export type DownloadProgress = z.infer<typeof DownloadProgressSchema>;
+export type DownloadComplete = z.infer<typeof DownloadCompleteSchema>;
+export type DownloadError = z.infer<typeof DownloadErrorSchema>;
+export type VideoMetadata = z.infer<typeof VideoMetadataSchema>;
+export type FormatInfo = z.infer<typeof FormatInfoSchema>;
+export type DownloadRequest = z.infer<typeof DownloadRequestSchema>;
+export type MetadataRequest = z.infer<typeof MetadataRequestSchema>;
+export type FormatsResponse = z.infer<typeof FormatsResponseSchema>;
+export type BackendsResponse = z.infer<typeof BackendsResponseSchema>;
