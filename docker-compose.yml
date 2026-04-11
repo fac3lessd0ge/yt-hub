@@ -40,6 +40,8 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      DOWNLOAD_DIR: /home/appuser/Downloads/yt-downloader
     volumes:
       - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader:ro
     depends_on:
