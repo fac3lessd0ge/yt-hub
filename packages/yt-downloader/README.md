@@ -1,6 +1,6 @@
 # yt-downloader
 
-A YouTube downloader that works as both a **CLI tool** and an **importable TypeScript/JavaScript library**. Built on [Bun](https://bun.sh) and powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+A YouTube downloader that works as both a **CLI tool** and an **importable TypeScript/JavaScript library**. Built with Node.js and powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
 ## Features
 
@@ -16,11 +16,9 @@ A YouTube downloader that works as both a **CLI tool** and an **importable TypeS
 
 ## Prerequisites
 
-### Bun
+### Node.js
 
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+Node.js 20+ is required. Install via [nvm](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org/).
 
 ### yt-dlp
 
@@ -43,7 +41,7 @@ Required for audio extraction (MP3) and video merging (MP4).
 ```bash
 git clone <repo-url>
 cd yt-downloader
-bun install
+npm install
 ```
 
 ## CLI Usage
@@ -52,21 +50,21 @@ bun install
 
 ```bash
 # Download as MP3 (prompts for link and name)
-bun run download:song
+npm run download:song
 
 # Download as MP4 (prompts for link and name)
-bun run download:video
+npm run download:video
 
 # Fully interactive (prompts for everything)
-bun run download
+npm run download
 ```
 
 ### With flags
 
 ```bash
-bun run download:song --link https://www.youtube.com/watch?v=dQw4w9WgXcQ --name rickroll
+npm run download:song -- --link https://www.youtube.com/watch?v=dQw4w9WgXcQ --name rickroll
 
-bun run download:video --link https://youtu.be/dQw4w9WgXcQ --name rickroll --destination ~/Videos
+npm run download:video -- --link https://youtu.be/dQw4w9WgXcQ --name rickroll --destination ~/Videos
 ```
 
 ### All flags
@@ -164,9 +162,11 @@ try {
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `backend` | `string` | `"yt-dlp"` | Backend to use for downloads |
-| `binaryResolver` | `IBinaryResolver` | `BunBinaryResolver` | Custom binary resolver (for DI/testing) |
+| `binaryResolver` | `IBinaryResolver` | `NodeBinaryResolver` | Custom binary resolver (for DI/testing) |
 | `metadataFetcher` | `IMetadataFetcher` | `HttpMetadataFetcher` | Custom metadata fetcher (for DI/testing) |
 | `backends` | `BackendRegistry` | Default registry | Custom backend registry |
+| `ytDlpConfig` | `YtDlpConfig` | — | yt-dlp backend configuration |
+| `logger` | `ILogger` | `ConsoleLogger` | Custom logger implementation |
 
 #### `service.download(params): Promise<DownloadResult>`
 
@@ -214,6 +214,8 @@ import type {
   VideoMetadata,
   FormatInfo,
   IDownloadBackend,
+  ILogger,
+  YtDlpConfig,
 } from "yt-downloader";
 ```
 
@@ -259,18 +261,21 @@ yt-downloader provides a `ConsoleLogger` that implements the `ILogger` interface
 import { ConsoleLogger } from "yt-downloader";
 
 const logger = new ConsoleLogger("info"); // minimum level
-logger.info("Download started", { url: "..." });
-// 2026-03-29T12:00:00.000Z [INFO] Download started {"url":"..."}
+logger.info("Download started");
+// 2026-03-29T12:00:00.000Z [INFO] Download started
 ```
 
 ## Testing
 
 ```bash
 # Unit tests
-bun test
+npx vitest run
 
 # Integration tests (requires yt-dlp and ffmpeg on PATH)
-INTEGRATION=1 bun test
+INTEGRATION=1 npx vitest run
+
+# Or via Nx
+npx nx test yt-downloader
 ```
 
 Integration tests exercise real downloads via yt-dlp and are guarded by the `INTEGRATION=1` environment variable. They are skipped by default to keep CI fast.
@@ -279,10 +284,16 @@ Integration tests exercise real downloads via yt-dlp and are guarded by the `INT
 
 ```bash
 # Run tests
-bun test
+npx vitest run
 
 # Type check
-bunx tsc --noEmit
+npx tsc --noEmit
+
+# Lint
+npx nx lint yt-downloader
+
+# Build
+npx nx build yt-downloader
 ```
 
 ## License

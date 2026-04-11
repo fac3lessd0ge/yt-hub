@@ -156,10 +156,10 @@ cp .env.prod.example .env.prod
 touch traefik/acme.json && chmod 600 traefik/acme.json
 
 # Deploy
-VERSION=v0.4.0 bash scripts/deploy.sh
+VERSION=v1.1.2 bash scripts/deploy.sh
 
 # Rollback
-bash scripts/rollback.sh v0.3.0
+bash scripts/rollback.sh v1.1.0
 ```
 
 See [`docs/deploymentRunbook.md`](docs/deploymentRunbook.md) for the full deployment guide.
@@ -173,10 +173,10 @@ Each package has its own test suite:
 npx nx run-many -t test
 
 # Per-package
-npx nx test yt-api           # 49 Rust tests (cargo test)
+npx nx test yt-api           # 62 Rust tests (cargo test)
 npx nx test yt-service       # Vitest (npx vitest run)
 npx nx test yt-client        # Vitest + React Testing Library (jsdom)
-npx nx test yt-downloader    # Bun test
+npx nx test yt-downloader    # Vitest
 
 # Integration tests for yt-downloader (requires yt-dlp on PATH)
 INTEGRATION=1 npx nx test yt-downloader
@@ -193,6 +193,7 @@ Each package is configured via environment variables. See `.env.example` files i
 | `GRPC_TARGET` | yt-api | `http://localhost:50051` | yt-service gRPC endpoint |
 | `LOG_LEVEL` | yt-api | `info` | Log verbosity |
 | `REQUEST_TIMEOUT_MS` | yt-api | `30000` | Request timeout in ms |
+| `STREAMING_TIMEOUT_SECS` | yt-api | `600` | SSE download stream timeout in seconds |
 | `GRPC_HOST` | yt-service | `0.0.0.0` | gRPC bind address |
 | `GRPC_PORT` | yt-service | `50051` | gRPC port |
 | `LOG_LEVEL` | yt-service | `info` | Log verbosity |
@@ -201,8 +202,7 @@ Each package is configured via environment variables. See `.env.example` files i
 | `ALLOWED_ORIGINS` | yt-api | `http://localhost:5173,http://localhost:3000` | Comma-separated CORS allowed origins |
 | `MAX_BODY_SIZE_BYTES` | yt-api | `1048576` | Maximum request body size in bytes |
 | `RATE_LIMIT_RPM` | yt-api | `30` | Rate limit: requests per minute per IP |
-| `DOWNLOADS_DIR` | yt-api | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
-| `DOWNLOAD_DIR` | docker-compose | `./downloads` | Host-side bind mount path for downloads |
+| `DOWNLOAD_DIR` | yt-api | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
 | `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
@@ -235,7 +235,7 @@ yt-hub/
 | **Traefik fails with Docker Desktop v29+** | Use `scripts/localProd.sh` for local testing (skips Traefik) |
 | **yt-dlp fails to download** | Update yt-dlp version: `docker compose build --build-arg YT_DLP_VERSION=YYYY.MM.DD yt-service` |
 | **Download path shows container path** | Use the Electron save dialog (v0.4.5+) or access files in `./downloads/` on the host |
-| **"Downloads directory not available"** | Ensure `DOWNLOADS_DIR` env var points to an existing directory, or create `./downloads/` |
+| **"Downloads directory not available"** | Ensure `DOWNLOAD_DIR` env var points to an existing directory, or create `./downloads/` |
 
 ## License
 
