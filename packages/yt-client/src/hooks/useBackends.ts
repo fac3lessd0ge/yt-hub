@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchBackends } from "@/lib/apiClient";
 
 export function useBackends() {
@@ -6,12 +6,18 @@ export function useBackends() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetchBackends()
       .then((res) => setBackends(res.backends))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  return { backends, loading, error };
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { backends, loading, error, refetch };
 }

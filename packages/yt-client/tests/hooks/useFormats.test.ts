@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFormats } from "@/hooks/useFormats";
 
@@ -49,5 +49,30 @@ describe("useFormats", () => {
 
     expect(result.current.formats).toEqual([]);
     expect(result.current.error).toBe("Network error");
+  });
+
+  it("refetch reloads formats after error", async () => {
+    mockFetchFormats.mockRejectedValueOnce(new Error("Network error"));
+
+    const { result } = renderHook(() => useFormats());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.error).toBe("Network error");
+
+    // Now mock success and call refetch
+    const formats = [{ id: "mp3", label: "MP3 audio" }];
+    mockFetchFormats.mockResolvedValueOnce({ formats });
+
+    act(() => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.formats).toEqual(formats);
+    expect(result.current.error).toBeNull();
   });
 });
