@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDownload } from "@/hooks/useDownload";
 
 const mockStreamDownload = vi.fn();
@@ -13,6 +13,13 @@ vi.mock("@/lib/apiClient", () => ({
 }));
 
 describe("useDownload", () => {
+  beforeEach(() => {
+    mockStreamDownload.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("starts in idle state", () => {
     const { result } = renderHook(() => useDownload());
 

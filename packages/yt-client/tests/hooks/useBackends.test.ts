@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useBackends } from "@/hooks/useBackends";
 
 const mockFetchBackends = vi.fn();
@@ -9,6 +9,9 @@ vi.mock("@/lib/apiClient", () => ({
 }));
 
 describe("useBackends", () => {
+  beforeEach(() => {
+    mockFetchBackends.mockReset();
+  });
   it("starts in loading state", () => {
     mockFetchBackends.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useBackends());

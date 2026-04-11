@@ -3,6 +3,8 @@ mod common;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use serde_json::json;
+use std::io::Write;
+use tempfile::TempDir;
 use tower::ServiceExt;
 use yt_api::proto::{
     download_response, DownloadComplete, DownloadError, DownloadProgress, DownloadResponse,
@@ -192,4 +194,162 @@ async fn download_grpc_error_returns_503() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(json["code"], "SERVICE_UNAVAILABLE");
     assert_eq!(json["retryable"], true);
+}
+
+// --- serve_file tests ---
+
+#[tokio::test]
+async fn serve_file_returns_mp4_with_correct_headers() {
+    let tmp = TempDir::new().unwrap();
+    let file_path = tmp.path().join("test-video.mp4");
+    {
+        let mut f = std::fs::File::create(&file_path).unwrap();
+        f.write_all(b"fake mp4 content").unwrap();
+    }
+
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/test-video.mp4")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "video/mp4"
+    );
+    assert!(resp
+        .headers()
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("test-video.mp4"));
+    assert_eq!(
+        resp.headers().get("content-length").unwrap(),
+        "16"
+    );
+
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(&bytes[..], b"fake mp4 content");
+}
+
+#[tokio::test]
+async fn serve_file_nonexistent_returns_404() {
+    let tmp = TempDir::new().unwrap();
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/no-such-file.mp4")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn serve_file_path_traversal_returns_400() {
+    let tmp = TempDir::new().unwrap();
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/..%2F..%2Fetc%2Fpasswd")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["code"], "VALIDATION_ERROR");
+}
+
+#[tokio::test]
+async fn serve_file_dot_prefix_returns_400() {
+    let tmp = TempDir::new().unwrap();
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/.hidden")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn serve_file_mp3_has_audio_mpeg_content_type() {
+    let tmp = TempDir::new().unwrap();
+    std::fs::write(tmp.path().join("song.mp3"), b"fake").unwrap();
+
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/song.mp3")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.headers().get("content-type").unwrap(), "audio/mpeg");
+}
+
+#[tokio::test]
+async fn serve_file_webm_has_video_webm_content_type() {
+    let tmp = TempDir::new().unwrap();
+    std::fs::write(tmp.path().join("clip.webm"), b"fake").unwrap();
+
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/clip.webm")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.headers().get("content-type").unwrap(), "video/webm");
+}
+
+#[tokio::test]
+async fn serve_file_unknown_ext_has_octet_stream_content_type() {
+    let tmp = TempDir::new().unwrap();
+    std::fs::write(tmp.path().join("data.xyz"), b"fake").unwrap();
+
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get("/api/downloads/data.xyz")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "application/octet-stream"
+    );
+}
+
+#[tokio::test]
+async fn serve_file_unicode_name_has_rfc5987_disposition() {
+    let tmp = TempDir::new().unwrap();
+    let filename = "名前.mp3";
+    std::fs::write(tmp.path().join(filename), b"fake").unwrap();
+
+    let mock = common::MockGrpcClient::builder().build();
+    let app = common::make_app_with_downloads_dir(mock, tmp.path().to_path_buf());
+
+    let req = Request::get(format!("/api/downloads/{}", urlencoding::encode(filename)))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let disposition = resp.headers().get("content-disposition").unwrap().to_str().unwrap();
+    assert!(disposition.contains("filename*=UTF-8''"), "expected RFC 5987 encoding in: {disposition}");
 }

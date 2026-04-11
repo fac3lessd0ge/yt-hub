@@ -60,10 +60,9 @@ beforeAll(async () => {
     new DownloadHandler(service, errorMapper, responseMapper),
   );
 
-  // Use port 0 to let the OS assign a random available port
-  // Since grpc-js doesn't return the port, we'll try a high random port
-  port = 50100 + Math.floor(Math.random() * 900);
+  port = 0;
   await server.start("127.0.0.1", port);
+  port = server.port;
 
   const packageDefinition = await protoLoader.load(PROTO_PATH, {
     keepCase: true,

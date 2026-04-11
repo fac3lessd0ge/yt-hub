@@ -43,10 +43,6 @@ function createServer(): GrpcServer {
   );
 }
 
-function randomPort(): number {
-  return 50200 + Math.floor(Math.random() * 800);
-}
-
 const serversToCleanup: GrpcServer[] = [];
 
 afterEach(async () => {
@@ -65,28 +61,24 @@ describe("GrpcServer lifecycle", () => {
     const server = createServer();
     serversToCleanup.push(server);
 
-    // start should resolve without error
-    await expect(
-      server.start("127.0.0.1", randomPort()),
-    ).resolves.toBeUndefined();
+    await expect(server.start("127.0.0.1", 0)).resolves.toBeUndefined();
+    expect(server.port).toBeGreaterThan(0);
   });
 
   it("isShuttingDown is false after start", async () => {
     const server = createServer();
     serversToCleanup.push(server);
 
-    await server.start("127.0.0.1", randomPort());
+    await server.start("127.0.0.1", 0);
     expect(server.isShuttingDown).toBe(false);
   });
 
   it("isShuttingDown transitions to true after stop is called", async () => {
     const server = createServer();
-    const port = randomPort();
-    await server.start("127.0.0.1", port);
+    await server.start("127.0.0.1", 0);
 
     expect(server.isShuttingDown).toBe(false);
 
-    // Start the stop process
     const stopPromise = server.stop();
     expect(server.isShuttingDown).toBe(true);
     await stopPromise;
@@ -95,24 +87,20 @@ describe("GrpcServer lifecycle", () => {
 
   it("stop resolves when there are no active streams", async () => {
     const server = createServer();
-    const port = randomPort();
-    await server.start("127.0.0.1", port);
+    await server.start("127.0.0.1", 0);
 
-    // stop should resolve cleanly
     await expect(server.stop()).resolves.toBeUndefined();
   });
 
   it("rejects when binding to a port already in use", async () => {
-    const port = randomPort();
-
     const server1 = createServer();
     serversToCleanup.push(server1);
-    await server1.start("127.0.0.1", port);
+    await server1.start("127.0.0.1", 0);
+    const usedPort = server1.port;
 
     const server2 = createServer();
     serversToCleanup.push(server2);
 
-    // Starting a second server on the same port should throw a ServerError
-    await expect(server2.start("127.0.0.1", port)).rejects.toThrow();
+    await expect(server2.start("127.0.0.1", usedPort)).rejects.toThrow();
   });
 });
