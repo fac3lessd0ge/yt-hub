@@ -1,5 +1,12 @@
 import { status as GrpcStatus } from "@grpc/grpc-js";
-import { DownloadError, ValidationError } from "yt-downloader";
+import {
+  CancellationError,
+  DependencyError,
+  DownloadError,
+  MetadataError,
+  TimeoutError,
+  ValidationError,
+} from "yt-downloader";
 import {
   CANCELLED,
   DEPENDENCY_MISSING,
@@ -38,7 +45,7 @@ export class ErrorMapper {
       };
     }
 
-    if (err instanceof Error && err.name === "CancellationError") {
+    if (err instanceof CancellationError) {
       return {
         code: CANCELLED,
         message: err.message,
@@ -47,9 +54,8 @@ export class ErrorMapper {
       };
     }
 
-    if (err instanceof Error && err.name === "MetadataError") {
-      const statusCode = (err as Error & { statusCode?: number }).statusCode;
-      if (statusCode === 404) {
+    if (err instanceof MetadataError) {
+      if (err.statusCode === 404) {
         return {
           code: VIDEO_NOT_FOUND,
           message: err.message,
@@ -65,7 +71,7 @@ export class ErrorMapper {
       };
     }
 
-    if (err instanceof Error && err.name === "DependencyError") {
+    if (err instanceof DependencyError) {
       return {
         code: DEPENDENCY_MISSING,
         message: err.message,
@@ -74,7 +80,7 @@ export class ErrorMapper {
       };
     }
 
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (err instanceof TimeoutError) {
       return {
         code: REQUEST_TIMEOUT,
         message: err.message,

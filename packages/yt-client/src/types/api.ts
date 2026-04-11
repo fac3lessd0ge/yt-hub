@@ -1,22 +1,30 @@
-// HTTP API response types — derived from proto definitions in
-// packages/yt-service/proto/yt_service.proto (package yt_hub.v1).
-// Run `npm run codegen` in yt-service to regenerate proto types.
-//
-// These types represent the HTTP/JSON API served by yt-api (Rust),
-// which may add fields beyond the gRPC proto (e.g. download_url).
+// Shared contract types — single source of truth is yt-downloader Zod schemas.
+// Import from "yt-downloader/schemas" to avoid pulling in Node.js-only code.
+export type {
+  DownloadProgress,
+  FormatInfo,
+  VideoMetadata,
+} from "yt-downloader/schemas";
+
+// Re-export schemas for runtime validation
+export {
+  BackendsResponseSchema,
+  DownloadCompleteSchema,
+  DownloadErrorSchema,
+  DownloadProgressSchema,
+  FormatsResponseSchema,
+  MetadataResponseSchema,
+} from "yt-downloader/schemas";
+
+// --- yt-client specific types (not in proto / yt-downloader) ---
 
 export interface MetadataResponse {
   title: string;
   author_name: string;
 }
 
-export interface FormatInfo {
-  id: string;
-  label: string;
-}
-
 export interface FormatsResponse {
-  formats: FormatInfo[];
+  formats: Array<{ id: string; label: string }>;
 }
 
 export interface BackendsResponse {
@@ -29,12 +37,6 @@ export interface DownloadRequest {
   name: string;
   destination?: string;
   backend?: string;
-}
-
-export interface DownloadProgress {
-  percent: number;
-  speed: string;
-  eta: string;
 }
 
 // download_url is added by yt-api HTTP layer (not in proto)

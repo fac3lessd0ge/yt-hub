@@ -34,7 +34,7 @@ const req = {
   name: "test",
 };
 const completeEvent =
-  'event: complete\ndata: {"output_path":"/t.mp3","title":"T","author_name":"A","format_id":"mp3","format_label":"MP3"}\n\n';
+  'event: complete\ndata: {"output_path":"/t.mp3","download_url":"/downloads/t.mp3","title":"T","author_name":"A","format_id":"mp3","format_label":"MP3"}\n\n';
 
 describe("SSE parser fuzz", () => {
   it("handles empty chunks without crashing", async () => {

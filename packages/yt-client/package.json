@@ -13,6 +13,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "yt-downloader": "*",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "electron-squirrel-startup": "^1.0.1",

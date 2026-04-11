@@ -73,9 +73,26 @@ ipcMain.handle(
     if (!response.ok) {
       throw new Error(`Failed to fetch file: ${response.status}`);
     }
+    if (!response.body) {
+      throw new Error("Response has no body");
+    }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    await fs.writeFile(result.filePath, buffer);
+    const { Readable } = await import("node:stream");
+    const { createWriteStream } = await import("node:fs");
+    const { pipeline } = await import("node:stream/promises");
+
+    const readable = Readable.fromWeb(
+      response.body as import("node:stream/web").ReadableStream,
+    );
+    const writable = createWriteStream(result.filePath);
+
+    try {
+      await pipeline(readable, writable);
+    } catch (err) {
+      // Clean up partial file on failure
+      await fs.unlink(result.filePath).catch(() => {});
+      throw err;
+    }
 
     return { filePath: result.filePath };
   },
@@ -83,6 +100,11 @@ ipcMain.handle(
 
 ipcMain.on("config:getApiBaseUrl", (event) => {
   event.returnValue = process.env.YT_HUB_API_URL ?? "";
+});
+
+// Async handler for future use
+ipcMain.handle("config:getApiBaseUrl", () => {
+  return process.env.YT_HUB_API_URL ?? "";
 });
 
 app.on("ready", createWindow);

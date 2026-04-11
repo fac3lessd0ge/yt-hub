@@ -162,11 +162,11 @@ async fn main() {
         .layer(
             ServiceBuilder::new()
                 .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
+                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
+                .layer(TimeoutLayer::new(regular_timeout))
                 .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
                 .layer(TraceLayer::new_for_http())
-                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware))
-                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
-                .layer(TimeoutLayer::new(regular_timeout)),
+                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware)),
         );
 
     let streaming_routes = yt_api::routes::streaming_routes()
@@ -174,11 +174,11 @@ async fn main() {
         .layer(
             ServiceBuilder::new()
                 .layer(axum::extract::DefaultBodyLimit::max(config.max_body_size_bytes))
+                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
+                .layer(TimeoutLayer::new(streaming_timeout))
                 .layer(axum::middleware::from_fn(yt_api::middleware::metrics::metrics_middleware))
                 .layer(TraceLayer::new_for_http())
-                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware))
-                .layer(axum::error_handling::HandleErrorLayer::new(handle_timeout_error))
-                .layer(TimeoutLayer::new(streaming_timeout)),
+                .layer(axum::middleware::from_fn(yt_api::middleware::request_id::request_id_middleware)),
         );
 
     let cors_layer = build_cors_layer(&config);

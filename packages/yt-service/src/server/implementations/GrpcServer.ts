@@ -12,6 +12,16 @@ import {
 } from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 import type {
+  GetMetadataRequest,
+  GetMetadataResponse,
+  ListBackendsRequest,
+  ListBackendsResponse,
+  ListFormatsRequest,
+  ListFormatsResponse,
+  DownloadRequest as ProtoDownloadRequest,
+  DownloadResponse as ProtoDownloadResponse,
+} from "~/generated/yt_service";
+import type {
   BackendsHandler,
   DownloadHandler,
   FormatsHandler,
@@ -34,7 +44,10 @@ export interface GrpcServerOptions {
 export class GrpcServer implements IGrpcServer {
   private server: Server;
   private _shuttingDown: boolean = false;
-  private _activeStreams: Set<ServerWritableStream<any, any>> = new Set();
+  private _activeStreams: Set<
+    ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>
+  > = new Set();
+  private _port: number = 0;
   private requestValidator: RequestValidator;
   private errorMapper: ErrorMapper;
   private logger: Logger;
@@ -73,6 +86,10 @@ export class GrpcServer implements IGrpcServer {
     return this._shuttingDown;
   }
 
+  get port(): number {
+    return this._port;
+  }
+
   async start(host: string, port: number): Promise<void> {
     const packageDefinition = await protoLoader.load(PROTO_PATH, {
       keepCase: true,
@@ -83,7 +100,9 @@ export class GrpcServer implements IGrpcServer {
     });
 
     const grpc = await import("@grpc/grpc-js");
-    const proto = grpc.loadPackageDefinition(packageDefinition) as any;
+    const proto = grpc.loadPackageDefinition(packageDefinition) as {
+      yt_hub: { v1: { YtService: { service: any } } };
+    };
     const service = proto.yt_hub.v1.YtService.service;
 
     this.server.addService(service, {
@@ -97,11 +116,12 @@ export class GrpcServer implements IGrpcServer {
       this.server.bindAsync(
         `${host}:${port}`,
         ServerCredentials.createInsecure(),
-        (err) => {
+        (err, boundPort) => {
           if (err) {
             reject(new ServerError(err.message, host, port));
             return;
           }
+          this._port = boundPort;
           resolvePromise();
         },
       );
@@ -132,7 +152,7 @@ export class GrpcServer implements IGrpcServer {
     });
   }
 
-  private rejectIfShuttingDown(callback: sendUnaryData<any>): boolean {
+  private rejectIfShuttingDown<T>(callback: sendUnaryData<T>): boolean {
     if (this._shuttingDown) {
       callback({
         code: GrpcStatus.UNAVAILABLE,
@@ -162,10 +182,13 @@ export class GrpcServer implements IGrpcServer {
     return this.logger.child({ requestId, method });
   }
 
-  private createGetMetadata(): handleUnaryCall<any, any> {
+  private createGetMetadata(): handleUnaryCall<
+    GetMetadataRequest,
+    GetMetadataResponse
+  > {
     return async (
-      call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>,
+      call: ServerUnaryCall<GetMetadataRequest, GetMetadataResponse>,
+      callback: sendUnaryData<GetMetadataResponse>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
       const log = this.childLogger(call.metadata, "GetMetadata");
@@ -190,10 +213,13 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createListFormats(): handleUnaryCall<any, any> {
+  private createListFormats(): handleUnaryCall<
+    ListFormatsRequest,
+    ListFormatsResponse
+  > {
     return async (
-      call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>,
+      call: ServerUnaryCall<ListFormatsRequest, ListFormatsResponse>,
+      callback: sendUnaryData<ListFormatsResponse>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
       const log = this.childLogger(call.metadata, "ListFormats");
@@ -217,10 +243,13 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createListBackends(): handleUnaryCall<any, any> {
+  private createListBackends(): handleUnaryCall<
+    ListBackendsRequest,
+    ListBackendsResponse
+  > {
     return async (
-      call: ServerUnaryCall<any, any>,
-      callback: sendUnaryData<any>,
+      call: ServerUnaryCall<ListBackendsRequest, ListBackendsResponse>,
+      callback: sendUnaryData<ListBackendsResponse>,
     ) => {
       if (this.rejectIfShuttingDown(callback)) return;
       const log = this.childLogger(call.metadata, "ListBackends");
@@ -244,8 +273,13 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createDownload(): handleServerStreamingCall<any, any> {
-    return async (call: ServerWritableStream<any, any>) => {
+  private createDownload(): handleServerStreamingCall<
+    ProtoDownloadRequest,
+    ProtoDownloadResponse
+  > {
+    return async (
+      call: ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>,
+    ) => {
       if (this._shuttingDown) {
         const err = Object.assign(new Error("Server is shutting down"), {
           code: GrpcStatus.UNAVAILABLE,
@@ -270,7 +304,7 @@ export class GrpcServer implements IGrpcServer {
         this.requestValidator.validateDownloadRequest(call.request);
         await this.downloadHandler.handle(
           call.request,
-          (msg) => call.write(msg),
+          (msg) => call.write(msg as unknown as ProtoDownloadResponse),
           abortController.signal,
         );
         log.info("Download completed successfully");

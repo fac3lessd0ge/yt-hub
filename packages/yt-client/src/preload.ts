@@ -1,8 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+// Read once during preload execution (before renderer event loop starts).
+// sendSync is acceptable here — it runs once, does not block the renderer.
+const cachedApiBaseUrl: string | undefined =
+  ipcRenderer.sendSync("config:getApiBaseUrl") || undefined;
+
 contextBridge.exposeInMainWorld("electronAPI", {
-  getApiBaseUrl: (): string | undefined =>
-    ipcRenderer.sendSync("config:getApiBaseUrl") || undefined,
+  getApiBaseUrl: (): string | undefined => cachedApiBaseUrl,
   selectFolder: (): Promise<string | null> =>
     ipcRenderer.invoke("dialog:selectFolder"),
   showItemInFolder: (filePath: string): Promise<void> =>
