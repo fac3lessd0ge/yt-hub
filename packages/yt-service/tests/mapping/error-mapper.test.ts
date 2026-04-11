@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  CancellationError,
   DependencyError,
   DownloadError,
   MetadataError,
+  TimeoutError,
   ValidationError,
 } from "yt-downloader";
 import { ErrorMapper } from "~/mapping";
@@ -21,17 +23,31 @@ describe("ErrorMapper", () => {
     expect(result.code).toBe("DOWNLOAD_FAILED");
   });
 
+  it("maps CancellationError to CANCELLED code", () => {
+    const result = mapper.mapError(new CancellationError());
+    expect(result.code).toBe("CANCELLED");
+  });
+
   it("maps MetadataError to METADATA_FAILED code", () => {
     const result = mapper.mapError(new MetadataError("not found"));
     expect(result.code).toBe("METADATA_FAILED");
     expect(result.message).toBe("not found");
   });
 
+  it("maps MetadataError with 404 to VIDEO_NOT_FOUND code", () => {
+    const result = mapper.mapError(new MetadataError("not found", 404));
+    expect(result.code).toBe("VIDEO_NOT_FOUND");
+  });
+
   it("maps DependencyError to DEPENDENCY_MISSING code", () => {
-    const err = new DependencyError("ffmpeg", "apt install ffmpeg");
-    const result = mapper.mapError(err);
+    const result = mapper.mapError(new DependencyError("ffmpeg", "brew install ffmpeg"));
     expect(result.code).toBe("DEPENDENCY_MISSING");
-    expect(result.message).toBe(err.message);
+  });
+
+  it("maps TimeoutError to REQUEST_TIMEOUT code", () => {
+    const result = mapper.mapError(new TimeoutError(30000));
+    expect(result.code).toBe("REQUEST_TIMEOUT");
+    expect(result.retryable).toBe(true);
   });
 
   it("maps unknown Error to INTERNAL_ERROR code", () => {
