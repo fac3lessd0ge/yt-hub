@@ -40,6 +40,8 @@ The server listens on `0.0.0.0:3000` by default. Configure via environment varia
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated CORS allowed origins |
 | `MAX_BODY_SIZE_BYTES` | `1048576` | Maximum request body size in bytes |
 | `RATE_LIMIT_RPM` | `30` | Rate limit: requests per minute per IP |
+| `STREAMING_TIMEOUT_SECS` | `600` | SSE download stream timeout in seconds |
+| `DOWNLOAD_DIR` | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
 
 ## REST API
 
@@ -100,7 +102,7 @@ event: progress
 data: {"percent":100.0,"speed":"3.00MiB/s","eta":"00:00"}
 
 event: complete
-data: {"output_path":"/tmp/rickroll.mp3","title":"...","author_name":"...","format_id":"mp3","format_label":"MP3 audio"}
+data: {"output_path":"/tmp/rickroll.mp3","download_url":"/api/downloads/rickroll.mp3","title":"...","author_name":"...","format_id":"mp3","format_label":"MP3 audio"}
 ```
 
 On failure:
@@ -108,6 +110,16 @@ On failure:
 event: error
 data: {"code":"INVALID_URL","message":"URL does not look like a YouTube link.","retryable":false}
 ```
+
+### `GET /api/downloads/{filename}`
+
+Serve a previously downloaded file.
+
+```bash
+curl -O localhost:3000/api/downloads/rickroll.mp3
+```
+
+Returns the file with `Content-Disposition: attachment` header. Returns 404 if file not found.
 
 ### Error Response Format
 
@@ -117,7 +129,7 @@ All errors follow a standardized format:
 { "code": "ERROR_CODE", "message": "Human-readable description", "retryable": true }
 ```
 
-Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`
+Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`, `FILE_NOT_FOUND`, `RATE_LIMIT_EXCEEDED`
 
 ### Input Validation
 
@@ -182,7 +194,7 @@ The Dockerfile uses a multi-stage build with [cargo-chef](https://github.com/Luk
 
 ## Testing
 
-yt-api has 49 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
+yt-api has 62 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
 
 ```bash
 # Run all tests
@@ -196,10 +208,12 @@ Tests use a `GrpcClientTrait` abstraction extracted from the concrete gRPC clien
 
 Test breakdown:
 
-- **Error mapping tests (9)**: verify AppError to HTTP status code mapping
-- **Validation tests (22)**: URL format, format ID, filename rules
-- **Integration tests (9)**: all routes using tower oneshot with mock gRPC client
-- **SSE stream tests (7)**: stream lifecycle, progress events, completion, error propagation
+- **Error mapping tests (10)**: verify AppError to HTTP status code mapping
+- **Validation tests (22)**: URL format, format ID, filename, destination rules
+- **Integration tests (12)**: all routes using tower oneshot with mock gRPC client
+- **Fuzz tests (6)**: property-based testing for URL/filename/destination validators
+- **Config tests (6)**: configuration parsing and validation
+- **SSE stream tests (6)**: stream lifecycle, progress events, completion, error propagation
 
 ## Development
 
@@ -219,16 +233,25 @@ npx nx lint yt-api
 ```
 src/
 ├── main.rs           # Entry point — config, DI wiring, Axum server
-├── config.rs         # Config from environment variables
-├── error.rs          # AppError → HTTP status code mapping
+├── lib.rs            # Library root — AppState definition
+├── config.rs         # Config from environment variables (with validation)
+├── error.rs          # AppError → HTTP status code mapping, shared error codes
+├── validation.rs     # Input validation (URL, format, filename, destination)
 ├── grpc/
 │   └── client.rs     # GrpcClient wrapper around tonic-generated stub
+├── middleware/
+│   ├── metrics.rs    # Prometheus metrics middleware
+│   ├── rateLimit.rs  # Rate limiting via tower_governor
+│   ├── request_id.rs # Request ID generation and propagation
+│   └── securityHeaders.rs # Security headers middleware
 ├── routes/
-│   ├── mod.rs        # Router construction
+│   ├── mod.rs        # Router construction (regular + streaming + metrics)
 │   ├── metadata.rs   # GET /api/metadata
 │   ├── formats.rs    # GET /api/formats
 │   ├── backends.rs   # GET /api/backends
-│   └── downloads.rs  # POST /api/downloads (SSE streaming)
+│   ├── downloads.rs  # POST /api/downloads (SSE) + GET /api/downloads/{filename}
+│   ├── health.rs     # GET /health (with optional deep check)
+│   └── metrics.rs    # GET /metrics
 └── models/
     ├── requests.rs   # JSON request deserialization types
     └── responses.rs  # JSON response serialization types + From<proto> impls

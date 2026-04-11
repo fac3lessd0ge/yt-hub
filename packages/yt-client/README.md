@@ -8,8 +8,13 @@ An Electron desktop application for downloading YouTube videos as MP3 or MP4. Bu
 - **Download YouTube videos** as MP3 (audio) or MP4 (video)
 - **Real-time progress** with speed and ETA via Server-Sent Events
 - **Auto-fill metadata** — paste a link, title and author are fetched automatically
-- **Native folder picker** for choosing download destination
-- **Open in Finder/Explorer** after download completes
+- **Save dialog** — native save-as dialog with file download from API
+- **Retry with backoff** — automatic retry (3x) with exponential backoff for API errors, 429/Retry-After handling
+- **SSE auto-reconnect** — stream drop recovery (3x with backoff)
+- **Offline detection** — network status monitoring with UI banner
+- **Client-side URL validation** — YouTube URL pre-validation before sending to API
+- **Keyboard shortcuts** — Escape to cancel active download
+- **Accessibility** — ARIA attributes, focus management, screen reader support
 
 ## Prerequisites
 
@@ -32,6 +37,7 @@ The app connects to `yt-api` at `http://localhost:3000`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server |
+| `YT_HUB_API_URL` | — | Electron runtime override for API base URL |
 
 ### Error Handling
 
@@ -48,7 +54,7 @@ API errors are surfaced from the `body.message` field of error responses.
 
 ## Testing
 
-yt-client has 40+ tests covering React components and custom hooks using [Vitest](https://vitest.dev/) with [jsdom](https://github.com/jsdom/jsdom) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro).
+yt-client has 110+ tests covering React components and custom hooks using [Vitest](https://vitest.dev/) with [jsdom](https://github.com/jsdom/jsdom) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro).
 
 ```bash
 # Run all tests
@@ -60,8 +66,9 @@ npx nx test yt-client
 
 Test coverage:
 
-- **Component tests**: DownloadForm, DownloadProgress, DownloadResult, DownloadPage — render states, user interactions, error display
-- **Hook tests**: useFormats, useBackends, useMetadata, useDownload — data fetching, loading states, error handling, SSE progress tracking
+- **Component tests**: DownloadForm, DownloadProgress, DownloadResult, DownloadPage — render states, user interactions, error display, accessibility
+- **Hook tests**: useFormats, useBackends, useMetadata, useDownload, useOnlineStatus — data fetching, loading states, error handling, SSE progress tracking, offline detection
+- **Utility tests**: URL validation, retry logic, SSE parser
 
 ## Development
 
@@ -90,19 +97,23 @@ npx nx build yt-client
 ```
 src/
 ├── main.ts               # Electron main process (BrowserWindow, IPC handlers)
-├── preload.ts            # contextBridge for native features (folder picker, open in Finder)
+├── preload.ts            # contextBridge for native features (save dialog, folder picker, open in Finder)
 ├── renderer.ts           # React mount point
 ├── App.tsx               # Root component with state-based page routing
 ├── globals.css           # Tailwind v4 + shadcn/ui theme
 ├── lib/
 │   ├── utils.ts          # cn() utility for class merging
 │   ├── apiClient.ts      # Typed fetch wrappers for yt-api endpoints
-│   └── sse.ts            # SSE-over-POST parser (manual fetch + ReadableStream)
+│   ├── retry.ts          # Retry with exponential backoff, RateLimitError handling
+│   ├── sse.ts            # SSE-over-POST parser with auto-reconnect (3x with backoff)
+│   └── urlValidation.ts  # Client-side YouTube URL pre-validation
 ├── hooks/
 │   ├── useMetadata.ts    # Debounced metadata fetch on link change
 │   ├── useFormats.ts     # Fetch available formats on mount
 │   ├── useBackends.ts    # Fetch available backends on mount
-│   └── useDownload.ts    # Download state machine with SSE progress tracking
+│   ├── useDownload.ts    # Download state machine with SSE progress tracking
+│   ├── useOnlineStatus.ts # Network status detection with UI banner
+│   └── useKeyboardShortcuts.ts # Configurable keyboard shortcut bindings
 ├── types/
 │   └── api.ts            # TypeScript types mirroring yt-api responses
 ├── components/
@@ -110,7 +121,7 @@ src/
 │   │   ├── AppShell.tsx  # Sidebar + content area layout
 │   │   └── Sidebar.tsx   # Navigation sidebar
 │   └── download/
-│       ├── DownloadPage.tsx      # State machine: idle → downloading → complete/error
+│       ├── DownloadPage.tsx      # State machine: idle → downloading → saving → complete/error
 │       ├── DownloadForm.tsx      # Link, format, name inputs with metadata auto-fill
 │       ├── DownloadProgress.tsx  # Progress bar, speed, ETA, cancel button
 │       └── DownloadResult.tsx    # Completion card with file path
@@ -125,9 +136,11 @@ Minimal IPC bridge for native features only:
 | Channel | Direction | Purpose |
 |---------|-----------|---------|
 | `dialog:selectFolder` | Renderer → Main | Open native folder picker |
+| `dialog:saveDownload` | Renderer → Main | Download file from API and save via native dialog |
 | `shell:showItemInFolder` | Renderer → Main | Open file in Finder/Explorer |
+| `config:getApiBaseUrl` | Renderer → Main | Get API base URL from Electron environment |
 
-All API communication goes through HTTP to yt-api (no IPC for data).
+All API communication goes through HTTP to yt-api. IPC is used only for native OS features and configuration.
 
 ## License
 
