@@ -34,7 +34,6 @@ function makeHookReturn(overrides: Record<string, unknown> = {}) {
     result: null,
     localPath: null,
     error: null,
-    reconnecting: false,
     start: vi.fn(),
     cancel: vi.fn(),
     reset: vi.fn(),

@@ -12,7 +12,6 @@ export function DownloadPage() {
     result,
     localPath,
     error,
-    reconnecting,
     start,
     cancel,
     reset,
@@ -35,7 +34,6 @@ export function DownloadPage() {
         {state === "downloading" && (
           <DownloadProgress
             progress={progress}
-            reconnecting={reconnecting}
             onCancel={cancel}
           />
         )}

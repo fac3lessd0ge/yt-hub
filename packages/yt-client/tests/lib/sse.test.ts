@@ -134,89 +134,21 @@ describe("streamDownload", () => {
     expect(onProgress.mock.calls[1][0].percent).toBe(75);
   });
 
-  it("reconnects when stream drops without terminal event", async () => {
-    const stream1 = createMockStream([
+  it("calls onError with CONNECTION_LOST when stream ends without terminal event", async () => {
+    const stream = createMockStream([
       'event: progress\ndata: {"percent":50,"speed":"2.00MiB/s","eta":"00:03"}\n\n',
     ]);
-    const stream2 = createMockStream([
-      'event: complete\ndata: {"output_path":"/tmp/t.mp3","title":"T","author_name":"A","format_id":"mp3","format_label":"MP3"}\n\n',
-    ]);
-
-    mockFetch
-      .mockResolvedValueOnce({ ok: true, body: stream1 })
-      .mockResolvedValueOnce({ ok: true, body: stream2 });
+    mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
 
     const onProgress = vi.fn();
-    const onComplete = vi.fn();
-    const onReconnecting = vi.fn();
-
-    const promise = streamDownload(req, {
-      onProgress,
-      onComplete,
-      onError: vi.fn(),
-      onReconnecting,
-    });
-    await vi.advanceTimersByTimeAsync(2000);
-    await promise;
-
-    expect(onReconnecting).toHaveBeenCalledWith(1);
-    expect(onProgress).toHaveBeenCalledTimes(1);
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it("reports CONNECTION_LOST after exhausting reconnects", async () => {
-    // 4 streams that all drop (initial + 3 reconnects)
-    for (let i = 0; i < 4; i++) {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        body: createMockStream([
-          'event: progress\ndata: {"percent":10,"speed":"1MiB/s","eta":"00:10"}\n\n',
-        ]),
-      });
-    }
-
     const onError = vi.fn();
-    const onReconnecting = vi.fn();
 
-    const promise = streamDownload(req, {
-      onProgress: vi.fn(),
-      onComplete: vi.fn(),
-      onError,
-      onReconnecting,
-    });
-    await vi.advanceTimersByTimeAsync(30000);
-    await promise;
+    await streamDownload(req, { onProgress, onComplete: vi.fn(), onError });
 
-    expect(onReconnecting).toHaveBeenCalledTimes(3);
+    expect(onProgress).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "CONNECTION_LOST" }),
+      expect.objectContaining({ code: "CONNECTION_LOST", retryable: true }),
     );
-  });
-
-  it("reconnects on fetch error during stream", async () => {
-    mockFetch
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce({
-        ok: true,
-        body: createMockStream([
-          'event: complete\ndata: {"output_path":"/tmp/t.mp3","title":"T","author_name":"A","format_id":"mp3","format_label":"MP3"}\n\n',
-        ]),
-      });
-
-    const onComplete = vi.fn();
-    const onReconnecting = vi.fn();
-
-    const promise = streamDownload(req, {
-      onProgress: vi.fn(),
-      onComplete,
-      onError: vi.fn(),
-      onReconnecting,
-    });
-    await vi.advanceTimersByTimeAsync(2000);
-    await promise;
-
-    expect(onReconnecting).toHaveBeenCalledWith(1);
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

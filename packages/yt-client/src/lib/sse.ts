@@ -10,20 +10,6 @@ export interface SseCallbacks {
   onProgress: (data: DownloadProgress) => void;
   onComplete: (data: DownloadComplete) => void;
   onError: (data: DownloadError) => void;
-  onReconnecting?: (attempt: number) => void;
-}
-
-const MAX_RECONNECTS = 3;
-const BASE_RECONNECT_DELAY_MS = 1000;
-
-function delay(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(new DOMException("Aborted", "AbortError"));
-    });
-  });
 }
 
 /**
@@ -100,53 +86,28 @@ export async function streamDownload(
   callbacks: SseCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {
-  let attempt = 0;
+  const response = await fetch(getDownloadUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
 
-  while (attempt <= MAX_RECONNECTS) {
-    try {
-      const response = await fetch(getDownloadUrl(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-        signal,
-      });
+  if (!response.ok || !response.body) {
+    callbacks.onError({
+      code: "HTTP_ERROR",
+      message: `Request failed with status ${response.status}`,
+    });
+    return;
+  }
 
-      if (!response.ok || !response.body) {
-        callbacks.onError({
-          code: "HTTP_ERROR",
-          message: `Request failed with status ${response.status}`,
-        });
-        return;
-      }
-
-      const terminal = await readStream(response.body, callbacks);
-      if (terminal) return;
-
-      // Stream ended without terminal event — treat as drop
-      attempt++;
-      if (attempt > MAX_RECONNECTS) {
-        callbacks.onError({
-          code: "CONNECTION_LOST",
-          message: "Download stream lost after multiple reconnect attempts",
-        });
-        return;
-      }
-      callbacks.onReconnecting?.(attempt);
-      await delay(BASE_RECONNECT_DELAY_MS * 2 ** (attempt - 1), signal);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      if (err instanceof Error && err.name === "AbortError") throw err;
-
-      attempt++;
-      if (attempt > MAX_RECONNECTS) {
-        callbacks.onError({
-          code: "CONNECTION_LOST",
-          message: "Download stream lost after multiple reconnect attempts",
-        });
-        return;
-      }
-      callbacks.onReconnecting?.(attempt);
-      await delay(BASE_RECONNECT_DELAY_MS * 2 ** (attempt - 1), signal);
-    }
+  const terminal = await readStream(response.body, callbacks);
+  if (!terminal) {
+    // Stream ended without complete/error — connection was lost
+    callbacks.onError({
+      code: "CONNECTION_LOST",
+      message: "Download stream interrupted. Please retry.",
+      retryable: true,
+    });
   }
 }
