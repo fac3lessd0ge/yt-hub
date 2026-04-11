@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFormats } from "@/hooks/useFormats";
 
 const mockFetchFormats = vi.fn();
@@ -9,6 +9,9 @@ vi.mock("@/lib/apiClient", () => ({
 }));
 
 describe("useFormats", () => {
+  beforeEach(() => {
+    mockFetchFormats.mockReset();
+  });
   it("starts in loading state", () => {
     mockFetchFormats.mockReturnValue(new Promise(() => {})); // never resolves
     const { result } = renderHook(() => useFormats());
