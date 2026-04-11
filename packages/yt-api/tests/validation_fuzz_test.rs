@@ -65,6 +65,7 @@ fn filename_validation_never_panics() {
 
 #[test]
 fn destination_validation_never_panics() {
+    let base = std::env::temp_dir();
     let long_a = "a".repeat(2000);
     let inputs: &[&str] = &[
         "",
@@ -80,7 +81,7 @@ fn destination_validation_never_panics() {
         "/path/with spaces/ok",
     ];
     for input in inputs {
-        let _ = validation::validate_destination(input);
+        let _ = validation::validate_destination(input, &base);
     }
 }
 

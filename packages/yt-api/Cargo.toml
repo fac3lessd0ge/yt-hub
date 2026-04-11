@@ -29,6 +29,7 @@ async-trait = "0.1"
 
 [dev-dependencies]
 http-body-util = "0.1"
+tempfile = "3"
 
 [build-dependencies]
 tonic-build = "0.13"

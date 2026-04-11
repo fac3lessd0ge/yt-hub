@@ -42,7 +42,7 @@ pub async fn download<C: GrpcClientTrait>(
     validation::validate_format(&body.format).map_err(AppError::Validation)?;
     validation::validate_name(&body.name).map_err(AppError::Validation)?;
     if let Some(ref dest) = body.destination {
-        validation::validate_destination(dest).map_err(AppError::Validation)?;
+        validation::validate_destination(dest, &state.downloads_dir).map_err(AppError::Validation)?;
     }
 
     let grpc_request: proto::DownloadRequest = body.into();
