@@ -32,13 +32,25 @@ export const FormatInfoSchema = z.object({
 });
 
 export const MetadataRequestSchema = z.object({
-  link: z.string().min(1, "link is required"),
+  link: z
+    .string({ error: "link is required" })
+    .trim()
+    .min(1, "link is required"),
 });
 
 export const DownloadRequestSchema = z.object({
-  link: z.string().min(1, "link is required"),
-  format: z.string().min(1, "format is required"),
-  name: z.string().min(1, "name is required"),
+  link: z
+    .string({ error: "link is required" })
+    .trim()
+    .min(1, "link is required"),
+  format: z
+    .string({ error: "format is required" })
+    .trim()
+    .min(1, "format is required"),
+  name: z
+    .string({ error: "name is required" })
+    .trim()
+    .min(1, "name is required"),
   destination: z.string().optional(),
   backend: z.string().optional(),
 });
