@@ -1,9 +1,10 @@
-// Shared contract types — single source of truth is yt-downloader Zod schemas
+// Shared contract types — single source of truth is yt-downloader Zod schemas.
+// Import from "yt-downloader/schemas" to avoid pulling in Node.js-only code.
 export type {
   DownloadProgress,
   FormatInfo,
   VideoMetadata,
-} from "yt-downloader";
+} from "yt-downloader/schemas";
 
 // Re-export schemas for runtime validation
 export {
@@ -13,7 +14,7 @@ export {
   DownloadProgressSchema,
   FormatsResponseSchema,
   MetadataResponseSchema,
-} from "yt-downloader";
+} from "yt-downloader/schemas";
 
 // --- yt-client specific types (not in proto / yt-downloader) ---
 
