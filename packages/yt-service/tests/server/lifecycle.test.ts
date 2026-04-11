@@ -61,9 +61,7 @@ describe("GrpcServer lifecycle", () => {
     const server = createServer();
     serversToCleanup.push(server);
 
-    await expect(
-      server.start("127.0.0.1", 0),
-    ).resolves.toBeUndefined();
+    await expect(server.start("127.0.0.1", 0)).resolves.toBeUndefined();
     expect(server.port).toBeGreaterThan(0);
   });
 

@@ -40,7 +40,9 @@ describe("ErrorMapper", () => {
   });
 
   it("maps DependencyError to DEPENDENCY_MISSING code", () => {
-    const result = mapper.mapError(new DependencyError("ffmpeg", "brew install ffmpeg"));
+    const result = mapper.mapError(
+      new DependencyError("ffmpeg", "brew install ffmpeg"),
+    );
     expect(result.code).toBe("DEPENDENCY_MISSING");
   });
 
