@@ -85,6 +85,11 @@ ipcMain.on("config:getApiBaseUrl", (event) => {
   event.returnValue = process.env.YT_HUB_API_URL ?? "";
 });
 
+// Async handler for future use
+ipcMain.handle("config:getApiBaseUrl", () => {
+  return process.env.YT_HUB_API_URL ?? "";
+});
+
 app.on("ready", createWindow);
 
 app.on("window-all-closed", () => {
