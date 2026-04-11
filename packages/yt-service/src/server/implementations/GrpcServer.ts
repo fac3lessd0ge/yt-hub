@@ -12,14 +12,14 @@ import {
 } from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 import type {
-  DownloadRequest as ProtoDownloadRequest,
-  DownloadResponse as ProtoDownloadResponse,
   GetMetadataRequest,
   GetMetadataResponse,
   ListBackendsRequest,
   ListBackendsResponse,
   ListFormatsRequest,
   ListFormatsResponse,
+  DownloadRequest as ProtoDownloadRequest,
+  DownloadResponse as ProtoDownloadResponse,
 } from "~/generated/yt_service";
 import type {
   BackendsHandler,
@@ -44,7 +44,9 @@ export interface GrpcServerOptions {
 export class GrpcServer implements IGrpcServer {
   private server: Server;
   private _shuttingDown: boolean = false;
-  private _activeStreams: Set<ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>> = new Set();
+  private _activeStreams: Set<
+    ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>
+  > = new Set();
   private requestValidator: RequestValidator;
   private errorMapper: ErrorMapper;
   private logger: Logger;
@@ -174,7 +176,10 @@ export class GrpcServer implements IGrpcServer {
     return this.logger.child({ requestId, method });
   }
 
-  private createGetMetadata(): handleUnaryCall<GetMetadataRequest, GetMetadataResponse> {
+  private createGetMetadata(): handleUnaryCall<
+    GetMetadataRequest,
+    GetMetadataResponse
+  > {
     return async (
       call: ServerUnaryCall<GetMetadataRequest, GetMetadataResponse>,
       callback: sendUnaryData<GetMetadataResponse>,
@@ -202,7 +207,10 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createListFormats(): handleUnaryCall<ListFormatsRequest, ListFormatsResponse> {
+  private createListFormats(): handleUnaryCall<
+    ListFormatsRequest,
+    ListFormatsResponse
+  > {
     return async (
       call: ServerUnaryCall<ListFormatsRequest, ListFormatsResponse>,
       callback: sendUnaryData<ListFormatsResponse>,
@@ -229,7 +237,10 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createListBackends(): handleUnaryCall<ListBackendsRequest, ListBackendsResponse> {
+  private createListBackends(): handleUnaryCall<
+    ListBackendsRequest,
+    ListBackendsResponse
+  > {
     return async (
       call: ServerUnaryCall<ListBackendsRequest, ListBackendsResponse>,
       callback: sendUnaryData<ListBackendsResponse>,
@@ -256,8 +267,13 @@ export class GrpcServer implements IGrpcServer {
     };
   }
 
-  private createDownload(): handleServerStreamingCall<ProtoDownloadRequest, ProtoDownloadResponse> {
-    return async (call: ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>) => {
+  private createDownload(): handleServerStreamingCall<
+    ProtoDownloadRequest,
+    ProtoDownloadResponse
+  > {
+    return async (
+      call: ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>,
+    ) => {
       if (this._shuttingDown) {
         const err = Object.assign(new Error("Server is shutting down"), {
           code: GrpcStatus.UNAVAILABLE,

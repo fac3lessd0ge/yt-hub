@@ -1,5 +1,5 @@
-import type { Dependency } from "~/dependencies";
 import type { z } from "zod";
+import type { Dependency } from "~/dependencies";
 import type { FormatInfoSchema } from "~/schemas";
 import type { ProgressCallback } from "./DownloadProgress";
 
