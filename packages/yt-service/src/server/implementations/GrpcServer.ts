@@ -47,6 +47,7 @@ export class GrpcServer implements IGrpcServer {
   private _activeStreams: Set<
     ServerWritableStream<ProtoDownloadRequest, ProtoDownloadResponse>
   > = new Set();
+  private _port: number = 0;
   private requestValidator: RequestValidator;
   private errorMapper: ErrorMapper;
   private logger: Logger;
@@ -85,6 +86,10 @@ export class GrpcServer implements IGrpcServer {
     return this._shuttingDown;
   }
 
+  get port(): number {
+    return this._port;
+  }
+
   async start(host: string, port: number): Promise<void> {
     const packageDefinition = await protoLoader.load(PROTO_PATH, {
       keepCase: true,
@@ -111,11 +116,12 @@ export class GrpcServer implements IGrpcServer {
       this.server.bindAsync(
         `${host}:${port}`,
         ServerCredentials.createInsecure(),
-        (err) => {
+        (err, boundPort) => {
           if (err) {
             reject(new ServerError(err.message, host, port));
             return;
           }
+          this._port = boundPort;
           resolvePromise();
         },
       );
