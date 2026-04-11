@@ -1,10 +1,9 @@
 import type { Dependency } from "~/dependencies";
+import type { z } from "zod";
+import type { FormatInfoSchema } from "~/schemas";
 import type { ProgressCallback } from "./DownloadProgress";
 
-export interface FormatInfo {
-  id: string;
-  label: string;
-}
+export type FormatInfo = z.infer<typeof FormatInfoSchema>;
 
 export interface IDownloadBackend {
   readonly name: string;
