@@ -21,9 +21,12 @@ A gRPC microservice that exposes [yt-downloader](../yt-downloader) functionality
 # From monorepo root — builds yt-downloader first, then starts the server
 npx nx serve yt-service
 
-# Or directly
+# Or directly (development)
 cd packages/yt-service
 npx tsx src/index.ts
+
+# In production / Docker
+node dist/index.js
 ```
 
 The server listens on `0.0.0.0:50051` by default. Configure via environment variables:
@@ -98,7 +101,7 @@ The stream sends multiple messages using a `oneof payload`:
    { "error": { "code": "INVALID_URL", "message": "URL does not look like a YouTube link.", "retryable": false } }
    ```
 
-Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`
+Error codes: `VALIDATION_ERROR`, `INVALID_URL`, `VIDEO_NOT_FOUND`, `METADATA_FAILED`, `DOWNLOAD_FAILED`, `DEPENDENCY_MISSING`, `SERVICE_UNAVAILABLE`, `REQUEST_TIMEOUT`, `CANCELLED`, `INTERNAL_ERROR`, `SERIALIZATION_ERROR`, `GRPC_ERROR`, `FILE_NOT_FOUND`, `RATE_LIMIT_EXCEEDED`
 
 ### Request Validation
 
@@ -131,6 +134,7 @@ yt-service uses [Pino](https://getpino.io/) for structured JSON logging, replaci
 - **Structured JSON output**: every log line is machine-parsable JSON with `level`, `time`, `msg`, and contextual fields
 - **Request ID propagation**: extracts the `x-request-id` value from incoming gRPC metadata and creates a child logger scoped to that request, so all logs for a single request share the same `requestId` field
 - **PinoLoggerAdapter**: implements the `ILogger` interface from yt-downloader, bridging Pino into the download library's logging system
+- **DownloadService injection**: the PinoLoggerAdapter is injected into yt-downloader's `DownloadService` as a child logger with `{ component: "yt-downloader" }`, ensuring all download library logs are structured JSON
 
 Log level is controlled by the `LOG_LEVEL` environment variable (`debug`, `info`, `warn`, `error`).
 
@@ -169,7 +173,7 @@ while let Some(response) = stream.message().await? {
 docker compose up --build yt-service
 ```
 
-The Dockerfile uses a multi-stage build: installs workspace dependencies, builds yt-downloader, then creates a slim runtime image with `ffmpeg` and a pinned version of `yt-dlp`. Downloads are stored in a persistent Docker volume.
+The Dockerfile uses a 3-stage build: (1) build stage compiles TypeScript via tsup, (2) deps stage installs production-only node_modules, (3) runtime stage creates a slim image with `ffmpeg`, a pinned `yt-dlp` (SHA256-verified), and compiled JS only — no tsx or devDependencies.
 
 To override the yt-dlp version at build time:
 ```bash
@@ -178,7 +182,7 @@ docker compose build --build-arg YT_DLP_VERSION=2026.03.17 yt-service
 
 ## Testing
 
-yt-service has 15+ tests covering request validation, error propagation, and server lifecycle.
+yt-service has 45 tests covering request validation, error propagation, and server lifecycle.
 
 ```bash
 # Run all tests
@@ -192,7 +196,11 @@ Test breakdown:
 
 - **RequestValidator tests (6)**: URL format, format/name field validation
 - **Error propagation tests (4)**: yt-downloader errors mapped correctly to gRPC status codes
+- **Error scenario tests (6)**: edge cases in error handling
+- **Response mapper tests (4)**: yt-downloader → proto mapping
 - **Server lifecycle tests (5)**: port binding, graceful shutdown, port conflict detection
+- **Handler tests (12)**: metadata, formats, backends, download handlers
+- **Logger adapter tests (4)**: PinoLoggerAdapter delegation
 
 ## Development
 
@@ -211,7 +219,10 @@ npx nx lint yt-service
 
 ```
 src/
-├── index.ts              # Entry point — DI wiring, server start
+├── index.ts              # Entry point — DI wiring, server start, logger injection
+├── config.ts             # Configuration loading from environment
+├── errorCodes.ts         # Shared error code constants (synced with yt-api)
+├── generated/            # Proto-generated TypeScript types
 ├── server/               # gRPC server lifecycle
 │   ├── types/            # IGrpcServer interface
 │   ├── implementations/  # GrpcServer (@grpc/grpc-js wrapper)
@@ -220,6 +231,9 @@ src/
 │   ├── types/            # IUnaryHandler, IStreamHandler interfaces
 │   ├── implementations/  # DownloadHandler, MetadataHandler, FormatsHandler, BackendsHandler
 │   └── errors/           # HandlerError
+├── logger/               # Structured logging
+│   ├── pinoLogger.ts     # Pino logger factory
+│   └── pinoLoggerAdapter.ts # ILogger adapter for pino (injected into DownloadService)
 └── mapping/              # Type mapping between yt-downloader and proto
     ├── ErrorMapper.ts    # yt-downloader errors → proto error codes
     └── ResponseMapper.ts # yt-downloader types → proto messages
