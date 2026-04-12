@@ -1,3 +1,14 @@
+export interface HistoryEntry {
+  id: string;
+  title: string;
+  author: string;
+  format: string;
+  formatType: "video" | "audio";
+  link: string;
+  localPath: string;
+  downloadedAt: number;
+}
+
 export interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
@@ -21,6 +32,13 @@ export interface ElectronAPI {
     value: Settings[K],
   ) => Promise<Settings[K]>;
   readClipboardText: () => Promise<string>;
+  getHistory: () => Promise<HistoryEntry[]>;
+  addHistoryEntry: (
+    entry: Omit<HistoryEntry, "id">,
+  ) => Promise<HistoryEntry>;
+  removeHistoryEntry: (id: string) => Promise<void>;
+  clearHistory: () => Promise<void>;
+  checkFileExists: (filePath: string) => Promise<boolean>;
 }
 
 declare global {
