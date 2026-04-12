@@ -32,6 +32,7 @@ export interface ElectronAPI {
     value: Settings[K],
   ) => Promise<Settings[K]>;
   readClipboardText: () => Promise<string>;
+  openTextFile: () => Promise<string | null>;
   getHistory: () => Promise<HistoryEntry[]>;
   addHistoryEntry: (entry: Omit<HistoryEntry, "id">) => Promise<HistoryEntry>;
   removeHistoryEntry: (id: string) => Promise<void>;
