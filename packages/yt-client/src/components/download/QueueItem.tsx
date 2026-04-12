@@ -1,7 +1,7 @@
 import { Check, RotateCcw, X } from "lucide-react";
+import type { QueueItem as QueueItemData } from "@/hooks/useQueue";
 import { friendlyError } from "@/lib/errorMessages";
 import { cn } from "@/lib/utils";
-import type { QueueItem as QueueItemData } from "@/hooks/useQueue";
 
 interface QueueItemProps {
   item: QueueItemData;
@@ -16,8 +16,6 @@ export function QueueItem({
   onRemove,
   onRetry,
 }: QueueItemProps) {
-  const isActive =
-    item.status === "downloading" || item.status === "saving";
   const isDone = item.status === "complete";
 
   return (

@@ -77,11 +77,7 @@ function QueueDownloadPage() {
 
   return (
     <>
-      <DownloadForm
-        onSubmit={addItem}
-        queueMode
-        hasItems={items.length > 0}
-      />
+      <DownloadForm onSubmit={addItem} queueMode hasItems={items.length > 0} />
 
       <div className="mt-6">
         <QueueList
