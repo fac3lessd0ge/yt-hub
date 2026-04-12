@@ -30,4 +30,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
   setSetting: (key: string, value: unknown) =>
     ipcRenderer.invoke("settings:set", key, value),
+  readClipboardText: (): Promise<string> =>
+    ipcRenderer.invoke("clipboard:readText"),
 });
