@@ -49,6 +49,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
     const text = await window.electronAPI?.readClipboardText();
     if (text && isValidYoutubeUrl(text.trim())) {
       setLink(text.trim());
+      setName("");
     }
   };
 
