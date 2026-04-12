@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("settings:set", key, value),
   readClipboardText: (): Promise<string> =>
     ipcRenderer.invoke("clipboard:readText"),
+  openTextFile: (): Promise<string | null> =>
+    ipcRenderer.invoke("dialog:openTextFile"),
   getHistory: () => ipcRenderer.invoke("history:getAll"),
   addHistoryEntry: (entry: Record<string, unknown>) =>
     ipcRenderer.invoke("history:add", entry),

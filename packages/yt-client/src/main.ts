@@ -216,6 +216,15 @@ ipcMain.handle("clipboard:readText", () => {
   return clipboard.readText();
 });
 
+ipcMain.handle("dialog:openTextFile", async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: "Text files", extensions: ["txt"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return fs.readFile(result.filePaths[0], "utf-8");
+});
+
 // --- Settings IPC ---
 
 const defaultSettings: Settings = {
