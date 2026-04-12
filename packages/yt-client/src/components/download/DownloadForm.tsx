@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { ClipboardPaste } from "lucide-react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
-import { getUrlValidationError } from "@/lib/urlValidation";
+import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
 
@@ -14,16 +15,18 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
   const linkRef = useRef<HTMLInputElement>(null);
-  const { formats } = useFormats();
+  const { formats, loading: formatsLoading, error: formatsError, refetch: refetchFormats } = useFormats();
 
   useEffect(() => {
     linkRef.current?.focus();
   }, []);
 
   const urlError = getUrlValidationError(link);
-  const { metadata, loading: metadataLoading } = useMetadata(
-    urlError ? "" : link,
-  );
+  const {
+    metadata,
+    loading: metadataLoading,
+    error: metadataError,
+  } = useMetadata(urlError ? "" : link);
 
   useEffect(() => {
     if (metadata?.title && !name) {
@@ -37,6 +40,13 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
     }
   }, [formats, format]);
 
+  const handlePaste = async () => {
+    const text = await window.electronAPI?.readClipboardText();
+    if (text && isValidYoutubeUrl(text.trim())) {
+      setLink(text.trim());
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!link || urlError || !name || !format) return;
@@ -47,25 +57,89 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Row 1: URL + Format + Paste */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="link" className="text-sm font-medium">
           YouTube Link
         </label>
-        <input
-          ref={linkRef}
-          id="link"
-          type="text"
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=..."
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-required="true"
-          aria-invalid={!!urlError}
-          aria-describedby={urlError ? "link-error" : undefined}
-        />
+        <div className="flex items-stretch gap-2">
+          <input
+            ref={linkRef}
+            id="link"
+            type="text"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className={cn(
+              "min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+              metadataError ? "border-destructive" : "border-input",
+            )}
+            aria-required="true"
+            aria-invalid={!!urlError || !!metadataError}
+            aria-describedby={
+              urlError
+                ? "link-error"
+                : metadataError
+                  ? "metadata-error"
+                  : undefined
+            }
+          />
+
+          {formatsError ? (
+            <div className="flex items-center gap-1.5 rounded-md border border-destructive/25 bg-destructive/10 px-3">
+              <span className="whitespace-nowrap text-xs text-destructive">
+                Formats failed
+              </span>
+              <button
+                type="button"
+                onClick={refetchFormats}
+                className="text-xs font-medium text-destructive underline underline-offset-2"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <select
+              id="format"
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+              disabled={formatsLoading}
+              className="w-24 shrink-0 rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              aria-required="true"
+              aria-label="Format"
+            >
+              {formatsLoading && <option>...</option>}
+              {formats.map((f: FormatInfo) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            type="button"
+            onClick={handlePaste}
+            className="shrink-0 rounded-md border border-input bg-background px-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Paste YouTube URL from clipboard"
+            title="Paste from clipboard"
+          >
+            <ClipboardPaste className="h-4 w-4" />
+          </button>
+        </div>
+
         {urlError && (
           <p id="link-error" role="alert" className="text-xs text-destructive">
             {urlError}
+          </p>
+        )}
+        {metadataError && !urlError && (
+          <p
+            id="metadata-error"
+            role="alert"
+            className="text-xs text-destructive"
+          >
+            Could not load video info — server may be unavailable
           </p>
         )}
         {metadataLoading && (
@@ -78,25 +152,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="format" className="text-sm font-medium">
-          Format
-        </label>
-        <select
-          id="format"
-          value={format}
-          onChange={(e) => setFormat(e.target.value)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-required="true"
-        >
-          {formats.map((f: FormatInfo) => (
-            <option key={f.id} value={f.id}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
+      {/* Row 2: File Name */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="name" className="text-sm font-medium">
           File Name
