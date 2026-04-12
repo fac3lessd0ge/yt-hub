@@ -1,11 +1,76 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  net,
+  shell,
+} from "electron";
 import started from "electron-squirrel-startup";
+import Store from "electron-store";
 
 if (started) {
   app.quit();
 }
+
+interface Settings {
+  theme: "system" | "light" | "dark";
+  defaultDownloadDir: string | null;
+  defaultFormat: string;
+}
+
+interface HistoryEntry {
+  id: string;
+  title: string;
+  author: string;
+  format: string;
+  formatType: "video" | "audio";
+  link: string;
+  localPath: string;
+  downloadedAt: number;
+}
+
+interface StoreSchema {
+  settings: Settings;
+  downloadHistory: HistoryEntry[];
+}
+
+const MAX_HISTORY_ENTRIES = 500;
+
+const store = new Store<StoreSchema>({
+  schema: {
+    settings: {
+      type: "object",
+      properties: {
+        theme: {
+          type: "string",
+          enum: ["system", "light", "dark"],
+          default: "system",
+        },
+        defaultDownloadDir: {
+          type: ["string", "null"],
+          default: null,
+        },
+        defaultFormat: {
+          type: "string",
+          default: "mp4",
+        },
+      },
+      default: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "mp4",
+      },
+    },
+    downloadHistory: {
+      type: "array",
+      default: [],
+    },
+  },
+});
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -47,7 +112,12 @@ ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
 
 ipcMain.handle(
   "dialog:saveDownload",
-  async (_event, downloadUrl: string, suggestedFilename: string) => {
+  async (
+    _event,
+    downloadUrl: string,
+    suggestedFilename: string,
+    destDir?: string,
+  ) => {
     if (
       typeof downloadUrl !== "string" ||
       typeof suggestedFilename !== "string"
@@ -60,13 +130,49 @@ ipcMain.handle(
       throw new Error("Only http and https URLs are allowed");
     }
 
-    const result = await dialog.showSaveDialog({
-      defaultPath: suggestedFilename,
-      filters: [{ name: "All Files", extensions: ["*"] }],
-    });
+    let filePath: string;
 
-    if (result.canceled || !result.filePath) {
-      return null;
+    if (destDir && typeof destDir === "string") {
+      // Direct save mode — skip save dialog
+      const dirExists = await fs
+        .access(destDir)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!dirExists) {
+        // Directory deleted — fall back to save dialog
+        const result = await dialog.showSaveDialog({
+          defaultPath: suggestedFilename,
+          filters: [{ name: "All Files", extensions: ["*"] }],
+        });
+        if (result.canceled || !result.filePath) return null;
+        filePath = result.filePath;
+      } else {
+        // Resolve filename collisions: video.mp4 → video (1).mp4 → video (2).mp4
+        const ext = path.extname(suggestedFilename);
+        const base = path.basename(suggestedFilename, ext);
+        let candidate = path.join(destDir, suggestedFilename);
+        let counter = 0;
+
+        while (
+          await fs
+            .access(candidate)
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          counter++;
+          candidate = path.join(destDir, `${base} (${counter})${ext}`);
+        }
+        filePath = candidate;
+      }
+    } else {
+      // Original behavior — show save dialog
+      const result = await dialog.showSaveDialog({
+        defaultPath: suggestedFilename,
+        filters: [{ name: "All Files", extensions: ["*"] }],
+      });
+      if (result.canceled || !result.filePath) return null;
+      filePath = result.filePath;
     }
 
     const response = await net.fetch(downloadUrl);
@@ -84,17 +190,16 @@ ipcMain.handle(
     const readable = Readable.fromWeb(
       response.body as import("node:stream/web").ReadableStream,
     );
-    const writable = createWriteStream(result.filePath);
+    const writable = createWriteStream(filePath);
 
     try {
       await pipeline(readable, writable);
     } catch (err) {
-      // Clean up partial file on failure
-      await fs.unlink(result.filePath).catch(() => {});
+      await fs.unlink(filePath).catch(() => {});
       throw err;
     }
 
-    return { filePath: result.filePath };
+    return { filePath };
   },
 );
 
@@ -105,6 +210,93 @@ ipcMain.on("config:getApiBaseUrl", (event) => {
 // Async handler for future use
 ipcMain.handle("config:getApiBaseUrl", () => {
   return process.env.YT_HUB_API_URL ?? "";
+});
+
+ipcMain.handle("clipboard:readText", () => {
+  return clipboard.readText();
+});
+
+ipcMain.handle("dialog:openTextFile", async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: "Text files", extensions: ["txt"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return fs.readFile(result.filePaths[0], "utf-8");
+});
+
+// --- Settings IPC ---
+
+const defaultSettings: Settings = {
+  theme: "system",
+  defaultDownloadDir: null,
+  defaultFormat: "mp4",
+};
+
+ipcMain.handle("settings:getAll", () => {
+  return store.get("settings", defaultSettings);
+});
+
+ipcMain.handle("settings:get", (_event, key: string) => {
+  const settings = store.get("settings", defaultSettings);
+  if (!(key in settings)) {
+    throw new Error(`Unknown setting key: ${key}`);
+  }
+  return settings[key as keyof Settings];
+});
+
+ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
+  const settings = store.get("settings", defaultSettings);
+  if (!(key in settings)) {
+    throw new Error(`Unknown setting key: ${key}`);
+  }
+  const updated = { ...settings, [key]: value };
+  store.set("settings", updated);
+  return updated[key as keyof Settings];
+});
+
+// Sync handler for FOUC prevention — preload reads theme before renderer loads
+ipcMain.on("settings:getTheme", (event) => {
+  const settings = store.get("settings", defaultSettings);
+  event.returnValue = settings.theme;
+});
+
+// --- History IPC ---
+
+ipcMain.handle("history:getAll", () => {
+  return store.get("downloadHistory", []);
+});
+
+ipcMain.handle("history:add", (_event, entry: Omit<HistoryEntry, "id">) => {
+  const history = store.get("downloadHistory", []);
+  const newEntry: HistoryEntry = {
+    ...entry,
+    id: crypto.randomUUID(),
+  };
+  // Prepend (newest first), prune to max
+  const updated = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
+  store.set("downloadHistory", updated);
+  return newEntry;
+});
+
+ipcMain.handle("history:remove", (_event, id: string) => {
+  const history = store.get("downloadHistory", []);
+  store.set(
+    "downloadHistory",
+    history.filter((e) => e.id !== id),
+  );
+});
+
+ipcMain.handle("history:clear", () => {
+  store.set("downloadHistory", []);
+});
+
+ipcMain.handle("history:checkFile", async (_event, filePath: string) => {
+  if (typeof filePath !== "string") return false;
+  return fs
+    .access(filePath)
+    .then(() => true)
+    .catch(() => false);
 });
 
 app.on("ready", createWindow);
