@@ -15,6 +15,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
   const linkRef = useRef<HTMLInputElement>(null);
+  const awaitingMetadataName = useRef(false);
   const {
     formats,
     loading: formatsLoading,
@@ -35,13 +36,21 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
 
   const prevMetadataRef = useRef(metadata);
   useEffect(() => {
-    // Only auto-fill when metadata actually changes (new fetch result),
-    // not when stale metadata is still around after a link change
-    if (metadata?.title && metadata !== prevMetadataRef.current && !name) {
-      setName(metadata.title);
+    if (metadata?.title && metadata !== prevMetadataRef.current) {
+      if (!name || awaitingMetadataName.current) {
+        setName(metadata.title);
+        awaitingMetadataName.current = false;
+      }
     }
     prevMetadataRef.current = metadata;
   }, [metadata, name]);
+
+  useEffect(() => {
+    if (metadataError && awaitingMetadataName.current) {
+      setName("");
+      awaitingMetadataName.current = false;
+    }
+  }, [metadataError]);
 
   useEffect(() => {
     if (formats.length > 0 && !format) {
@@ -53,7 +62,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
     const text = await window.electronAPI?.readClipboardText();
     if (text && isValidYoutubeUrl(text.trim())) {
       setLink(text.trim());
-      setName("");
+      awaitingMetadataName.current = true;
     }
   };
 
@@ -171,7 +180,10 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
           id="name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            awaitingMetadataName.current = false;
+          }}
           placeholder="Enter file name"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           aria-required="true"
