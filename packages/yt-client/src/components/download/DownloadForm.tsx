@@ -33,10 +33,14 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
     error: metadataError,
   } = useMetadata(urlError ? "" : link);
 
+  const prevMetadataRef = useRef(metadata);
   useEffect(() => {
-    if (metadata?.title && !name) {
+    // Only auto-fill when metadata actually changes (new fetch result),
+    // not when stale metadata is still around after a link change
+    if (metadata?.title && metadata !== prevMetadataRef.current && !name) {
       setName(metadata.title);
     }
+    prevMetadataRef.current = metadata;
   }, [metadata, name]);
 
   useEffect(() => {
