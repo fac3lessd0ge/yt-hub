@@ -12,3 +12,4 @@ incremental
 build
 .env.prod
 traefik/acme.json
+.superpowers/

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useSettings } from "@/hooks/useSettings";
 import { getBaseUrl } from "@/lib/apiClient";
 import { streamDownload } from "@/lib/sse";
 import type {
@@ -11,6 +12,7 @@ import type {
 type DownloadState = "idle" | "downloading" | "saving" | "complete" | "error";
 
 export function useDownload() {
+  const { settings } = useSettings();
   const [state, setState] = useState<DownloadState>("idle");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [result, setResult] = useState<DownloadComplete | null>(null);
@@ -18,81 +20,86 @@ export function useDownload() {
   const [error, setError] = useState<DownloadError | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const start = useCallback(async (request: DownloadRequest) => {
-    abortRef.current?.abort();
+  const start = useCallback(
+    async (request: DownloadRequest) => {
+      abortRef.current?.abort();
 
-    setState("downloading");
-    setProgress(null);
-    setResult(null);
-    setLocalPath(null);
-    setError(null);
+      setState("downloading");
+      setProgress(null);
+      setResult(null);
+      setLocalPath(null);
+      setError(null);
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    let completeData: DownloadComplete | null = null;
+      let completeData: DownloadComplete | null = null;
 
-    try {
-      await streamDownload(
-        request,
-        {
-          onProgress: (data) => {
-            setProgress(data);
+      try {
+        await streamDownload(
+          request,
+          {
+            onProgress: (data) => {
+              setProgress(data);
+            },
+            onComplete: (data) => {
+              completeData = data;
+              setResult(data);
+            },
+            onError: (data) => {
+              setError(data);
+              setState("error");
+            },
           },
-          onComplete: (data) => {
-            completeData = data;
-            setResult(data);
-          },
-          onError: (data) => {
-            setError(data);
-            setState("error");
-          },
-        },
-        controller.signal,
-      );
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setState("idle");
-      } else {
+          controller.signal,
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setState("idle");
+        } else {
+          setError({
+            code: "NETWORK_ERROR",
+            message: err instanceof Error ? err.message : "Unknown error",
+          });
+          setState("error");
+        }
+        return;
+      }
+
+      if (!completeData) return;
+
+      setState("saving");
+
+      const data = completeData as DownloadComplete;
+      const filename = data.download_url.split("/").pop() ?? "download";
+      const fullUrl = `${getBaseUrl()}${data.download_url}`;
+
+      try {
+        const destDir = settings?.defaultDownloadDir ?? undefined;
+        const saveResult = await window.electronAPI?.saveDownload(
+          fullUrl,
+          filename,
+          destDir,
+        );
+        if (saveResult) {
+          setLocalPath(saveResult.filePath);
+        }
+      } catch (saveErr) {
         setError({
-          code: "NETWORK_ERROR",
-          message: err instanceof Error ? err.message : "Unknown error",
+          code: "SAVE_FAILED",
+          message:
+            saveErr instanceof Error
+              ? saveErr.message
+              : "Failed to save file to disk",
         });
         setState("error");
+        return;
       }
-      return;
-    }
 
-    if (!completeData) return;
-
-    setState("saving");
-
-    const data = completeData as DownloadComplete;
-    const filename = data.download_url.split("/").pop() ?? "download";
-    const fullUrl = `${getBaseUrl()}${data.download_url}`;
-
-    try {
-      const saveResult = await window.electronAPI?.saveDownload(
-        fullUrl,
-        filename,
-      );
-      if (saveResult) {
-        setLocalPath(saveResult.filePath);
-      }
-    } catch (saveErr) {
-      setError({
-        code: "SAVE_FAILED",
-        message:
-          saveErr instanceof Error
-            ? saveErr.message
-            : "Failed to save file to disk",
-      });
-      setState("error");
-      return;
-    }
-
-    setState("complete");
-  }, []);
+      setState("complete");
+    },
+    [settings?.defaultDownloadDir],
+  );
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
