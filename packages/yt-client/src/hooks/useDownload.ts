@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { getBaseUrl } from "@/lib/apiClient";
+import { useSettings } from "@/hooks/useSettings";
 import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
@@ -11,6 +12,7 @@ import type {
 type DownloadState = "idle" | "downloading" | "saving" | "complete" | "error";
 
 export function useDownload() {
+  const { settings } = useSettings();
   const [state, setState] = useState<DownloadState>("idle");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [result, setResult] = useState<DownloadComplete | null>(null);
@@ -72,9 +74,11 @@ export function useDownload() {
     const fullUrl = `${getBaseUrl()}${data.download_url}`;
 
     try {
+      const destDir = settings?.defaultDownloadDir ?? undefined;
       const saveResult = await window.electronAPI?.saveDownload(
         fullUrl,
         filename,
+        destDir,
       );
       if (saveResult) {
         setLocalPath(saveResult.filePath);
@@ -92,7 +96,7 @@ export function useDownload() {
     }
 
     setState("complete");
-  }, []);
+  }, [settings?.defaultDownloadDir]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
