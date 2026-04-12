@@ -8,9 +8,15 @@ import type { DownloadRequest, FormatInfo } from "@/types/api";
 
 interface DownloadFormProps {
   onSubmit: (request: DownloadRequest) => void;
+  queueMode?: boolean;
+  hasItems?: boolean;
 }
 
-export function DownloadForm({ onSubmit }: DownloadFormProps) {
+export function DownloadForm({
+  onSubmit,
+  queueMode,
+  hasItems,
+}: DownloadFormProps) {
   const [link, setLink] = useState("");
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
@@ -70,6 +76,12 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
     e.preventDefault();
     if (!link || urlError || !name || !format) return;
     onSubmit({ link, format, name });
+    if (queueMode) {
+      setLink("");
+      setName("");
+      awaitingMetadataName.current = false;
+      linkRef.current?.focus();
+    }
   };
 
   const isValid = link && !urlError && name && format;
@@ -200,7 +212,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
             : "bg-muted text-muted-foreground cursor-not-allowed",
         )}
       >
-        Download
+        {queueMode && hasItems ? "+ Add" : "Download"}
       </button>
     </form>
   );
