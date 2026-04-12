@@ -1,6 +1,7 @@
-import { FileText } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
+import { fetchMetadata } from "@/lib/apiClient";
 import { isValidYoutubeUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
@@ -25,6 +26,7 @@ export function BatchForm({
 }: BatchFormProps) {
   const [text, setText] = useState("");
   const [format, setFormat] = useState("");
+  const [loading, setLoading] = useState(false);
   const { formats, loading: formatsLoading } = useFormats();
 
   useEffect(() => {
@@ -47,19 +49,32 @@ export function BatchForm({
     }
   }, []);
 
-  const handleAdd = useCallback(() => {
-    if (validUrls.length === 0 || !format) return;
+  const handleAdd = useCallback(async () => {
+    if (validUrls.length === 0 || !format || loading) return;
 
-    const items: DownloadRequest[] = validUrls.map((url) => ({
-      link: url,
-      format,
-      name: "download",
-    }));
+    setLoading(true);
 
+    // Fetch metadata for all URLs in parallel
+    const results = await Promise.allSettled(
+      validUrls.map((url) => fetchMetadata(url)),
+    );
+
+    const items: DownloadRequest[] = validUrls.map((url, i) => {
+      const result = results[i];
+      const title =
+        result.status === "fulfilled" ? result.value.title : undefined;
+      return {
+        link: url,
+        format,
+        name: title || `download-${crypto.randomUUID().slice(0, 8)}`,
+      };
+    });
+
+    setLoading(false);
     onAdd(items);
     setText("");
     onSwitchToSingle();
-  }, [validUrls, format, onAdd, onSwitchToSingle]);
+  }, [validUrls, format, loading, onAdd, onSwitchToSingle]);
 
   const totalLines = parseUrls(text).length;
 
@@ -94,15 +109,21 @@ export function BatchForm({
         id="batch-urls"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={"Paste URLs, one per line..."}
+        placeholder="Paste URLs, one per line..."
         rows={6}
-        className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        disabled={loading}
+        className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
       />
 
       {/* Footer: validation + actions */}
       <div className="flex items-center justify-between">
         <div className="text-xs">
-          {totalLines > 0 ? (
+          {loading ? (
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Fetching metadata...
+            </span>
+          ) : totalLines > 0 ? (
             <>
               <span className="text-green-500">{validUrls.length} valid</span>
               {invalidCount > 0 && (
@@ -121,7 +142,8 @@ export function BatchForm({
           <button
             type="button"
             onClick={handleImport}
-            className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
           >
             <FileText className="h-3.5 w-3.5" />
             Import .txt
@@ -129,10 +151,10 @@ export function BatchForm({
           <button
             type="button"
             onClick={handleAdd}
-            disabled={disabled || validUrls.length === 0}
+            disabled={disabled || loading || validUrls.length === 0}
             className={cn(
               "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-              validUrls.length > 0 && !disabled
+              validUrls.length > 0 && !disabled && !loading
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground cursor-not-allowed",
             )}
