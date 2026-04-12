@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { getBaseUrl } from "@/lib/apiClient";
+import { getFormatType } from "@/lib/formatType";
 import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
@@ -227,6 +228,18 @@ export function useQueue() {
           id: item.id,
           localPath: saveResult?.filePath ?? null,
         });
+
+        if (saveResult?.filePath) {
+          window.electronAPI?.addHistoryEntry({
+            title: item.name,
+            author: data.author_name ?? "",
+            format: item.format,
+            formatType: getFormatType(item.format),
+            link: item.link,
+            localPath: saveResult.filePath,
+            downloadedAt: Date.now(),
+          });
+        }
       } catch (saveErr) {
         dispatch({
           type: "ERROR",

@@ -307,6 +307,7 @@ describe("useDownload", () => {
         saveDownload: vi
           .fn()
           .mockResolvedValue({ filePath: "/saved/test.mp3" }),
+        addHistoryEntry: vi.fn().mockResolvedValue({}),
       },
     });
 

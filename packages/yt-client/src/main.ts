@@ -22,7 +22,25 @@ interface Settings {
   defaultFormat: string;
 }
 
-const store = new Store<{ settings: Settings }>({
+interface HistoryEntry {
+  id: string;
+  title: string;
+  author: string;
+  format: string;
+  formatType: "video" | "audio";
+  link: string;
+  localPath: string;
+  downloadedAt: number;
+}
+
+interface StoreSchema {
+  settings: Settings;
+  downloadHistory: HistoryEntry[];
+}
+
+const MAX_HISTORY_ENTRIES = 500;
+
+const store = new Store<StoreSchema>({
   schema: {
     settings: {
       type: "object",
@@ -46,6 +64,10 @@ const store = new Store<{ settings: Settings }>({
         defaultDownloadDir: null,
         defaultFormat: "mp4",
       },
+    },
+    downloadHistory: {
+      type: "array",
+      default: [],
     },
   },
 });
@@ -228,6 +250,44 @@ ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
 ipcMain.on("settings:getTheme", (event) => {
   const settings = store.get("settings", defaultSettings);
   event.returnValue = settings.theme;
+});
+
+// --- History IPC ---
+
+ipcMain.handle("history:getAll", () => {
+  return store.get("downloadHistory", []);
+});
+
+ipcMain.handle("history:add", (_event, entry: Omit<HistoryEntry, "id">) => {
+  const history = store.get("downloadHistory", []);
+  const newEntry: HistoryEntry = {
+    ...entry,
+    id: crypto.randomUUID(),
+  };
+  // Prepend (newest first), prune to max
+  const updated = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
+  store.set("downloadHistory", updated);
+  return newEntry;
+});
+
+ipcMain.handle("history:remove", (_event, id: string) => {
+  const history = store.get("downloadHistory", []);
+  store.set(
+    "downloadHistory",
+    history.filter((e) => e.id !== id),
+  );
+});
+
+ipcMain.handle("history:clear", () => {
+  store.set("downloadHistory", []);
+});
+
+ipcMain.handle("history:checkFile", async (_event, filePath: string) => {
+  if (typeof filePath !== "string") return false;
+  return fs
+    .access(filePath)
+    .then(() => true)
+    .catch(() => false);
 });
 
 app.on("ready", createWindow);

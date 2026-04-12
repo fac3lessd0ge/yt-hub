@@ -1,4 +1,4 @@
-import { Download, Settings } from "lucide-react";
+import { Clock, Download, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -8,6 +8,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: "downloads", label: "Downloads", icon: Download },
+  { id: "history", label: "History", icon: Clock },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
