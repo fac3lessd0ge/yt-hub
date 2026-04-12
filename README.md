@@ -13,7 +13,25 @@ yt-client (Electron/React) → HTTP → yt-api (Rust/Axum) → gRPC → yt-servi
 | [`yt-downloader`](packages/yt-downloader) | TypeScript | Core download library and CLI. Wraps yt-dlp with a pluggable backend architecture. |
 | [`yt-service`](packages/yt-service) | TypeScript | gRPC microservice exposing yt-downloader over the network with streaming progress. |
 | [`yt-api`](packages/yt-api) | Rust | Axum REST API that translates HTTP/JSON to gRPC. SSE for download progress. |
-| [`yt-client`](packages/yt-client) | TypeScript/React | Electron desktop app with real-time download progress UI. |
+| [`yt-client`](packages/yt-client) | TypeScript/React | Electron desktop app — downloads, queue, history, batch, settings. |
+
+## Desktop App Features
+
+The [yt-client](packages/yt-client) Electron app provides:
+
+- **Single & batch downloads** — paste one URL or many at once (one per line, or import from .txt file)
+- **Download queue** — up to 2 concurrent downloads with progress, cancel, retry per item
+- **Clipboard paste** — one-click button validates and fills YouTube URLs
+- **Auto-fill metadata** — titles and authors fetched automatically
+- **Download history** — persistent (500 max), searchable by title/author, filterable by Video/Audio, grouped by date
+- **Re-download** — one click from history to add back to queue
+- **Settings** — theme (System/Light/Dark), default download directory, default format — all instant-apply
+- **Auto-save** — when download directory is set, files save directly without dialog
+- **Friendly errors** — human-readable messages instead of raw error codes
+- **Offline detection** — banner shown when network is unavailable
+- **Dark/Light theme** — FOUC-free theme switching with system preference support
+- **Keyboard shortcuts** — Escape to cancel downloads
+- **Accessibility** — ARIA attributes, live regions, focus management
 
 ## Prerequisites
 
@@ -156,7 +174,7 @@ cp .env.prod.example .env.prod
 touch traefik/acme.json && chmod 600 traefik/acme.json
 
 # Deploy
-VERSION=v1.1.2 bash scripts/deploy.sh
+VERSION=v1.3.0 bash scripts/deploy.sh
 
 # Rollback
 bash scripts/rollback.sh v1.1.0
@@ -173,10 +191,10 @@ Each package has its own test suite:
 npx nx run-many -t test
 
 # Per-package
-npx nx test yt-api           # 62 Rust tests (cargo test)
-npx nx test yt-service       # Vitest (npx vitest run)
-npx nx test yt-client        # Vitest + React Testing Library (jsdom)
-npx nx test yt-downloader    # Vitest
+npx nx test yt-api           # 75+ Rust tests (cargo test)
+npx nx test yt-service       # 48 Vitest tests
+npx nx test yt-client        # 110+ Vitest + React Testing Library (jsdom)
+npx nx test yt-downloader    # 99 Vitest tests
 
 # Integration tests for yt-downloader (requires yt-dlp on PATH)
 INTEGRATION=1 npx nx test yt-downloader
@@ -204,8 +222,11 @@ Each package is configured via environment variables. See `.env.example` files i
 | `RATE_LIMIT_RPM` | yt-api | `30` | Rate limit: requests per minute per IP |
 | `DOWNLOAD_DIR` | yt-api | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
 | `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
+| `YT_HUB_API_URL` | yt-client | — | Electron runtime override for API base URL |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
+
+yt-client settings (theme, download directory, default format) are persisted via `electron-store` and managed through the in-app Settings page.
 
 ## Project Structure
 
