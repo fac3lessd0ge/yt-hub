@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import type { RedownloadRequest } from "@/App";
 import { useDownload } from "@/hooks/useDownload";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useQueue } from "@/hooks/useQueue";
@@ -8,6 +9,10 @@ import { DownloadForm } from "./DownloadForm";
 import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
 import { QueueList } from "./QueueList";
+
+interface DownloadPageProps {
+  consumeRedownload?: () => RedownloadRequest | null;
+}
 
 function SingleDownloadPage() {
   const { state, progress, result, localPath, error, start, cancel, reset } =
@@ -72,8 +77,20 @@ function SingleDownloadPage() {
   );
 }
 
-function QueueDownloadPage() {
+function QueueDownloadPage({
+  consumeRedownload,
+}: {
+  consumeRedownload?: () => RedownloadRequest | null;
+}) {
   const { items, addItem, cancelItem, removeItem, retryItem } = useQueue();
+
+  // Auto-add re-download request on mount
+  useEffect(() => {
+    const req = consumeRedownload?.();
+    if (req) {
+      addItem(req);
+    }
+  }, [consumeRedownload, addItem]);
 
   return (
     <>
@@ -91,14 +108,18 @@ function QueueDownloadPage() {
   );
 }
 
-export function DownloadPage() {
+export function DownloadPage({ consumeRedownload }: DownloadPageProps) {
   const { settings } = useSettings();
   const queueEnabled = !!settings?.defaultDownloadDir;
 
   return (
     <div className="mx-auto max-w-lg">
       <h2 className="mb-6 text-xl font-semibold">Download</h2>
-      {queueEnabled ? <QueueDownloadPage /> : <SingleDownloadPage />}
+      {queueEnabled ? (
+        <QueueDownloadPage consumeRedownload={consumeRedownload} />
+      ) : (
+        <SingleDownloadPage />
+      )}
     </div>
   );
 }

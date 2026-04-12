@@ -1,5 +1,10 @@
 import { DownloadPage } from "@/components/download/DownloadPage";
+import type { RedownloadRequest } from "@/App";
 
-export function Downloads() {
-  return <DownloadPage />;
+interface DownloadsProps {
+  consumeRedownload?: () => RedownloadRequest | null;
+}
+
+export function Downloads({ consumeRedownload }: DownloadsProps) {
+  return <DownloadPage consumeRedownload={consumeRedownload} />;
 }
