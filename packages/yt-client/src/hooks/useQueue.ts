@@ -10,7 +10,7 @@ import type {
   DownloadRequest,
 } from "@/types/api";
 
-const MAX_CONCURRENT = 5;
+const MAX_CONCURRENT = 2;
 
 export interface QueueItem {
   id: string;
@@ -194,7 +194,11 @@ export function useQueue() {
               }
             },
             onError: (data: DownloadError) => {
-              dispatch({ type: "ERROR", id: item.id, error: data });
+              dispatch({
+                type: "ERROR",
+                id: item.id,
+                error: { ...data, retryable: data.retryable ?? true },
+              });
               activeIds.current.delete(item.id);
               abortControllers.current.delete(item.id);
             },
