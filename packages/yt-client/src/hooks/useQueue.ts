@@ -41,7 +41,8 @@ type QueueAction =
   | { type: "ERROR"; id: string; error: DownloadError }
   | { type: "CANCEL"; id: string }
   | { type: "REMOVE"; id: string }
-  | { type: "RETRY"; id: string };
+  | { type: "RETRY"; id: string }
+  | { type: "UPDATE_NAME"; id: string; name: string };
 
 function queueReducer(state: QueueItem[], action: QueueAction): QueueItem[] {
   switch (action.type) {
@@ -97,6 +98,10 @@ function queueReducer(state: QueueItem[], action: QueueAction): QueueItem[] {
             }
           : item,
       );
+    case "UPDATE_NAME":
+      return state.map((item) =>
+        item.id === action.id ? { ...item, name: action.name } : item,
+      );
     default:
       return state;
   }
@@ -123,6 +128,10 @@ export function useQueue() {
       addedAt: Date.now(),
     };
     dispatch({ type: "ADD_ITEM", item });
+  }, []);
+
+  const updateItemName = useCallback((id: string, name: string) => {
+    dispatch({ type: "UPDATE_NAME", id, name });
   }, []);
 
   const cancelItem = useCallback((id: string) => {
@@ -277,6 +286,7 @@ export function useQueue() {
   return {
     items,
     addItem,
+    updateItemName,
     cancelItem,
     removeItem,
     retryItem,
