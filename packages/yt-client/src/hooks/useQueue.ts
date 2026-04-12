@@ -185,6 +185,13 @@ export function useQueue() {
             },
             onComplete: (data: DownloadComplete) => {
               completeData = data;
+              if (data.title) {
+                dispatch({
+                  type: "UPDATE_NAME",
+                  id: item.id,
+                  name: data.title,
+                });
+              }
             },
             onError: (data: DownloadError) => {
               dispatch({ type: "ERROR", id: item.id, error: data });
@@ -240,7 +247,7 @@ export function useQueue() {
 
         if (saveResult?.filePath) {
           window.electronAPI?.addHistoryEntry({
-            title: item.name,
+            title: data.title || item.name,
             author: data.author_name ?? "",
             format: item.format,
             formatType: getFormatType(item.format),

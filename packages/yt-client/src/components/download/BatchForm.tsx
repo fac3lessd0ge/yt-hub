@@ -53,7 +53,7 @@ export function BatchForm({
     const items: DownloadRequest[] = validUrls.map((url) => ({
       link: url,
       format,
-      name: url,
+      name: "download",
     }));
 
     onAdd(items);
