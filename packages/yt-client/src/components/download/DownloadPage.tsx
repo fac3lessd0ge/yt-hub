@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import type { DownloadRequest } from "@/types/api";
 import type { RedownloadRequest } from "@/App";
 import { useDownload } from "@/hooks/useDownload";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -92,9 +93,23 @@ function QueueDownloadPage({
     }
   }, [consumeRedownload, addItem]);
 
+  const handleBatchAdd = useCallback(
+    (batchItems: DownloadRequest[]) => {
+      for (const item of batchItems) {
+        addItem(item);
+      }
+    },
+    [addItem],
+  );
+
   return (
     <>
-      <DownloadForm onSubmit={addItem} queueMode hasItems={items.length > 0} />
+      <DownloadForm
+        onSubmit={addItem}
+        onBatchAdd={handleBatchAdd}
+        queueMode
+        hasItems={items.length > 0}
+      />
 
       <div className="mt-6">
         <QueueList
