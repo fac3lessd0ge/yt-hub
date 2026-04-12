@@ -1,4 +1,4 @@
-import { ExternalLink, FolderOpen, Music, Trash2, Video } from "lucide-react";
+import { FolderOpen, Music, RotateCcw, Trash2, Video } from "lucide-react";
 
 interface HistoryItemProps {
   title: string;
@@ -72,7 +72,7 @@ export function HistoryItem({
           aria-label="Re-download"
           title="Re-download"
         >
-          <ExternalLink className="h-3.5 w-3.5" />
+          <RotateCcw className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
