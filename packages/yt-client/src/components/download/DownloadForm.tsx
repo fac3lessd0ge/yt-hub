@@ -262,10 +262,7 @@ export function DownloadForm({
           </button>
         </form>
       ) : (
-        <BatchForm
-          onAdd={handleBatchAdd}
-          onSwitchToSingle={switchToSingle}
-        />
+        <BatchForm onAdd={handleBatchAdd} onSwitchToSingle={switchToSingle} />
       )}
     </div>
   );

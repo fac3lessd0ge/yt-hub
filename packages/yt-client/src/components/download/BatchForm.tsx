@@ -104,9 +104,7 @@ export function BatchForm({
         <div className="text-xs">
           {totalLines > 0 ? (
             <>
-              <span className="text-green-500">
-                {validUrls.length} valid
-              </span>
+              <span className="text-green-500">{validUrls.length} valid</span>
               {invalidCount > 0 && (
                 <span className="text-destructive-foreground">
                   {" · "}

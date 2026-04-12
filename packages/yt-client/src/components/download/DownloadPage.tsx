@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo } from "react";
-import type { DownloadRequest } from "@/types/api";
 import type { RedownloadRequest } from "@/App";
 import { useDownload } from "@/hooks/useDownload";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useQueue } from "@/hooks/useQueue";
 import { useSettings } from "@/hooks/useSettings";
 import { friendlyError } from "@/lib/errorMessages";
+import type { DownloadRequest } from "@/types/api";
 import { DownloadForm } from "./DownloadForm";
 import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
