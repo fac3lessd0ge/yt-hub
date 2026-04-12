@@ -11,4 +11,5 @@ deps
 incremental
 build
 .env.prod
-traefik/acme.json.superpowers/
+traefik/acme.json
+.superpowers/
