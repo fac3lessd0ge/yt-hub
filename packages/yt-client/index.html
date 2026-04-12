@@ -5,6 +5,14 @@
     <title>YT Hub</title>
   </head>
   <body>
+    <script>
+      // FOUC prevention: apply dark mode before React mounts
+      const theme = window.electronAPI?.getInitialTheme?.() ?? 'system';
+      const resolved = theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : theme;
+      if (resolved === 'dark') document.documentElement.classList.add('dark');
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
