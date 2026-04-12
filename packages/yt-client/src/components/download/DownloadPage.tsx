@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useDownload } from "@/hooks/useDownload";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { friendlyError } from "@/lib/errorMessages";
 import { DownloadForm } from "./DownloadForm";
 import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
@@ -50,7 +51,7 @@ export function DownloadPage() {
               Download Failed
             </h3>
             <p className="text-sm text-destructive/80">
-              [{error.code}] {error.message}
+              {friendlyError(error.code, error.message)}
             </p>
             <button
               type="button"
