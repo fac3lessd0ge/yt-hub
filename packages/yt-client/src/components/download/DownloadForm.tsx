@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { ClipboardPaste } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
 import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
@@ -15,7 +15,12 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState("");
   const linkRef = useRef<HTMLInputElement>(null);
-  const { formats, loading: formatsLoading, error: formatsError, refetch: refetchFormats } = useFormats();
+  const {
+    formats,
+    loading: formatsLoading,
+    error: formatsError,
+    refetch: refetchFormats,
+  } = useFormats();
 
   useEffect(() => {
     linkRef.current?.focus();
