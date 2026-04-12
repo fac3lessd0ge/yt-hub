@@ -1,0 +1,202 @@
+<style>
+  .mb {
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #e8e8e8;
+    font-size: 13px;
+  }
+  .mb * { box-sizing: border-box; }
+  .mb-title { font-size: 18px; font-weight: 600; color: #f0f0f0; margin-bottom: 16px; }
+  .mb-form {
+    background: #252525;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .mb-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #333;
+  }
+  .mb-tab {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .mb-tab.active {
+    color: #e8e8e8;
+    border-bottom-color: #e8e8e8;
+    font-weight: 500;
+  }
+  .mb-row { display: flex; gap: 8px; align-items: flex-end; }
+  .mb-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #e0e0e0;
+    font-family: inherit;
+  }
+  .mb-input::placeholder { color: #555; }
+  .mb-select {
+    width: 80px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #e0e0e0;
+    font-family: inherit;
+    appearance: none;
+  }
+  .mb-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .mb-btn-primary { background: #e8e8e8; color: #1a1a1a; }
+  .mb-btn-secondary { background: #333; color: #ddd; border: 1px solid #444; }
+  .mb-btn-icon { background: #2a2a2a; border: 1px solid #333; color: #aaa; padding: 8px; font-size: 13px; }
+  .mb-textarea {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #e0e0e0;
+    font-family: 'SF Mono', Menlo, monospace;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 100px;
+  }
+  .mb-textarea::placeholder { color: #555; font-family: system-ui; }
+  .mb-batch-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .mb-batch-count { font-size: 11px; color: #888; }
+  .mb-batch-valid { color: #7c9; }
+  .mb-batch-invalid { color: #e88; }
+  .mb-import-zone {
+    border: 2px dashed #333;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+  }
+  .mb-import-zone-icon { font-size: 24px; margin-bottom: 8px; }
+  .mb-import-btn {
+    color: #8af;
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+  .mb-url-line { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; }
+  .mb-url-ok { color: #7c9; }
+  .mb-url-err { color: #e88; }
+  .mb-url-text { color: #aaa; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+
+<h2>Batch Download: Input Method</h2>
+<p class="subtitle">How batch mode integrates with the existing form</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #1e1e1e; padding: 24px 28px;">
+      <div class="mb">
+        <div class="mb-title">Download</div>
+        <div class="mb-form">
+          <div class="mb-tabs">
+            <button class="mb-tab">Single</button>
+            <button class="mb-tab active">Batch</button>
+          </div>
+
+          <div style="margin-bottom: 10px;">
+            <div class="mb-row" style="margin-bottom: 8px;">
+              <label style="font-size: 12px; font-weight: 500; flex: 1;">YouTube Links</label>
+              <select class="mb-select"><option>mp4</option></select>
+            </div>
+            <textarea class="mb-textarea" readonly placeholder="Paste URLs, one per line...">https://youtube.com/watch?v=dQw4w9WgXcQ
+https://youtube.com/watch?v=fJ9rUzIMcZQ
+https://youtube.com/watch?v=lDK9QqIzhwk
+https://not-youtube.com/invalid</textarea>
+          </div>
+
+          <div class="mb-batch-footer">
+            <div class="mb-batch-count">
+              <span class="mb-batch-valid">✓ 3 valid</span> · <span class="mb-batch-invalid">✕ 1 invalid</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="mb-btn mb-btn-secondary">📄 Import .txt</button>
+              <button class="mb-btn mb-btn-primary">+ Add 3</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Tabs (Single / Batch)</h3>
+      <p>Переключатель вкладок в форме. Batch tab: textarea + shared format select + Import .txt button. Validation count внизу. "Add 3" добавляет только валидные URL в очередь.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #1e1e1e; padding: 24px 28px;">
+      <div class="mb">
+        <div class="mb-title">Download</div>
+        <div class="mb-form">
+          <!-- Normal single form -->
+          <div class="mb-row" style="margin-bottom: 10px;">
+            <input class="mb-input" placeholder="YouTube link..." readonly>
+            <select class="mb-select"><option>mp4</option></select>
+            <button class="mb-btn mb-btn-icon">📋</button>
+            <button class="mb-btn mb-btn-primary">+ Add</button>
+          </div>
+
+          <!-- Expandable batch section -->
+          <div style="border-top: 1px solid #333; padding-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Batch add</span>
+            </div>
+            <textarea class="mb-textarea" readonly placeholder="Paste multiple URLs, one per line..." style="min-height: 80px;">https://youtube.com/watch?v=dQw4w9WgXcQ
+https://youtube.com/watch?v=fJ9rUzIMcZQ
+https://youtube.com/watch?v=lDK9QqIzhwk</textarea>
+            <div class="mb-batch-footer">
+              <span class="mb-batch-count"><span class="mb-batch-valid">✓ 3 valid</span></span>
+              <div style="display: flex; gap: 6px;">
+                <button class="mb-btn mb-btn-secondary">📄 Import .txt</button>
+                <button class="mb-btn mb-btn-primary">+ Add 3</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Single form + Batch section below</h3>
+      <p>Обычная single form наверху (как есть). Под ней — раскрывающаяся Batch секция с textarea. Оба режима видны одновременно, не нужно переключаться.</p>
+    </div>
+  </div>
+
+</div>

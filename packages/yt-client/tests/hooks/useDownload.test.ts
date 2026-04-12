@@ -333,6 +333,7 @@ describe("useDownload", () => {
     expect(window.electronAPI?.saveDownload).toHaveBeenCalledWith(
       "http://localhost:3000/api/downloads/test.mp3",
       "test.mp3",
+      undefined,
     );
 
     expect(result.current.state).toBe("complete");

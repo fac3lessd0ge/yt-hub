@@ -1,0 +1,149 @@
+<style>
+  .mock-form {
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #e8e8e8;
+    font-size: 13px;
+    max-width: 460px;
+  }
+  .mock-form * { box-sizing: border-box; }
+  .mf-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block; }
+  .mf-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .mf-field { flex: 1; }
+  .mf-field-small { flex: 0 0 100px; }
+  .mf-input {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #e0e0e0;
+    font-family: inherit;
+  }
+  .mf-input::placeholder { color: #555; }
+  .mf-paste-btn {
+    padding: 9px 12px;
+    background: #2a2a2a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .mf-paste-btn:hover { background: #333; color: #ddd; }
+  .mf-paste-label { font-size: 11px; }
+  .mf-gap { margin-bottom: 16px; }
+  .mf-select {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #e0e0e0;
+    font-family: inherit;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+  .mf-meta-text { font-size: 11px; color: #888; margin-top: 4px; }
+  .mf-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .mf-btn-primary { background: #e8e8e8; color: #1a1a1a; }
+  .mf-page-title { font-size: 18px; font-weight: 600; color: #f0f0f0; margin-bottom: 20px; }
+</style>
+
+<h2>Download Form: Compact 2-Row Layout</h2>
+<p class="subtitle">Link + Format on one row, File Name on second</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #1e1e1e; padding: 28px 32px;">
+      <div class="mock-form">
+        <div class="mf-page-title">Download</div>
+        <div class="mf-gap">
+          <div class="mf-row">
+            <div class="mf-field">
+              <label class="mf-label">YouTube Link</label>
+              <input class="mf-input" value="https://youtube.com/watch?v=dQw4w9WgXcQ" readonly>
+            </div>
+            <div class="mf-field-small">
+              <label class="mf-label">Format</label>
+              <select class="mf-select"><option>mp4</option></select>
+            </div>
+            <div style="padding-bottom: 1px;">
+              <label class="mf-label" style="visibility:hidden">_</label>
+              <button class="mf-paste-btn">📋</button>
+            </div>
+          </div>
+          <div class="mf-meta-text">Never Gonna Give You Up by Rick Astley</div>
+        </div>
+        <div class="mf-gap">
+          <label class="mf-label">File Name</label>
+          <input class="mf-input" value="Never Gonna Give You Up" readonly>
+        </div>
+        <button class="mf-btn mf-btn-primary">Download</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Paste button — icon only</h3>
+      <p>Link и Format на одной строке, Paste кнопка справа как иконка без текста. Компактно, форма в 2 строки.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #1e1e1e; padding: 28px 32px;">
+      <div class="mock-form">
+        <div class="mf-page-title">Download</div>
+        <div class="mf-gap">
+          <div class="mf-row">
+            <div class="mf-field">
+              <label class="mf-label">YouTube Link</label>
+              <input class="mf-input" value="https://youtube.com/watch?v=dQw4w9WgXcQ" readonly>
+            </div>
+            <div class="mf-field-small">
+              <label class="mf-label">Format</label>
+              <select class="mf-select"><option>mp4</option></select>
+            </div>
+            <div style="padding-bottom: 1px;">
+              <label class="mf-label" style="visibility:hidden">_</label>
+              <button class="mf-paste-btn">📋 <span class="mf-paste-label">Paste</span></button>
+            </div>
+          </div>
+          <div class="mf-meta-text">Never Gonna Give You Up by Rick Astley</div>
+        </div>
+        <div class="mf-gap">
+          <label class="mf-label">File Name</label>
+          <input class="mf-input" value="Never Gonna Give You Up" readonly>
+        </div>
+        <button class="mf-btn mf-btn-primary">Download</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Paste button — icon + label</h3>
+      <p>То же самое, но Paste кнопка с текстом. Чуть шире, зато понятнее для первого использования.</p>
+    </div>
+  </div>
+
+</div>

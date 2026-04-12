@@ -202,18 +202,15 @@ ipcMain.handle("settings:get", (_event, key: string) => {
   return settings[key as keyof Settings];
 });
 
-ipcMain.handle(
-  "settings:set",
-  (_event, key: string, value: unknown) => {
-    const settings = store.get("settings", defaultSettings);
-    if (!(key in settings)) {
-      throw new Error(`Unknown setting key: ${key}`);
-    }
-    const updated = { ...settings, [key]: value };
-    store.set("settings", updated);
-    return updated[key as keyof Settings];
-  },
-);
+ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
+  const settings = store.get("settings", defaultSettings);
+  if (!(key in settings)) {
+    throw new Error(`Unknown setting key: ${key}`);
+  }
+  const updated = { ...settings, [key]: value };
+  store.set("settings", updated);
+  return updated[key as keyof Settings];
+});
 
 // Sync handler for FOUC prevention — preload reads theme before renderer loads
 ipcMain.on("settings:getTheme", (event) => {
