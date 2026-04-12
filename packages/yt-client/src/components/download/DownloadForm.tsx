@@ -109,7 +109,7 @@ export function DownloadForm({ onSubmit }: DownloadFormProps) {
               value={format}
               onChange={(e) => setFormat(e.target.value)}
               disabled={formatsLoading}
-              className="w-24 shrink-0 rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              className="shrink-0 rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               aria-required="true"
               aria-label="Format"
             >
