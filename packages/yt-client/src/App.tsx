@@ -15,17 +15,14 @@ export default function App() {
   const [activePage, setActivePage] = useState("downloads");
   const [redownload, setRedownload] = useState<RedownloadRequest | null>(null);
 
-  const handleRedownload = useCallback(
-    (entry: HistoryEntry) => {
-      setRedownload({
-        link: entry.link,
-        format: entry.format,
-        name: entry.title,
-      });
-      setActivePage("downloads");
-    },
-    [],
-  );
+  const handleRedownload = useCallback((entry: HistoryEntry) => {
+    setRedownload({
+      link: entry.link,
+      format: entry.format,
+      name: entry.title,
+    });
+    setActivePage("downloads");
+  }, []);
 
   const consumeRedownload = useCallback(() => {
     const req = redownload;
@@ -38,9 +35,7 @@ export default function App() {
       {activePage === "downloads" && (
         <Downloads consumeRedownload={consumeRedownload} />
       )}
-      {activePage === "history" && (
-        <History onRedownload={handleRedownload} />
-      )}
+      {activePage === "history" && <History onRedownload={handleRedownload} />}
       {activePage === "settings" && <Settings />}
     </AppShell>
   );

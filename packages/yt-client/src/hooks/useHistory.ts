@@ -8,9 +8,7 @@ export function useHistory() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all");
-  const [fileExists, setFileExists] = useState<Map<string, boolean>>(
-    new Map(),
-  );
+  const [fileExists, setFileExists] = useState<Map<string, boolean>>(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,13 +62,10 @@ export function useHistory() {
     return result;
   }, [entries, search, formatFilter]);
 
-  const removeEntry = useCallback(
-    async (id: string) => {
-      await window.electronAPI?.removeHistoryEntry(id);
-      setEntries((prev) => prev.filter((e) => e.id !== id));
-    },
-    [],
-  );
+  const removeEntry = useCallback(async (id: string) => {
+    await window.electronAPI?.removeHistoryEntry(id);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
 
   const clearAll = useCallback(async () => {
     await window.electronAPI?.clearHistory();

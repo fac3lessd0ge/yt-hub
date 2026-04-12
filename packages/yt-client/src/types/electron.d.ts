@@ -33,9 +33,7 @@ export interface ElectronAPI {
   ) => Promise<Settings[K]>;
   readClipboardText: () => Promise<string>;
   getHistory: () => Promise<HistoryEntry[]>;
-  addHistoryEntry: (
-    entry: Omit<HistoryEntry, "id">,
-  ) => Promise<HistoryEntry>;
+  addHistoryEntry: (entry: Omit<HistoryEntry, "id">) => Promise<HistoryEntry>;
   removeHistoryEntry: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
   checkFileExists: (filePath: string) => Promise<boolean>;

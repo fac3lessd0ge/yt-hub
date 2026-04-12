@@ -258,20 +258,17 @@ ipcMain.handle("history:getAll", () => {
   return store.get("downloadHistory", []);
 });
 
-ipcMain.handle(
-  "history:add",
-  (_event, entry: Omit<HistoryEntry, "id">) => {
-    const history = store.get("downloadHistory", []);
-    const newEntry: HistoryEntry = {
-      ...entry,
-      id: crypto.randomUUID(),
-    };
-    // Prepend (newest first), prune to max
-    const updated = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
-    store.set("downloadHistory", updated);
-    return newEntry;
-  },
-);
+ipcMain.handle("history:add", (_event, entry: Omit<HistoryEntry, "id">) => {
+  const history = store.get("downloadHistory", []);
+  const newEntry: HistoryEntry = {
+    ...entry,
+    id: crypto.randomUUID(),
+  };
+  // Prepend (newest first), prune to max
+  const updated = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
+  store.set("downloadHistory", updated);
+  return newEntry;
+});
 
 ipcMain.handle("history:remove", (_event, id: string) => {
   const history = store.get("downloadHistory", []);
