@@ -20,6 +20,7 @@ export interface ElectronAPI {
     key: K,
     value: Settings[K],
   ) => Promise<Settings[K]>;
+  readClipboardText: () => Promise<string>;
 }
 
 declare global {

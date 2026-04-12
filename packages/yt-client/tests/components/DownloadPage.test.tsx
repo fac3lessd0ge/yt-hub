@@ -102,7 +102,7 @@ describe("DownloadPage", () => {
 
     expect(screen.getByText("Download Failed")).toBeInTheDocument();
     expect(
-      screen.getByText("[NETWORK_ERROR] Connection failed"),
+      screen.getByText("Could not reach the server — check your connection"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Try Again" }),

@@ -1,6 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  net,
+  shell,
+} from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
 
@@ -180,6 +188,10 @@ ipcMain.on("config:getApiBaseUrl", (event) => {
 // Async handler for future use
 ipcMain.handle("config:getApiBaseUrl", () => {
   return process.env.YT_HUB_API_URL ?? "";
+});
+
+ipcMain.handle("clipboard:readText", () => {
+  return clipboard.readText();
 });
 
 // --- Settings IPC ---
