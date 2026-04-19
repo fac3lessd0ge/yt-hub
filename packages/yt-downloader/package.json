@@ -34,7 +34,7 @@
     "@types/node": "^22.0.0",
     "@types/prompt-sync": "^4.2.3",
     "@types/which": "^3.0.4",
-    "msw": "^2.12.14",
+    "msw": "^2.13.4",
     "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
