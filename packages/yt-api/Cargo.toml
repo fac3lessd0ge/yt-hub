@@ -27,11 +27,13 @@ metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
 async-trait = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["native-tls", "stream"] }
+percent-encoding = "2"
 
 [dev-dependencies]
 http-body-util = "0.1"
 tempfile = "3"
 urlencoding = "2"
+mockito = "1"
 
 [build-dependencies]
 tonic-build = "0.13"

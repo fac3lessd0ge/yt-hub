@@ -1,5 +1,7 @@
 pub mod error;
+pub mod file_delivery;
 pub mod grpc;
+pub mod internal_protocol;
 pub mod middleware;
 pub mod models;
 pub mod routes;
@@ -14,10 +16,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use metrics_exporter_prometheus::PrometheusHandle;
-use reqwest::Client as HttpClient;
 
 pub use crate::grpc::GrpcClientTrait;
 pub use crate::config::FileDeliveryMode;
+pub use crate::file_delivery::FileDelivery;
 
 pub mod config;
 
@@ -27,8 +29,5 @@ pub struct AppState<C: GrpcClientTrait = grpc::GrpcClient> {
     pub shutting_down: Arc<AtomicBool>,
     pub metrics_handle: PrometheusHandle,
     pub downloads_dir: PathBuf,
-    pub file_delivery_mode: FileDeliveryMode,
-    pub internal_file_base_url: Option<String>,
-    pub internal_api_key: Option<String>,
-    pub http_client: HttpClient,
+    pub file_delivery: Arc<dyn FileDelivery + Send + Sync>,
 }

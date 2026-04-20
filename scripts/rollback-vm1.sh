@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-RESET='\033[0m'
-
-log() { echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] $*${RESET}"; }
-ok() { echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $*${RESET}"; }
-error() { echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*${RESET}" >&2; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/deployCommon.sh
+source "${SCRIPT_DIR}/lib/deployCommon.sh"
 
 if [ -z "${1:-}" ]; then
   error "Usage: rollback-vm1.sh <version-tag>"

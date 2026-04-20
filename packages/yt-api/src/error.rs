@@ -19,6 +19,7 @@ pub mod error_codes {
     pub const GRPC_ERROR: &str = "GRPC_ERROR";
     pub const FILE_NOT_FOUND: &str = "FILE_NOT_FOUND";
     pub const RATE_LIMIT_EXCEEDED: &str = "RATE_LIMIT_EXCEEDED";
+    pub const UPSTREAM_UNAVAILABLE: &str = "UPSTREAM_UNAVAILABLE";
 
     /// Map a code string to its static constant, falling back to GRPC_ERROR.
     pub fn to_static(code: &str) -> &'static str {
@@ -37,6 +38,7 @@ pub mod error_codes {
             "GRPC_ERROR" => GRPC_ERROR,
             "FILE_NOT_FOUND" => FILE_NOT_FOUND,
             "RATE_LIMIT_EXCEEDED" => RATE_LIMIT_EXCEEDED,
+            "UPSTREAM_UNAVAILABLE" => UPSTREAM_UNAVAILABLE,
             _ => GRPC_ERROR,
         }
     }
@@ -47,6 +49,7 @@ pub mod error_codes {
             VIDEO_NOT_FOUND | FILE_NOT_FOUND => StatusCode::NOT_FOUND,
             RATE_LIMIT_EXCEEDED => StatusCode::TOO_MANY_REQUESTS,
             METADATA_FAILED => StatusCode::BAD_GATEWAY,
+            UPSTREAM_UNAVAILABLE => StatusCode::BAD_GATEWAY,
             SERVICE_UNAVAILABLE => StatusCode::SERVICE_UNAVAILABLE,
             REQUEST_TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
@@ -61,11 +64,14 @@ pub struct ErrorResponse {
     pub retryable: bool,
 }
 
+#[derive(Debug)]
 pub enum AppError {
     GrpcConnection(tonic::transport::Error),
     GrpcCall(tonic::Status),
     Validation(String),
     NotFound(String),
+    /// HTTP upstream (e.g. VM2 internal file service) failure — maps to 502.
+    UpstreamUnavailable(String),
 }
 
 impl IntoResponse for AppError {
@@ -94,6 +100,14 @@ impl IntoResponse for AppError {
                     code: error_codes::FILE_NOT_FOUND,
                     message: msg,
                     retryable: false,
+                },
+            ),
+            AppError::UpstreamUnavailable(msg) => (
+                StatusCode::BAD_GATEWAY,
+                ErrorResponse {
+                    code: error_codes::UPSTREAM_UNAVAILABLE,
+                    message: msg,
+                    retryable: true,
                 },
             ),
         };
@@ -266,6 +280,16 @@ mod tests {
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(json["code"], "INTERNAL_ERROR");
         assert_eq!(json["retryable"], false);
+    }
+
+    #[tokio::test]
+    async fn upstream_unavailable_returns_502() {
+        let err = AppError::UpstreamUnavailable("upstream down".into());
+        let (status, json) = response_to_json(err.into_response()).await;
+        assert_eq!(status, StatusCode::BAD_GATEWAY);
+        assert_eq!(json["code"], "UPSTREAM_UNAVAILABLE");
+        assert_eq!(json["message"], "upstream down");
+        assert_eq!(json["retryable"], true);
     }
 
     #[tokio::test]

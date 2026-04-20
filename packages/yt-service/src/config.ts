@@ -1,5 +1,7 @@
 import type { Logger } from "~/logger";
 
+const INTERNAL_API_KEY_MIN_LEN = 16;
+
 export interface ServiceConfig {
   host: string;
   port: number;
@@ -9,7 +11,7 @@ export interface ServiceConfig {
   downloadDir: string;
   internalHttpHost: string;
   internalHttpPort: number;
-  internalApiKey?: string;
+  internalApiKey: string;
 }
 
 export function loadConfig(logger: Logger): ServiceConfig {
@@ -22,7 +24,7 @@ export function loadConfig(logger: Logger): ServiceConfig {
     process.env.DOWNLOAD_DIR ?? "/home/appuser/Downloads/yt-downloader";
   const internalHttpHost = process.env.INTERNAL_HTTP_HOST ?? "0.0.0.0";
   const internalHttpPort = Number(process.env.INTERNAL_HTTP_PORT ?? 8081);
-  const internalApiKey = process.env.INTERNAL_API_KEY;
+  const internalApiKeyRaw = process.env.INTERNAL_API_KEY?.trim() ?? "";
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(
@@ -52,6 +54,12 @@ export function loadConfig(logger: Logger): ServiceConfig {
     throw new Error("DOWNLOAD_DIR must not be empty.");
   }
 
+  if (internalApiKeyRaw.length < INTERNAL_API_KEY_MIN_LEN) {
+    throw new Error(
+      `INTERNAL_API_KEY is required and must be at least ${INTERNAL_API_KEY_MIN_LEN} characters (use e.g. openssl rand -hex 32).`,
+    );
+  }
+
   const config: ServiceConfig = {
     host,
     port,
@@ -61,10 +69,13 @@ export function loadConfig(logger: Logger): ServiceConfig {
     downloadDir,
     internalHttpHost,
     internalHttpPort,
-    internalApiKey: internalApiKey?.trim() || undefined,
+    internalApiKey: internalApiKeyRaw,
   };
 
-  logger.info({ config }, "Resolved service config");
+  logger.info(
+    { config: { ...config, internalApiKey: "[redacted]" } },
+    "Resolved service config",
+  );
 
   return config;
 }

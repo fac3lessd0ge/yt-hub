@@ -59,6 +59,23 @@ Images are stored in the GitHub Container Registry (ghcr.io). If the packages ar
 echo $GHCR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
+### Security model (two-VM / internal HTTP)
+
+- **Shared secret:** `INTERNAL_API_KEY` is required by both VM1 (`yt-api`, remote file mode) and VM2 (`yt-service` internal HTTP). Treat it like a service credential: generate a long random value, store it only in env files or a secrets manager, and never log it or commit it.
+- **Scope:** Internal routes (`/internal/health`, `/internal/files/...`) are authenticated with that header. Public traffic should only hit VM1 (Traefik + `yt-api`). VM2 should not expose application ports on a public interface.
+- **Network:** Prefer private connectivity from VM1 to VM2 for gRPC and internal HTTP. If you must publish ports on VM2, restrict them with firewall rules to VM1’s address or your VPC CIDR.
+- **Rate limiting:** The internal file route applies per-IP rate limiting on VM2 to reduce abuse if the port is ever reachable beyond VM1.
+
+### VM2 host port binding (production)
+
+`docker-compose.prod.vm2.yml` publishes gRPC and internal HTTP on **127.0.0.1** on the host by default (`127.0.0.1:${VM2_GRPC_BIND}:50051`, same for `8081`). That keeps them off the public NIC while still allowing **SSH port forwarding** or **private network** access from VM1.
+
+If you change the bind to `0.0.0.0` (or drop the `127.0.0.1` prefix), anyone who can reach those ports on the host can attempt to speak gRPC or hit internal HTTP. Only do that inside a trusted private network and with firewall rules you have explicitly validated.
+
+### Version skew and rollout order
+
+Images for VM1 and VM2 should normally run the **same release tag**. Deploy **VM2 first, then VM1** so VM1 never calls an internal HTTP contract that the VM2 image does not yet implement. For rollbacks, prefer **VM1 first, then VM2** (reverse order) to avoid a window where a newer VM2 is paired with an older VM1, unless you accept that temporary mismatch.
+
 ---
 
 ## 2. First-Time VPS Setup
@@ -163,10 +180,10 @@ bash scripts/rollback-vm1.sh v0.3.0
 ## 5. GitHub Actions CD (automatic deploy)
 
 `cd.yml` does:
-1. Preflight checks required secrets.
-2. On tag push (`v*.*.*`), builds images in GitHub runner and pushes to GHCR.
-3. Deploys VM2 first, then VM1 over SSH.
-4. Supports manual `workflow_dispatch` for deploy/rollback by tag and target VM.
+1. Preflight: validates the version tag matches `vMAJOR.MINOR.PATCH`, checks required secrets, and opens a **TCP probe** to each VM’s SSH port (dry-run reachability).
+2. On tag push (`v*.*.*`), waits for the **ci** check on the tagged commit, then builds images on the GitHub runner and pushes to GHCR.
+3. Deploys VM2 first, then VM1 over SSH via the reusable workflow `.github/workflows/reusable-ssh-exec.yml` (runner never builds on the VPS).
+4. Supports manual `workflow_dispatch` for deploy/rollback by tag and target VM (deploy assumes images for that tag already exist in GHCR).
 
 ### Required GitHub secrets
 

@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use axum::Router;
 
+use yt_api::file_delivery::LocalFileDelivery;
 use yt_api::grpc::DownloadStream;
+use yt_api::FileDelivery;
 use yt_api::proto::{
     DownloadRequest, DownloadResponse, GetMetadataResponse, ListBackendsResponse,
     ListFormatsResponse,
@@ -160,12 +163,22 @@ fn test_metrics_handle() -> metrics_exporter_prometheus::PrometheusHandle {
         .handle()
 }
 
+fn test_downloads_dir() -> PathBuf {
+    std::env::temp_dir().join("yt-hub-test-downloads")
+}
+
+fn local_delivery_for(dir: PathBuf) -> Arc<dyn FileDelivery + Send + Sync> {
+    Arc::new(LocalFileDelivery::new(dir))
+}
+
 pub fn make_app(mock: MockGrpcClient) -> Router {
+    let downloads_dir = test_downloads_dir();
     let state = AppState {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(false)),
         metrics_handle: test_metrics_handle(),
-        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
+        downloads_dir: downloads_dir.clone(),
+        file_delivery: local_delivery_for(downloads_dir),
     };
     yt_api::routes::router::<MockGrpcClient>()
         .with_state(state)
@@ -175,11 +188,13 @@ pub fn make_app(mock: MockGrpcClient) -> Router {
 }
 
 pub fn make_app_shutting_down(mock: MockGrpcClient) -> Router {
+    let downloads_dir = test_downloads_dir();
     let state = AppState {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(true)),
         metrics_handle: test_metrics_handle(),
-        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
+        downloads_dir: downloads_dir.clone(),
+        file_delivery: local_delivery_for(downloads_dir),
     };
     yt_api::routes::router::<MockGrpcClient>()
         .with_state(state)
@@ -193,6 +208,7 @@ pub fn make_app_with_downloads_dir(mock: MockGrpcClient, downloads_dir: std::pat
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(false)),
         metrics_handle: test_metrics_handle(),
+        file_delivery: local_delivery_for(downloads_dir.clone()),
         downloads_dir,
     };
     yt_api::routes::router::<MockGrpcClient>()
@@ -206,11 +222,13 @@ pub fn make_full_app(mock: MockGrpcClient) -> Router {
     use axum::http::{HeaderValue, Method, header};
     use tower_http::cors::{AllowOrigin, CorsLayer};
 
+    let downloads_dir = test_downloads_dir();
     let state = AppState {
         grpc_client: mock,
         shutting_down: Arc::new(AtomicBool::new(false)),
         metrics_handle: test_metrics_handle(),
-        downloads_dir: std::env::temp_dir().join("yt-hub-test-downloads"),
+        downloads_dir: downloads_dir.clone(),
+        file_delivery: local_delivery_for(downloads_dir),
     };
 
     let cors = CorsLayer::new()

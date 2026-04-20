@@ -1,26 +1,35 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createReadStream } from "node:fs";
 import { access, stat } from "node:fs/promises";
-import { basename, extname, resolve, sep } from "node:path";
+import { basename, resolve, sep } from "node:path";
 import type { Logger } from "~/logger";
 
-interface InternalHttpServerOptions {
+import { AuthResult, authorize } from "./auth";
+import { attachmentFor } from "./contentDisposition";
+import { mimeFromExtension } from "./mimeTypes";
+import { PATH_INTERNAL_FILES_PREFIX, PATH_INTERNAL_HEALTH } from "./protocol";
+import { allowInternalFileRequest } from "./rateLimiter";
+import {
+  envelopeDegraded,
+  envelopeError,
+  envelopeOk,
+  sendJson,
+} from "./responses";
+
+export interface InternalHttpServerOptions {
   host: string;
   port: number;
   downloadDir: string;
-  internalApiKey?: string;
+  internalApiKey: string;
 }
-
-type AuthResult = "authorized" | "missing" | "invalid";
 
 export class InternalHttpServer {
   private readonly host: string;
   private readonly port: number;
   private readonly downloadDir: string;
-  private readonly internalApiKey?: string;
+  private readonly internalApiKey: string;
   private readonly logger: Logger;
-  private readonly server = createServer(this.requestHandler.bind(this));
+  private readonly server: Server;
 
   constructor(options: InternalHttpServerOptions, logger: Logger) {
     this.host = options.host;
@@ -28,6 +37,9 @@ export class InternalHttpServer {
     this.downloadDir = resolve(options.downloadDir);
     this.internalApiKey = options.internalApiKey;
     this.logger = logger;
+    this.server = createServer((req, res) => {
+      void this.requestHandler(req, res);
+    });
   }
 
   async start(): Promise<void> {
@@ -66,80 +78,130 @@ export class InternalHttpServer {
   private async requestHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const requestUrl = req.url ?? "/";
     const method = req.method ?? "GET";
+    const started = Date.now();
 
-    const authResult = this.authorize(req);
-    if (authResult !== "authorized") {
-      const statusCode = authResult === "missing" ? 401 : 403;
-      this.respondJson(res, statusCode, {
-        code: "UNAUTHORIZED",
-        message: "Invalid internal API key",
-      });
+    const authResult = authorize(req, this.internalApiKey);
+    if (authResult !== AuthResult.Authorized) {
+      const statusCode = authResult === AuthResult.Missing ? 401 : 403;
+      this.logger.info(
+        {
+          path: requestUrl,
+          method,
+          auth: authResult,
+          status: statusCode,
+          durationMs: Date.now() - started,
+        },
+        "internal_http_request",
+      );
+      sendJson(
+        res,
+        statusCode,
+        envelopeError("UNAUTHORIZED", "Invalid internal API key"),
+      );
       return;
     }
 
-    if (method === "GET" && requestUrl === "/internal/health") {
-      await this.handleHealth(res);
+    if (method === "GET" && requestUrl === PATH_INTERNAL_HEALTH) {
+      await this.handleHealth(res, requestUrl, method, started);
       return;
     }
 
-    if (method === "GET" && requestUrl.startsWith("/internal/files/")) {
-      await this.handleFile(requestUrl, res);
+    if (method === "GET" && requestUrl.startsWith(PATH_INTERNAL_FILES_PREFIX)) {
+      if (!allowInternalFileRequest(req)) {
+        this.logger.info(
+          { path: requestUrl, method, status: 429, durationMs: Date.now() - started },
+          "internal_http_request",
+        );
+        sendJson(
+          res,
+          429,
+          envelopeError("RATE_LIMIT_EXCEEDED", "Too many requests"),
+        );
+        return;
+      }
+      await this.handleFile(requestUrl, res, method, started);
       return;
     }
 
-    this.respondJson(res, 404, { code: "NOT_FOUND", message: "Route not found" });
+    this.logger.info(
+      { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+      "internal_http_request",
+    );
+    sendJson(res, 404, envelopeError("NOT_FOUND", "Route not found"));
   }
 
-  private authorize(req: IncomingMessage): AuthResult {
-    if (!this.internalApiKey) {
-      return "invalid";
-    }
-
-    const incomingHeader = req.headers["x-internal-api-key"];
-    const incomingKey = Array.isArray(incomingHeader) ? incomingHeader[0] : incomingHeader;
-    if (!incomingKey) {
-      return "missing";
-    }
-
-    const expected = Buffer.from(this.internalApiKey);
-    const received = Buffer.from(incomingKey);
-    if (expected.length !== received.length) {
-      return "invalid";
-    }
-
-    return timingSafeEqual(expected, received) ? "authorized" : "invalid";
-  }
-
-  private async handleHealth(res: ServerResponse): Promise<void> {
+  private async handleHealth(
+    res: ServerResponse,
+    requestUrl: string,
+    method: string,
+    started: number,
+  ): Promise<void> {
     try {
       await access(this.downloadDir);
-      this.respondJson(res, 200, { status: "ok", downloads_dir: "ready" });
+      sendJson(res, 200, envelopeOk({ downloads_dir: "ready" }));
+      this.logger.info(
+        {
+          path: requestUrl,
+          method,
+          status: 200,
+          downloadsDir: "ready",
+          durationMs: Date.now() - started,
+        },
+        "internal_http_request",
+      );
     } catch (err) {
-      this.logger.error({ err, downloadDir: this.downloadDir }, "Downloads directory is not accessible");
-      this.respondJson(res, 503, { status: "degraded", downloads_dir: "unavailable" });
+      this.logger.error(
+        { err, downloadDir: this.downloadDir },
+        "Downloads directory is not accessible",
+      );
+      sendJson(res, 503, envelopeDegraded({ downloads_dir: "unavailable" }));
+      this.logger.info(
+        {
+          path: requestUrl,
+          method,
+          status: 503,
+          downloadsDir: "unavailable",
+          durationMs: Date.now() - started,
+        },
+        "internal_http_request",
+      );
     }
   }
 
-  private async handleFile(requestUrl: string, res: ServerResponse): Promise<void> {
-    const encodedFilename = requestUrl.slice("/internal/files/".length);
+  private async handleFile(
+    requestUrl: string,
+    res: ServerResponse,
+    method: string,
+    started: number,
+  ): Promise<void> {
+    const encodedFilename = requestUrl.slice(PATH_INTERNAL_FILES_PREFIX.length);
     let filename = "";
 
     try {
       filename = decodeURIComponent(encodedFilename);
     } catch {
-      this.respondJson(res, 400, { code: "INVALID_FILENAME", message: "Invalid filename encoding" });
+      sendJson(
+        res,
+        400,
+        envelopeError("INVALID_FILENAME", "Invalid filename encoding"),
+      );
+      return;
+    }
+
+    if (filename.includes("\0")) {
+      sendJson(res, 400, envelopeError("INVALID_FILENAME", "Invalid filename"));
       return;
     }
 
     if (!this.isValidFilename(filename)) {
-      this.respondJson(res, 400, { code: "INVALID_FILENAME", message: "Invalid filename" });
+      sendJson(res, 400, envelopeError("INVALID_FILENAME", "Invalid filename"));
       return;
     }
 
     const fullPath = resolve(this.downloadDir, filename);
     const downloadDirPrefix = `${this.downloadDir}${sep}`;
     if (fullPath !== this.downloadDir && !fullPath.startsWith(downloadDirPrefix)) {
-      this.respondJson(res, 400, { code: "INVALID_FILENAME", message: "Invalid filename" });
+      sendJson(res, 400, envelopeError("INVALID_FILENAME", "Invalid filename"));
       return;
     }
 
@@ -147,13 +209,23 @@ export class InternalHttpServer {
     try {
       fileStats = await stat(fullPath);
     } catch {
-      this.respondJson(res, 404, { code: "FILE_NOT_FOUND", message: "File not found" });
+      sendJson(res, 404, envelopeError("FILE_NOT_FOUND", "File not found"));
+      this.logger.info(
+        {
+          path: requestUrl,
+          method,
+          filename,
+          status: 404,
+          durationMs: Date.now() - started,
+        },
+        "internal_http_request",
+      );
       return;
     }
 
-    const disposition = this.contentDispositionFor(filename);
+    const disposition = attachmentFor(filename);
     res.statusCode = 200;
-    res.setHeader("Content-Type", this.mimeFromExtension(filename));
+    res.setHeader("Content-Type", mimeFromExtension(filename));
     res.setHeader("Content-Length", fileStats.size);
     res.setHeader("Content-Disposition", disposition);
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -162,14 +234,32 @@ export class InternalHttpServer {
     stream.on("error", (err) => {
       this.logger.error({ err, filename }, "Failed to stream internal file");
       if (!res.headersSent) {
-        this.respondJson(res, 500, { code: "STREAM_ERROR", message: "Failed to stream file" });
+        sendJson(
+          res,
+          500,
+          envelopeError("STREAM_ERROR", "Failed to stream file"),
+        );
         return;
       }
       res.destroy(err);
     });
+    res.on("finish", () => {
+      this.logger.info(
+        {
+          path: requestUrl,
+          method,
+          filename,
+          status: 200,
+          bytes: fileStats.size,
+          durationMs: Date.now() - started,
+        },
+        "internal_http_request",
+      );
+    });
     stream.pipe(res);
   }
 
+  /** Belt-and-braces: basename check after separator and `..` rejection. */
   private isValidFilename(filename: string): boolean {
     if (!filename || filename.length > 255) {
       return false;
@@ -181,47 +271,5 @@ export class InternalHttpServer {
       return false;
     }
     return basename(filename) === filename;
-  }
-
-  private respondJson(res: ServerResponse, statusCode: number, body: object): void {
-    if (res.headersSent) {
-      return;
-    }
-    res.statusCode = statusCode;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify(body));
-  }
-
-  private mimeFromExtension(filename: string): string {
-    switch (extname(filename).toLowerCase()) {
-      case ".mp3":
-        return "audio/mpeg";
-      case ".mp4":
-        return "video/mp4";
-      case ".webm":
-        return "video/webm";
-      case ".m4a":
-        return "audio/mp4";
-      case ".ogg":
-      case ".oga":
-        return "audio/ogg";
-      case ".wav":
-        return "audio/wav";
-      case ".flac":
-        return "audio/flac";
-      case ".mkv":
-        return "video/x-matroska";
-      default:
-        return "application/octet-stream";
-    }
-  }
-
-  private contentDispositionFor(filename: string): string {
-    const asciiName = filename
-      .split("")
-      .map((char) => (char.charCodeAt(0) < 128 ? char : "_"))
-      .join("");
-    const encoded = encodeURIComponent(filename).replace(/%20/g, "%20");
-    return `attachment; filename="${asciiName}"; filename*=UTF-8''${encoded}`;
   }
 }

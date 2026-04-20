@@ -143,15 +143,21 @@ async fn main() {
 
     let downloads_dir = config.download_dir.clone();
 
+    let http_client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(config.streaming_timeout_secs))
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .build()
+        .expect("Failed to build HTTP client");
+
+    let file_delivery = yt_api::file_delivery::build(&config, http_client);
+
     let state = AppState {
         grpc_client,
         shutting_down: Arc::clone(&shutting_down),
         metrics_handle,
         downloads_dir,
-        file_delivery_mode: config.file_delivery_mode,
-        internal_file_base_url: config.internal_file_base_url.clone(),
-        internal_api_key: config.internal_api_key.clone(),
-        http_client: reqwest::Client::new(),
+        file_delivery,
     };
 
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);

@@ -72,20 +72,32 @@ async function gracefulShutdown(signal: string): Promise<void> {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-Promise.all([
-  internalHttpServer.start().then(() => {
-    logger.info(
-      { host: config.internalHttpHost, port: config.internalHttpPort },
-      "Internal HTTP server listening",
-    );
-  }),
-  server.start(config.host, config.port).then(() => {
-    logger.info(
-      { host: config.host, port: config.port },
-      "gRPC server listening",
-    );
-  }),
-]).catch((err) => {
-    logger.error({ err }, "Failed to start server");
-    process.exit(1);
-  });
+async function bootstrap(): Promise<void> {
+  await internalHttpServer.start();
+  logger.info(
+    { host: config.internalHttpHost, port: config.internalHttpPort },
+    "Internal HTTP server listening",
+  );
+
+  try {
+    await server.start(config.host, config.port);
+  } catch (err) {
+    logger.error({ err }, "gRPC failed to start, stopping internal HTTP");
+    try {
+      await internalHttpServer.stop();
+    } catch (stopErr) {
+      logger.error({ stopErr }, "Failed to stop internal HTTP after gRPC failure");
+    }
+    throw err;
+  }
+
+  logger.info(
+    { host: config.host, port: config.port },
+    "gRPC server listening",
+  );
+}
+
+bootstrap().catch((err) => {
+  logger.error({ err }, "Failed to start server");
+  process.exit(1);
+});
