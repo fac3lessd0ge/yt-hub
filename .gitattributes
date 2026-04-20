@@ -1,0 +1,27 @@
+# Text files: LF in the repo and in the working tree (Biome, Rustfmt, CI, Unix tools).
+# After cloning or if Git still shows phantom changes on Windows, run once:
+#   git add --renormalize .
+#   git status
+* text=auto eol=lf
+
+# Binaries — do not touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.node binary
+*.wasm binary
+*.mp4 binary
+*.mp3 binary
+*.exe binary
+*.dll binary

@@ -2,8 +2,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createLogger } from "~/logger";
 import { InternalHttpServer } from "~/internalHttp";
+import { createLogger } from "~/logger";
 
 /** Must be >= 16 chars (loadConfig requirement). */
 const KEY = "sixteencharslong";
@@ -306,6 +306,8 @@ describe("InternalHttpServer", () => {
     expect(resp.status).toBe(503);
     const j = (await resp.json()) as Record<string, unknown>;
     expect(j.status).toBe("degraded");
-    expect((j.data as Record<string, string>).downloads_dir).toBe("unavailable");
+    expect((j.data as Record<string, string>).downloads_dir).toBe(
+      "unavailable",
+    );
   });
 });

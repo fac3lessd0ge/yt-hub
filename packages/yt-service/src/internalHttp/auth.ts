@@ -11,9 +11,14 @@ export const AuthResult = {
 
 export type AuthResultType = (typeof AuthResult)[keyof typeof AuthResult];
 
-export function authorize(req: IncomingMessage, internalApiKey: string): AuthResultType {
+export function authorize(
+  req: IncomingMessage,
+  internalApiKey: string,
+): AuthResultType {
   const incomingHeader = req.headers[HEADER_INTERNAL_API_KEY];
-  const incomingKey = Array.isArray(incomingHeader) ? incomingHeader[0] : incomingHeader;
+  const incomingKey = Array.isArray(incomingHeader)
+    ? incomingHeader[0]
+    : incomingHeader;
   if (!incomingKey) {
     return AuthResult.Missing;
   }
@@ -24,5 +29,7 @@ export function authorize(req: IncomingMessage, internalApiKey: string): AuthRes
     return AuthResult.Invalid;
   }
 
-  return timingSafeEqual(expected, received) ? AuthResult.Authorized : AuthResult.Invalid;
+  return timingSafeEqual(expected, received)
+    ? AuthResult.Authorized
+    : AuthResult.Invalid;
 }

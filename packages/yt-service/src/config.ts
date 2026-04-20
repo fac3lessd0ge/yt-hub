@@ -28,7 +28,8 @@ export function loadConfig(logger: Logger): ServiceConfig {
   const internalHttpHost = process.env.INTERNAL_HTTP_HOST ?? "0.0.0.0";
   const internalHttpPort = Number(process.env.INTERNAL_HTTP_PORT ?? 8081);
   const internalApiKeyRaw = process.env.INTERNAL_API_KEY?.trim() ?? "";
-  const fileDeliveryModeRaw = process.env.FILE_DELIVERY_MODE?.trim().toLowerCase() ?? "";
+  const fileDeliveryModeRaw =
+    process.env.FILE_DELIVERY_MODE?.trim().toLowerCase() ?? "";
   let fileDeliveryMode: FileDeliveryMode;
   if (fileDeliveryModeRaw === "" || fileDeliveryModeRaw === "remote") {
     fileDeliveryMode = "remote";
@@ -58,7 +59,11 @@ export function loadConfig(logger: Logger): ServiceConfig {
     );
   }
 
-  if (!Number.isInteger(internalHttpPort) || internalHttpPort < 1 || internalHttpPort > 65535) {
+  if (
+    !Number.isInteger(internalHttpPort) ||
+    internalHttpPort < 1 ||
+    internalHttpPort > 65535
+  ) {
     throw new Error(
       `Invalid INTERNAL_HTTP_PORT: ${process.env.INTERNAL_HTTP_PORT}. Must be an integer between 1 and 65535.`,
     );

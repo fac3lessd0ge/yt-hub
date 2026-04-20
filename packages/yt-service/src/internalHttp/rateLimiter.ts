@@ -11,10 +11,12 @@ function clientKey(req: { socket?: { remoteAddress?: string } }): string {
 }
 
 /** Returns true if request is allowed, false if rate limited. */
-export function allowInternalFileRequest(req: { socket?: { remoteAddress?: string } }): boolean {
+export function allowInternalFileRequest(req: {
+  socket?: { remoteAddress?: string };
+}): boolean {
   const key = clientKey(req);
   const now = Date.now();
-  let b = buckets.get(key);
+  const b = buckets.get(key);
   if (!b || now > b.resetAt) {
     buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return true;

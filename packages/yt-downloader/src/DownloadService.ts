@@ -15,7 +15,7 @@ import type { ILogger } from "~/infra/types/ILogger";
 import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
-import { OutputPathBuilder, buildStorageStem } from "~/output";
+import { buildStorageStem, OutputPathBuilder } from "~/output";
 import { NodeProcessSpawner } from "~/process";
 
 export interface DownloadParams {

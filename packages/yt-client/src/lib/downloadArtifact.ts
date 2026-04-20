@@ -31,7 +31,10 @@ export function resolveDownloadFetchUrl(data: DownloadComplete): string {
 export function suggestedDownloadFilename(data: DownloadComplete): string {
   const extRaw = (data.format_id || "mp4").toLowerCase();
   const ext = /^[a-z0-9]+$/.test(extRaw) ? extRaw : "mp4";
-  let stem = (data.title?.trim() || "download").replace(DIALOG_NAME_FORBIDDEN, "_");
+  let stem = (data.title?.trim() || "download").replace(
+    DIALOG_NAME_FORBIDDEN,
+    "_",
+  );
   stem = stem.replace(/_+/g, "_").replace(/^[\s.]+|[\s.]+$/g, "");
   stem = stem.slice(0, 180);
   if (!stem) stem = "download";

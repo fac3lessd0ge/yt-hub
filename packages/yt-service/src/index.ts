@@ -97,7 +97,10 @@ async function bootstrap(): Promise<void> {
     try {
       await internalHttpServer.stop();
     } catch (stopErr) {
-      logger.error({ stopErr }, "Failed to stop internal HTTP after gRPC failure");
+      logger.error(
+        { stopErr },
+        "Failed to stop internal HTTP after gRPC failure",
+      );
     }
     throw err;
   }

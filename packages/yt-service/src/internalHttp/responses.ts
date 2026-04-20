@@ -15,14 +15,21 @@ export function sendJson(
   res.end(JSON.stringify(body));
 }
 
-export function envelopeOk(data: Record<string, unknown>): Record<string, unknown> {
+export function envelopeOk(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   return { status: "ok" as ApiStatus, data };
 }
 
-export function envelopeDegraded(data: Record<string, unknown>): Record<string, unknown> {
+export function envelopeDegraded(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   return { status: "degraded" as ApiStatus, data };
 }
 
-export function envelopeError(code: string, message: string): Record<string, unknown> {
+export function envelopeError(
+  code: string,
+  message: string,
+): Record<string, unknown> {
   return { status: "error" as ApiStatus, code, message };
 }

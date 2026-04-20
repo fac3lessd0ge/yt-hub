@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  OutputPathBuilder,
   buildStorageStem,
+  OutputPathBuilder,
   truncateUtf8Bytes,
 } from "~/output";
 
@@ -90,9 +90,9 @@ describe("OutputPathBuilder.buildStorage", () => {
   const validStem = "0".repeat(32);
 
   it("rejects non-hex stems", () => {
-    expect(() =>
-      builder.buildStorage("not-hex", "mp4", "/tmp"),
-    ).toThrow(/Invalid storage stem/);
+    expect(() => builder.buildStorage("not-hex", "mp4", "/tmp")).toThrow(
+      /Invalid storage stem/,
+    );
   });
 
   it("builds path with hashed stem", () => {

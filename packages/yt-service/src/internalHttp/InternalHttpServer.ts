@@ -1,6 +1,11 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { createReadStream } from "node:fs";
+import { createReadStream, type Stats } from "node:fs";
 import { access, stat } from "node:fs/promises";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { basename, resolve, sep } from "node:path";
 import type { FileDeliveryMode } from "~/config";
 import type { Logger } from "~/logger";
@@ -80,7 +85,10 @@ export class InternalHttpServer {
     });
   }
 
-  private async requestHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async requestHandler(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
     const requestUrl = req.url ?? "/";
     const method = req.method ?? "GET";
     const started = Date.now();
@@ -90,9 +98,17 @@ export class InternalHttpServer {
         await this.handleHealth(res, requestUrl, method, started);
         return;
       }
-      if (method === "GET" && requestUrl.startsWith(PATH_INTERNAL_FILES_PREFIX)) {
+      if (
+        method === "GET" &&
+        requestUrl.startsWith(PATH_INTERNAL_FILES_PREFIX)
+      ) {
         this.logger.info(
-          { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+          {
+            path: requestUrl,
+            method,
+            status: 404,
+            durationMs: Date.now() - started,
+          },
           "internal_http_request",
         );
         sendJson(
@@ -106,7 +122,12 @@ export class InternalHttpServer {
         return;
       }
       this.logger.info(
-        { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+        {
+          path: requestUrl,
+          method,
+          status: 404,
+          durationMs: Date.now() - started,
+        },
         "internal_http_request",
       );
       sendJson(res, 404, envelopeError("NOT_FOUND", "Route not found"));
@@ -142,7 +163,12 @@ export class InternalHttpServer {
     if (method === "GET" && requestUrl.startsWith(PATH_INTERNAL_FILES_PREFIX)) {
       if (!allowInternalFileRequest(req)) {
         this.logger.info(
-          { path: requestUrl, method, status: 429, durationMs: Date.now() - started },
+          {
+            path: requestUrl,
+            method,
+            status: 429,
+            durationMs: Date.now() - started,
+          },
           "internal_http_request",
         );
         sendJson(
@@ -157,7 +183,12 @@ export class InternalHttpServer {
     }
 
     this.logger.info(
-      { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+      {
+        path: requestUrl,
+        method,
+        status: 404,
+        durationMs: Date.now() - started,
+      },
       "internal_http_request",
     );
     sendJson(res, 404, envelopeError("NOT_FOUND", "Route not found"));
@@ -233,12 +264,15 @@ export class InternalHttpServer {
 
     const fullPath = resolve(this.downloadDir, filename);
     const downloadDirPrefix = `${this.downloadDir}${sep}`;
-    if (fullPath !== this.downloadDir && !fullPath.startsWith(downloadDirPrefix)) {
+    if (
+      fullPath !== this.downloadDir &&
+      !fullPath.startsWith(downloadDirPrefix)
+    ) {
       sendJson(res, 400, envelopeError("INVALID_FILENAME", "Invalid filename"));
       return;
     }
 
-    let fileStats;
+    let fileStats: Stats;
     try {
       fileStats = await stat(fullPath);
     } catch {
@@ -300,7 +334,11 @@ export class InternalHttpServer {
     if (filename.startsWith(".")) {
       return false;
     }
-    if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    if (
+      filename.includes("..") ||
+      filename.includes("/") ||
+      filename.includes("\\")
+    ) {
       return false;
     }
     return basename(filename) === filename;
