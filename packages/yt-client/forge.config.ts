@@ -8,6 +8,7 @@ import type { ForgeConfig } from "@electron-forge/shared-types";
 const config: ForgeConfig = {
   packagerConfig: {
     name: "YT Hub",
+    icon: "./assets/icon",
     asar: true,
   },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ["darwin", "linux"])],

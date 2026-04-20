@@ -8,13 +8,18 @@ const cachedApiBaseUrl: string | undefined =
 const cachedTheme: string =
   ipcRenderer.sendSync("settings:getTheme") || "system";
 
+const cachedAppVersion: string = ipcRenderer.sendSync("app:getVersion") || "";
+
 contextBridge.exposeInMainWorld("electronAPI", {
   getApiBaseUrl: (): string | undefined => cachedApiBaseUrl,
   getInitialTheme: (): string => cachedTheme,
+  getAppVersion: (): string => cachedAppVersion,
   selectFolder: (): Promise<string | null> =>
     ipcRenderer.invoke("dialog:selectFolder"),
   showItemInFolder: (filePath: string): Promise<void> =>
     ipcRenderer.invoke("shell:showItemInFolder", filePath),
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke("shell:openExternal", url),
   saveDownload: (
     downloadUrl: string,
     suggestedFilename: string,

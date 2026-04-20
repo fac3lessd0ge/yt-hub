@@ -17,6 +17,8 @@ if (started) {
   app.quit();
 }
 
+app.setName("YT Hub");
+
 interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
@@ -113,6 +115,26 @@ ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
     throw new Error("File path must be within user home directory");
   }
   shell.showItemInFolder(resolved);
+});
+
+const ALLOWED_EXTERNAL_HOSTS = new Set(["github.com"]);
+
+ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+  if (typeof url !== "string") {
+    throw new Error("Invalid URL");
+  }
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only https URLs are allowed");
+  }
+  const host = parsed.hostname.toLowerCase();
+  const allowed =
+    ALLOWED_EXTERNAL_HOSTS.has(host) ||
+    [...ALLOWED_EXTERNAL_HOSTS].some((h) => host.endsWith(`.${h}`));
+  if (!allowed) {
+    throw new Error(`Host ${host} is not in the external-link allowlist`);
+  }
+  await shell.openExternal(url);
 });
 
 ipcMain.handle(
@@ -212,6 +234,10 @@ ipcMain.on("config:getApiBaseUrl", (event) => {
   event.returnValue = process.env.YT_HUB_API_URL ?? "";
 });
 
+ipcMain.on("app:getVersion", (event) => {
+  event.returnValue = app.getVersion();
+});
+
 // Async handler for future use
 ipcMain.handle("config:getApiBaseUrl", () => {
   return process.env.YT_HUB_API_URL ?? "";
@@ -304,7 +330,16 @@ ipcMain.handle("history:checkFile", async (_event, filePath: string) => {
     .catch(() => false);
 });
 
-app.on("ready", createWindow);
+app.on("ready", () => {
+  app.setAboutPanelOptions({
+    applicationName: "YT Hub",
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: "© 2026 Arseniy",
+    website: "https://github.com/fac3lessd0ge/yt-hub",
+  });
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
