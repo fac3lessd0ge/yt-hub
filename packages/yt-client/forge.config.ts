@@ -1,4 +1,5 @@
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import { MakerDMG } from "@electron-forge/maker-dmg";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
@@ -8,9 +9,14 @@ import type { ForgeConfig } from "@electron-forge/shared-types";
 const config: ForgeConfig = {
   packagerConfig: {
     name: "YT Hub",
+    icon: "./assets/icon",
     asar: true,
   },
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ["darwin", "linux"])],
+  makers: [
+    new MakerSquirrel({}),
+    new MakerDMG({ name: "YT Hub", icon: "./assets/icon.icns" }, ["darwin"]),
+    new MakerZIP({}, ["linux"]),
+  ],
   plugins: [
     new VitePlugin({
       build: [
