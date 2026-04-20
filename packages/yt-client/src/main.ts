@@ -7,6 +7,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeTheme,
   net,
   shell,
 } from "electron";
@@ -73,6 +74,16 @@ const store = new Store<StoreSchema>({
   },
 });
 
+const LIGHT_BG = "#ffffff";
+const DARK_BG = "#252525";
+
+function resolveBackgroundColor(): string {
+  const theme = store.get("settings", defaultSettings).theme;
+  const isDark =
+    theme === "dark" || (theme === "system" && nativeTheme.shouldUseDarkColors);
+  return isDark ? DARK_BG : LIGHT_BG;
+}
+
 const createWindow = () => {
   if (process.platform !== "darwin") {
     Menu.setApplicationMenu(null);
@@ -81,12 +92,18 @@ const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
+    show: false,
+    backgroundColor: resolveBackgroundColor(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
