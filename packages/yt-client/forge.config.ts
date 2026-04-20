@@ -10,6 +10,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     name: "YT Hub",
     icon: "./assets/icon",
+    extraResource: ["./assets/icon.png"],
     asar: true,
   },
   makers: [

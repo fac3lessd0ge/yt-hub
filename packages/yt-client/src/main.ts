@@ -33,6 +33,16 @@ app.on("second-instance", () => {
 
 app.setName("YT Hub");
 
+const ICON_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, "icon.png")
+  : path.join(__dirname, "../../assets/icon.png");
+
+if (process.platform === "darwin" && !app.isPackaged) {
+  app.whenReady().then(() => {
+    app.dock?.setIcon(ICON_PATH);
+  });
+}
+
 interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
@@ -181,6 +191,7 @@ const createWindow = () => {
     y: bounds.y,
     show: false,
     backgroundColor: resolveBackgroundColor(),
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
