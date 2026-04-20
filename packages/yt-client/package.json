@@ -1,10 +1,19 @@
 {
   "name": "yt-client",
   "productName": "YT Hub",
-  "version": "1.0.0",
-  "description": "YouTube downloader desktop application",
+  "version": "1.3.1",
+  "description": "YT Hub — a desktop YouTube downloader",
   "main": ".vite/build/main.js",
   "private": true,
+  "author": {
+    "name": "Arseniy",
+    "email": "garmasharseniy@gmail.com"
+  },
+  "homepage": "https://github.com/fac3lessd0ge/yt-hub",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fac3lessd0ge/yt-hub.git"
+  },
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
