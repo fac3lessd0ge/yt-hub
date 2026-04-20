@@ -17,6 +17,8 @@ if (started) {
   app.quit();
 }
 
+app.setName("YT Hub");
+
 interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
@@ -304,7 +306,16 @@ ipcMain.handle("history:checkFile", async (_event, filePath: string) => {
     .catch(() => false);
 });
 
-app.on("ready", createWindow);
+app.on("ready", () => {
+  app.setAboutPanelOptions({
+    applicationName: "YT Hub",
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: "© 2026 Arseniy",
+    website: "https://github.com/fac3lessd0ge/yt-hub",
+  });
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
