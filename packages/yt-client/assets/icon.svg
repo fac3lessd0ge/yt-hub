@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="YT Hub">
+  <rect width="1024" height="1024" rx="224" fill="#0a0a0a"/>
+  <g fill="none" stroke="#ffffff" stroke-width="96" stroke-linecap="square" stroke-linejoin="round">
+    <path d="M 232 304 L 388 512"/>
+    <path d="M 544 304 L 388 512"/>
+    <path d="M 388 512 L 388 744"/>
+    <path d="M 596 304 L 856 304"/>
+    <path d="M 726 304 L 726 744"/>
+  </g>
+</svg>
