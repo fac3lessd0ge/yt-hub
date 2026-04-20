@@ -6,6 +6,7 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  Menu,
   net,
   shell,
 } from "electron";
@@ -73,6 +74,10 @@ const store = new Store<StoreSchema>({
 });
 
 const createWindow = () => {
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(null);
+  }
+
   const mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
