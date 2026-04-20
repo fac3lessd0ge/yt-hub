@@ -21,6 +21,7 @@ export interface ElectronAPI {
   getAppVersion: () => string;
   selectFolder: () => Promise<string | null>;
   showItemInFolder: (filePath: string) => Promise<void>;
+  openExternal: (url: string) => Promise<void>;
   saveDownload: (
     downloadUrl: string,
     suggestedFilename: string,

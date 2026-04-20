@@ -117,6 +117,26 @@ ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
   shell.showItemInFolder(resolved);
 });
 
+const ALLOWED_EXTERNAL_HOSTS = new Set(["github.com"]);
+
+ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+  if (typeof url !== "string") {
+    throw new Error("Invalid URL");
+  }
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only https URLs are allowed");
+  }
+  const host = parsed.hostname.toLowerCase();
+  const allowed =
+    ALLOWED_EXTERNAL_HOSTS.has(host) ||
+    [...ALLOWED_EXTERNAL_HOSTS].some((h) => host.endsWith(`.${h}`));
+  if (!allowed) {
+    throw new Error(`Host ${host} is not in the external-link allowlist`);
+  }
+  await shell.openExternal(url);
+});
+
 ipcMain.handle(
   "dialog:saveDownload",
   async (

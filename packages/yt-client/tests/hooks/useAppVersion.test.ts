@@ -14,7 +14,9 @@ describe("useAppVersion", () => {
   });
 
   it("returns the version exposed via electronAPI", () => {
-    (window as unknown as { electronAPI: { getAppVersion: () => string } }).electronAPI = {
+    (
+      window as unknown as { electronAPI: { getAppVersion: () => string } }
+    ).electronAPI = {
       getAppVersion: () => "1.3.1",
     };
 
