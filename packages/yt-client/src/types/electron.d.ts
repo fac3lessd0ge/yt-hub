@@ -18,6 +18,7 @@ export interface Settings {
 export interface ElectronAPI {
   getApiBaseUrl?: () => string | undefined;
   getInitialTheme: () => string;
+  getAppVersion: () => string;
   selectFolder: () => Promise<string | null>;
   showItemInFolder: (filePath: string) => Promise<void>;
   saveDownload: (

@@ -1,4 +1,5 @@
 import { Clock, Download, Settings } from "lucide-react";
+import { useAppVersion } from "@/hooks/useAppVersion";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -13,6 +14,8 @@ const navItems = [
 ];
 
 export function Sidebar({ activePage, onNavigate }: SidebarProps) {
+  const version = useAppVersion();
+
   return (
     <aside className="flex h-full w-52 flex-col border-r border-border bg-sidebar p-3">
       <h1 className="mb-4 px-2 text-lg font-semibold text-sidebar-foreground">
@@ -37,6 +40,11 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           </button>
         ))}
       </nav>
+      {version && (
+        <div className="mt-auto px-2 pt-4 text-[11px] text-sidebar-foreground/50">
+          v{version}
+        </div>
+      )}
     </aside>
   );
 }
