@@ -1,11 +1,21 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import type { RedownloadRequest } from "@/App";
 import { useDownload } from "@/hooks/useDownload";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useQueue } from "@/hooks/useQueue";
+import { useSettings } from "@/hooks/useSettings";
+import { friendlyError } from "@/lib/errorMessages";
+import type { DownloadRequest } from "@/types/api";
 import { DownloadForm } from "./DownloadForm";
 import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
+import { QueueList } from "./QueueList";
 
-export function DownloadPage() {
+interface DownloadPageProps {
+  consumeRedownload?: () => RedownloadRequest | null;
+}
+
+function SingleDownloadPage() {
   const { state, progress, result, localPath, error, start, cancel, reset } =
     useDownload();
 
@@ -17,9 +27,7 @@ export function DownloadPage() {
   useKeyboardShortcuts(shortcuts);
 
   return (
-    <div className="mx-auto max-w-lg">
-      <h2 className="mb-6 text-xl font-semibold">Download</h2>
-
+    <>
       <div aria-live="polite">
         {state === "idle" && <DownloadForm onSubmit={start} />}
 
@@ -46,11 +54,11 @@ export function DownloadPage() {
             role="alert"
             className="rounded-lg border border-destructive/50 bg-destructive/10 p-4"
           >
-            <h3 className="mb-1 text-sm font-medium text-destructive">
+            <h3 className="mb-1 text-sm font-medium text-destructive-foreground">
               Download Failed
             </h3>
-            <p className="text-sm text-destructive/80">
-              [{error.code}] {error.message}
+            <p className="text-sm text-destructive-foreground/80">
+              {friendlyError(error.code, error.message)}
             </p>
             <button
               type="button"
@@ -62,6 +70,71 @@ export function DownloadPage() {
           </div>
         )}
       </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        Set a download location in Settings to enable the download queue.
+      </p>
+    </>
+  );
+}
+
+function QueueDownloadPage({
+  consumeRedownload,
+}: {
+  consumeRedownload?: () => RedownloadRequest | null;
+}) {
+  const { items, addItem, cancelItem, removeItem, retryItem } = useQueue();
+
+  // Auto-add re-download request on mount
+  useEffect(() => {
+    const req = consumeRedownload?.();
+    if (req) {
+      addItem(req);
+    }
+  }, [consumeRedownload, addItem]);
+
+  const handleBatchAdd = useCallback(
+    (batchItems: DownloadRequest[]) => {
+      for (const item of batchItems) {
+        addItem(item);
+      }
+    },
+    [addItem],
+  );
+
+  return (
+    <>
+      <DownloadForm
+        onSubmit={addItem}
+        onBatchAdd={handleBatchAdd}
+        queueMode
+        hasItems={items.length > 0}
+      />
+
+      <div className="mt-6">
+        <QueueList
+          items={items}
+          onCancel={cancelItem}
+          onRemove={removeItem}
+          onRetry={retryItem}
+        />
+      </div>
+    </>
+  );
+}
+
+export function DownloadPage({ consumeRedownload }: DownloadPageProps) {
+  const { settings } = useSettings();
+  const queueEnabled = !!settings?.defaultDownloadDir;
+
+  return (
+    <div className="mx-auto max-w-lg">
+      <h2 className="mb-6 text-xl font-semibold">Download</h2>
+      {queueEnabled ? (
+        <QueueDownloadPage consumeRedownload={consumeRedownload} />
+      ) : (
+        <SingleDownloadPage />
+      )}
     </div>
   );
 }

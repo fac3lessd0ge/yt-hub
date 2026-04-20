@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { getBaseUrl } from "@/lib/apiClient";
+import { getFormatType } from "@/lib/formatType";
 import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
@@ -83,6 +84,15 @@ export function useDownload() {
         );
         if (saveResult) {
           setLocalPath(saveResult.filePath);
+          window.electronAPI?.addHistoryEntry({
+            title: request.name,
+            author: data.author_name ?? "",
+            format: request.format,
+            formatType: getFormatType(request.format),
+            link: request.link,
+            localPath: saveResult.filePath,
+            downloadedAt: Date.now(),
+          });
         }
       } catch (saveErr) {
         setError({
