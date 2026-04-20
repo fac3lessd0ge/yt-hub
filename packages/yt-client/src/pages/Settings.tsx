@@ -2,8 +2,11 @@ import { useCallback, useEffect } from "react";
 import { DefaultFormatSetting } from "@/components/settings/DefaultFormatSetting";
 import { DownloadLocationSetting } from "@/components/settings/DownloadLocationSetting";
 import { ThemeToggle } from "@/components/settings/ThemeToggle";
+import { useAppVersion } from "@/hooks/useAppVersion";
 import { useSettings } from "@/hooks/useSettings";
 import type { Settings as SettingsType } from "@/types/electron";
+
+const REPO_URL = "https://github.com/fac3lessd0ge/yt-hub";
 
 function applyTheme(theme: SettingsType["theme"]) {
   const resolved =
@@ -57,6 +60,13 @@ function SettingsRow({
 
 export function Settings() {
   const { settings, updateSetting } = useSettings();
+  const version = useAppVersion();
+
+  const handleOpenRepo = useCallback(() => {
+    window.electronAPI?.openExternal?.(REPO_URL).catch((err) => {
+      console.error("Failed to open repository link", err);
+    });
+  }, []);
 
   const handleThemeChange = useCallback(
     (theme: SettingsType["theme"]) => {
@@ -120,6 +130,23 @@ export function Settings() {
             value={settings.defaultFormat}
             onChange={(fmt) => updateSetting("defaultFormat", fmt)}
           />
+        </SettingsRow>
+      </SettingsSection>
+
+      <div className="h-px bg-border" />
+
+      <SettingsSection title="About">
+        <SettingsRow
+          label="YT Hub"
+          description={version ? `Version ${version}` : "Version unavailable"}
+        >
+          <button
+            type="button"
+            onClick={handleOpenRepo}
+            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Open on GitHub
+          </button>
         </SettingsRow>
       </SettingsSection>
     </div>

@@ -6,7 +6,10 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  Menu,
+  nativeTheme,
   net,
+  screen,
   shell,
 } from "electron";
 import started from "electron-squirrel-startup";
@@ -15,6 +18,20 @@ import Store from "electron-store";
 if (started) {
   app.quit();
 }
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on("second-instance", () => {
+  const [win] = BrowserWindow.getAllWindows();
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
+app.setName("YT Hub");
 
 interface Settings {
   theme: "system" | "light" | "dark";
@@ -33,10 +50,25 @@ interface HistoryEntry {
   downloadedAt: number;
 }
 
+interface WindowBounds {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  isMaximized: boolean;
+}
+
 interface StoreSchema {
   settings: Settings;
   downloadHistory: HistoryEntry[];
+  windowBounds: WindowBounds;
 }
+
+const DEFAULT_WINDOW_BOUNDS: WindowBounds = {
+  width: 1000,
+  height: 700,
+  isMaximized: false,
+};
 
 const MAX_HISTORY_ENTRIES = 500;
 
@@ -69,13 +101,86 @@ const store = new Store<StoreSchema>({
       type: "array",
       default: [],
     },
+    windowBounds: {
+      type: "object",
+      properties: {
+        width: { type: "number" },
+        height: { type: "number" },
+        x: { type: "number" },
+        y: { type: "number" },
+        isMaximized: { type: "boolean" },
+      },
+      default: DEFAULT_WINDOW_BOUNDS,
+    },
   },
 });
 
+const LIGHT_BG = "#ffffff";
+const DARK_BG = "#252525";
+
+function resolveBackgroundColor(): string {
+  const theme = store.get("settings", defaultSettings).theme;
+  const isDark =
+    theme === "dark" || (theme === "system" && nativeTheme.shouldUseDarkColors);
+  return isDark ? DARK_BG : LIGHT_BG;
+}
+
+function isPositionOnScreen(x: number, y: number): boolean {
+  return screen.getAllDisplays().some(({ workArea }) => {
+    return (
+      x >= workArea.x &&
+      x <= workArea.x + workArea.width &&
+      y >= workArea.y &&
+      y <= workArea.y + workArea.height
+    );
+  });
+}
+
+function loadWindowBounds(): WindowBounds {
+  const bounds = store.get("windowBounds", DEFAULT_WINDOW_BOUNDS);
+  if (
+    typeof bounds.x === "number" &&
+    typeof bounds.y === "number" &&
+    !isPositionOnScreen(bounds.x, bounds.y)
+  ) {
+    return { ...bounds, x: undefined, y: undefined };
+  }
+  return bounds;
+}
+
+function createBoundsPersister(win: BrowserWindow): () => void {
+  let timer: NodeJS.Timeout | null = null;
+  return () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (win.isDestroyed()) return;
+      const isMaximized = win.isMaximized();
+      const { x, y, width, height } = win.getBounds();
+      store.set("windowBounds", {
+        width,
+        height,
+        x,
+        y,
+        isMaximized,
+      });
+    }, 300);
+  };
+}
+
 const createWindow = () => {
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(null);
+  }
+
+  const bounds = loadWindowBounds();
+
   const mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 700,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
+    show: false,
+    backgroundColor: resolveBackgroundColor(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -83,6 +188,19 @@ const createWindow = () => {
       sandbox: true,
     },
   });
+
+  mainWindow.once("ready-to-show", () => {
+    if (bounds.isMaximized) {
+      mainWindow.maximize();
+    }
+    mainWindow.show();
+  });
+
+  const persistBounds = createBoundsPersister(mainWindow);
+  mainWindow.on("resize", persistBounds);
+  mainWindow.on("move", persistBounds);
+  mainWindow.on("maximize", persistBounds);
+  mainWindow.on("unmaximize", persistBounds);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -108,6 +226,26 @@ ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
     throw new Error("File path must be within user home directory");
   }
   shell.showItemInFolder(resolved);
+});
+
+const ALLOWED_EXTERNAL_HOSTS = new Set(["github.com"]);
+
+ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+  if (typeof url !== "string") {
+    throw new Error("Invalid URL");
+  }
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only https URLs are allowed");
+  }
+  const host = parsed.hostname.toLowerCase();
+  const allowed =
+    ALLOWED_EXTERNAL_HOSTS.has(host) ||
+    [...ALLOWED_EXTERNAL_HOSTS].some((h) => host.endsWith(`.${h}`));
+  if (!allowed) {
+    throw new Error(`Host ${host} is not in the external-link allowlist`);
+  }
+  await shell.openExternal(url);
 });
 
 ipcMain.handle(
@@ -207,6 +345,10 @@ ipcMain.on("config:getApiBaseUrl", (event) => {
   event.returnValue = process.env.YT_HUB_API_URL ?? "";
 });
 
+ipcMain.on("app:getVersion", (event) => {
+  event.returnValue = app.getVersion();
+});
+
 // Async handler for future use
 ipcMain.handle("config:getApiBaseUrl", () => {
   return process.env.YT_HUB_API_URL ?? "";
@@ -299,7 +441,16 @@ ipcMain.handle("history:checkFile", async (_event, filePath: string) => {
     .catch(() => false);
 });
 
-app.on("ready", createWindow);
+app.on("ready", () => {
+  app.setAboutPanelOptions({
+    applicationName: "YT Hub",
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: "© 2026 Arseniy",
+    website: "https://github.com/fac3lessd0ge/yt-hub",
+  });
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
