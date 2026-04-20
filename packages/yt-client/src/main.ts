@@ -19,6 +19,18 @@ if (started) {
   app.quit();
 }
 
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on("second-instance", () => {
+  const [win] = BrowserWindow.getAllWindows();
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
 interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
