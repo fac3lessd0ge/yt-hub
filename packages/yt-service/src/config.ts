@@ -30,10 +30,11 @@ export function loadConfig(logger: Logger): ServiceConfig {
   const internalApiKeyRaw = process.env.INTERNAL_API_KEY?.trim() ?? "";
   const fileDeliveryModeRaw =
     process.env.FILE_DELIVERY_MODE?.trim().toLowerCase() ?? "";
+  // Match yt-api: unset / empty defaults to local (Docker Compose often has no env_file in CI).
   let fileDeliveryMode: FileDeliveryMode;
-  if (fileDeliveryModeRaw === "" || fileDeliveryModeRaw === "remote") {
+  if (fileDeliveryModeRaw === "remote") {
     fileDeliveryMode = "remote";
-  } else if (fileDeliveryModeRaw === "local") {
+  } else if (fileDeliveryModeRaw === "" || fileDeliveryModeRaw === "local") {
     fileDeliveryMode = "local";
   } else {
     throw new Error(
