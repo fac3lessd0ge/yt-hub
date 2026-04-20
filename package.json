@@ -12,9 +12,9 @@
     "protobufjs": "^7.5.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@bufbuild/buf": "^1.67.0",
-    "nx": "^22.6.3",
+    "@biomejs/biome": "^2.4.12",
+    "@bufbuild/buf": "^1.68.2",
+    "nx": "^22.6.5",
     "ts-proto": "^2.11.6",
     "tsx": "^4.19.0"
   }
