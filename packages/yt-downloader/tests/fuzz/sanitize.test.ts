@@ -44,11 +44,8 @@ describe("sanitizeFilename fuzz", () => {
     }
   });
 
-  it("never exceeds 200 characters", () => {
-    const inputs = ["a".repeat(500), randomString(1000)];
-    for (const input of inputs) {
-      expect(sanitizeFilename(input).length).toBeLessThanOrEqual(200);
-    }
+  it("sanitize does not truncate (build() applies UTF-8 byte limits)", () => {
+    expect(sanitizeFilename("a".repeat(500)).length).toBe(500);
   });
 
   it("never starts with a dot", () => {

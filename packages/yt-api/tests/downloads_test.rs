@@ -142,6 +142,10 @@ async fn download_complete_event() {
 
     assert!(text.contains("event: complete"), "expected event: complete in SSE:\n{text}");
     assert!(text.contains("/tmp/video.mp4"), "expected output_path in SSE:\n{text}");
+    assert!(
+        text.contains("/api/downloads/") && text.contains("video"),
+        "expected download_url in SSE:\n{text}"
+    );
 }
 
 #[tokio::test]

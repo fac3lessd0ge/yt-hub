@@ -15,7 +15,7 @@ import type { ILogger } from "~/infra/types/ILogger";
 import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
-import { OutputPathBuilder } from "~/output";
+import { OutputPathBuilder, buildStorageStem } from "~/output";
 import { NodeProcessSpawner } from "~/process";
 
 export interface DownloadParams {
@@ -90,8 +90,13 @@ export class DownloadService {
     const destination = resolve(params.destination ?? DEFAULT_DESTINATION);
     mkdirSync(destination, { recursive: true });
 
-    const outputPath = this.outputPathBuilder.build(
+    const stem = buildStorageStem(
+      params.link,
+      params.format.toLowerCase(),
       params.name,
+    );
+    const outputPath = this.outputPathBuilder.buildStorage(
+      stem,
       params.format.toLowerCase(),
       destination,
       existsSync,

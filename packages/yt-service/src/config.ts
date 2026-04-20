@@ -2,6 +2,8 @@ import type { Logger } from "~/logger";
 
 const INTERNAL_API_KEY_MIN_LEN = 16;
 
+export type FileDeliveryMode = "local" | "remote";
+
 export interface ServiceConfig {
   host: string;
   port: number;
@@ -11,6 +13,7 @@ export interface ServiceConfig {
   downloadDir: string;
   internalHttpHost: string;
   internalHttpPort: number;
+  fileDeliveryMode: FileDeliveryMode;
   internalApiKey: string;
 }
 
@@ -25,6 +28,17 @@ export function loadConfig(logger: Logger): ServiceConfig {
   const internalHttpHost = process.env.INTERNAL_HTTP_HOST ?? "0.0.0.0";
   const internalHttpPort = Number(process.env.INTERNAL_HTTP_PORT ?? 8081);
   const internalApiKeyRaw = process.env.INTERNAL_API_KEY?.trim() ?? "";
+  const fileDeliveryModeRaw = process.env.FILE_DELIVERY_MODE?.trim().toLowerCase() ?? "";
+  let fileDeliveryMode: FileDeliveryMode;
+  if (fileDeliveryModeRaw === "" || fileDeliveryModeRaw === "remote") {
+    fileDeliveryMode = "remote";
+  } else if (fileDeliveryModeRaw === "local") {
+    fileDeliveryMode = "local";
+  } else {
+    throw new Error(
+      `FILE_DELIVERY_MODE must be 'local' or 'remote', got '${process.env.FILE_DELIVERY_MODE}'.`,
+    );
+  }
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(
@@ -54,9 +68,12 @@ export function loadConfig(logger: Logger): ServiceConfig {
     throw new Error("DOWNLOAD_DIR must not be empty.");
   }
 
-  if (internalApiKeyRaw.length < INTERNAL_API_KEY_MIN_LEN) {
+  if (
+    fileDeliveryMode === "remote" &&
+    internalApiKeyRaw.length < INTERNAL_API_KEY_MIN_LEN
+  ) {
     throw new Error(
-      `INTERNAL_API_KEY is required and must be at least ${INTERNAL_API_KEY_MIN_LEN} characters (use e.g. openssl rand -hex 32).`,
+      `INTERNAL_API_KEY is required when FILE_DELIVERY_MODE=remote and must be at least ${INTERNAL_API_KEY_MIN_LEN} characters (use e.g. openssl rand -hex 32).`,
     );
   }
 
@@ -69,6 +86,7 @@ export function loadConfig(logger: Logger): ServiceConfig {
     downloadDir,
     internalHttpHost,
     internalHttpPort,
+    fileDeliveryMode,
     internalApiKey: internalApiKeyRaw,
   };
 

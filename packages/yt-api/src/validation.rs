@@ -2,7 +2,8 @@ use url::Url;
 
 const MAX_URL_LENGTH: usize = 2048;
 const MAX_FORMAT_LENGTH: usize = 20;
-const MAX_NAME_LENGTH: usize = 255;
+/// Byte length (`str::len`) — long Unicode titles must still pass validation when served via GET.
+const MAX_NAME_LENGTH: usize = 512;
 const MAX_DESTINATION_LENGTH: usize = 1024;
 
 const ALLOWED_HOSTS: &[&str] = &["youtube.com", "youtu.be"];

@@ -20,6 +20,33 @@ afterEach(async () => {
 });
 
 describe("InternalHttpServer", () => {
+  it("local file delivery: health works without api key; files are not served", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const server = new InternalHttpServer(
+      {
+        host: "127.0.0.1",
+        port: 0,
+        downloadDir: dir,
+        fileDeliveryMode: "local",
+        internalApiKey: "",
+      },
+      createLogger("silent"),
+    );
+    servers.push(server);
+    await server.start();
+
+    const healthUrl = `http://127.0.0.1:${server.listeningPort}/internal/health`;
+    const healthResp = await fetch(healthUrl);
+    expect(healthResp.status).toBe(200);
+
+    await writeFile(join(dir, "local-mode.mp3"), "x");
+    const fileUrl = `http://127.0.0.1:${server.listeningPort}/internal/files/local-mode.mp3`;
+    const fileResp = await fetch(fileUrl);
+    expect(fileResp.status).toBe(404);
+    const j = (await fileResp.json()) as Record<string, unknown>;
+    expect(j.code).toBe("NOT_AVAILABLE");
+  });
+
   it("requires internal api key", async () => {
     const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
     const server = new InternalHttpServer(

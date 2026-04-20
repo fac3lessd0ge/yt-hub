@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createReadStream } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { basename, resolve, sep } from "node:path";
+import type { FileDeliveryMode } from "~/config";
 import type { Logger } from "~/logger";
 
 import { AuthResult, authorize } from "./auth";
@@ -20,6 +21,8 @@ export interface InternalHttpServerOptions {
   host: string;
   port: number;
   downloadDir: string;
+  /** When `local`, health is unauthenticated and file routes are disabled (API serves files from disk). */
+  fileDeliveryMode?: FileDeliveryMode;
   internalApiKey: string;
 }
 
@@ -27,6 +30,7 @@ export class InternalHttpServer {
   private readonly host: string;
   private readonly port: number;
   private readonly downloadDir: string;
+  private readonly fileDeliveryMode: FileDeliveryMode;
   private readonly internalApiKey: string;
   private readonly logger: Logger;
   private readonly server: Server;
@@ -35,6 +39,7 @@ export class InternalHttpServer {
     this.host = options.host;
     this.port = options.port;
     this.downloadDir = resolve(options.downloadDir);
+    this.fileDeliveryMode = options.fileDeliveryMode ?? "remote";
     this.internalApiKey = options.internalApiKey;
     this.logger = logger;
     this.server = createServer((req, res) => {
@@ -79,6 +84,34 @@ export class InternalHttpServer {
     const requestUrl = req.url ?? "/";
     const method = req.method ?? "GET";
     const started = Date.now();
+
+    if (this.fileDeliveryMode === "local") {
+      if (method === "GET" && requestUrl === PATH_INTERNAL_HEALTH) {
+        await this.handleHealth(res, requestUrl, method, started);
+        return;
+      }
+      if (method === "GET" && requestUrl.startsWith(PATH_INTERNAL_FILES_PREFIX)) {
+        this.logger.info(
+          { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+          "internal_http_request",
+        );
+        sendJson(
+          res,
+          404,
+          envelopeError(
+            "NOT_AVAILABLE",
+            "Internal file delivery is disabled when FILE_DELIVERY_MODE=local.",
+          ),
+        );
+        return;
+      }
+      this.logger.info(
+        { path: requestUrl, method, status: 404, durationMs: Date.now() - started },
+        "internal_http_request",
+      );
+      sendJson(res, 404, envelopeError("NOT_FOUND", "Route not found"));
+      return;
+    }
 
     const authResult = authorize(req, this.internalApiKey);
     if (authResult !== AuthResult.Authorized) {

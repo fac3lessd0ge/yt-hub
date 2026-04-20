@@ -1,3 +1,6 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { config as loadDotenv } from "dotenv";
 import { DownloadService } from "yt-downloader";
 import { loadConfig } from "~/config";
 import {
@@ -6,11 +9,17 @@ import {
   FormatsHandler,
   MetadataHandler,
 } from "~/handlers";
+import { InternalHttpServer } from "~/internalHttp";
 import { createLogger } from "~/logger";
 import { PinoLoggerAdapter } from "~/logger/pinoLoggerAdapter";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
-import { InternalHttpServer } from "~/internalHttp";
 import { GrpcServer } from "~/server";
+
+const serviceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = resolve(serviceRoot, "..", "..");
+// Package `.env` must override root (dotenv does not replace existing keys by default).
+loadDotenv({ path: resolve(repoRoot, ".env") });
+loadDotenv({ path: resolve(serviceRoot, ".env"), override: true });
 
 const logger = createLogger(process.env.LOG_LEVEL ?? "info");
 const config = loadConfig(logger);
@@ -29,6 +38,7 @@ const downloadHandler = new DownloadHandler(
   downloadService,
   errorMapper,
   responseMapper,
+  config.downloadDir,
 );
 
 const server = new GrpcServer(
@@ -44,6 +54,7 @@ const internalHttpServer = new InternalHttpServer(
     host: config.internalHttpHost,
     port: config.internalHttpPort,
     downloadDir: config.downloadDir,
+    fileDeliveryMode: config.fileDeliveryMode,
     internalApiKey: config.internalApiKey,
   },
   logger,
