@@ -61,7 +61,7 @@ async fn metadata_invalid_url_returns_400_validation_error() {
 #[tokio::test]
 async fn metadata_grpc_not_found_returns_404() {
     let mock = common::MockGrpcClient::builder()
-        .with_get_metadata(|| Err(tonic::Status::not_found("video not found")))
+        .with_get_metadata(|| Err(Box::new(tonic::Status::not_found("video not found"))))
         .build();
     let app = common::make_app(mock);
 

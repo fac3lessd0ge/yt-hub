@@ -182,7 +182,7 @@ async fn download_error_event() {
 #[tokio::test]
 async fn download_grpc_error_returns_503() {
     let mock = common::MockGrpcClient::builder()
-        .with_download(|_req| Err(tonic::Status::unavailable("backend down")))
+        .with_download(|_req| Err(Box::new(tonic::Status::unavailable("backend down"))))
         .build();
     let app = common::make_app(mock);
 

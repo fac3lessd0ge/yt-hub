@@ -131,14 +131,15 @@ pub fn validate_destination(dest: &str, downloads_dir: &std::path::Path) -> Resu
     if dest.contains("..") {
         return Err("Destination must not contain path traversal sequences".to_string());
     }
+    #[cfg(unix)]
     if dest.contains('\\') {
         return Err("Destination must not contain backslash characters".to_string());
     }
-    if !dest.starts_with('/') {
+    let dest_path = std::path::Path::new(dest);
+    if !dest_path.is_absolute() {
         return Err("Destination must be an absolute path".to_string());
     }
     // Verify destination is within allowed directory
-    let dest_path = std::path::Path::new(dest);
     if let Ok(canonical_base) = downloads_dir.canonicalize() {
         if !dest_path.starts_with(&canonical_base) {
             return Err("Destination must be within the downloads directory".to_string());

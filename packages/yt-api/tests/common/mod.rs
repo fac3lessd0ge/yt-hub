@@ -15,7 +15,7 @@ use yt_api::proto::{
 };
 use yt_api::{AppState, GrpcClientTrait};
 
-type BoxResult<T> = Result<T, tonic::Status>;
+type BoxResult<T> = Result<T, Box<tonic::Status>>;
 type BoxCallback<T> = Box<dyn Fn() -> BoxResult<T> + Send + Sync>;
 type DownloadCallback = Box<dyn Fn(DownloadRequest) -> BoxResult<DownloadStream> + Send + Sync>;
 
@@ -37,22 +37,12 @@ impl MockGrpcClient {
     }
 }
 
+#[derive(Default)]
 pub struct MockGrpcClientBuilder {
     get_metadata_fn: Option<BoxCallback<GetMetadataResponse>>,
     list_formats_fn: Option<BoxCallback<ListFormatsResponse>>,
     list_backends_fn: Option<BoxCallback<ListBackendsResponse>>,
     download_fn: Option<DownloadCallback>,
-}
-
-impl Default for MockGrpcClientBuilder {
-    fn default() -> Self {
-        Self {
-            get_metadata_fn: None,
-            list_formats_fn: None,
-            list_backends_fn: None,
-            download_fn: None,
-        }
-    }
 }
 
 impl MockGrpcClientBuilder {
@@ -93,30 +83,30 @@ impl MockGrpcClientBuilder {
             inner: Arc::new(MockGrpcClientInner {
                 get_metadata_fn: self.get_metadata_fn.unwrap_or_else(|| {
                     Box::new(|| {
-                        Err(tonic::Status::unimplemented(
+                        Err(Box::new(tonic::Status::unimplemented(
                             "get_metadata not configured in mock",
-                        ))
+                        )))
                     })
                 }),
                 list_formats_fn: self.list_formats_fn.unwrap_or_else(|| {
                     Box::new(|| {
-                        Err(tonic::Status::unimplemented(
+                        Err(Box::new(tonic::Status::unimplemented(
                             "list_formats not configured in mock",
-                        ))
+                        )))
                     })
                 }),
                 list_backends_fn: self.list_backends_fn.unwrap_or_else(|| {
                     Box::new(|| {
-                        Err(tonic::Status::unimplemented(
+                        Err(Box::new(tonic::Status::unimplemented(
                             "list_backends not configured in mock",
-                        ))
+                        )))
                     })
                 }),
                 download_fn: self.download_fn.unwrap_or_else(|| {
                     Box::new(|_| {
-                        Err(tonic::Status::unimplemented(
+                        Err(Box::new(tonic::Status::unimplemented(
                             "download not configured in mock",
-                        ))
+                        )))
                     })
                 }),
             }),
@@ -131,21 +121,21 @@ impl GrpcClientTrait for MockGrpcClient {
         _link: &str,
         _request_id: Option<&str>,
     ) -> Result<GetMetadataResponse, tonic::Status> {
-        (self.inner.get_metadata_fn)()
+        (self.inner.get_metadata_fn)().map_err(|e| *e)
     }
 
     async fn list_formats(
         &self,
         _request_id: Option<&str>,
     ) -> Result<ListFormatsResponse, tonic::Status> {
-        (self.inner.list_formats_fn)()
+        (self.inner.list_formats_fn)().map_err(|e| *e)
     }
 
     async fn list_backends(
         &self,
         _request_id: Option<&str>,
     ) -> Result<ListBackendsResponse, tonic::Status> {
-        (self.inner.list_backends_fn)()
+        (self.inner.list_backends_fn)().map_err(|e| *e)
     }
 
     async fn download(
@@ -153,7 +143,7 @@ impl GrpcClientTrait for MockGrpcClient {
         request: DownloadRequest,
         _request_id: Option<&str>,
     ) -> Result<DownloadStream, tonic::Status> {
-        (self.inner.download_fn)(request)
+        (self.inner.download_fn)(request).map_err(|e| *e)
     }
 }
 
