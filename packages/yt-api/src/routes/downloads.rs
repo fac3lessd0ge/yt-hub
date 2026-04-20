@@ -196,7 +196,7 @@ async fn serve_file_local<C: GrpcClientTrait>(
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
-    let content_type = mime_from_extension(&filename);
+    let content_type = mime_from_extension(filename);
 
     let ascii_filename: String = filename
         .chars()
@@ -256,7 +256,7 @@ async fn serve_file_remote<C: GrpcClientTrait>(
         })?;
 
     let status = upstream.status();
-    if status == reqwest::StatusCode::NOT_FOUND {
+    if status == StatusCode::NOT_FOUND {
         return Err(AppError::NotFound(format!("File not found: {filename}")));
     }
 
