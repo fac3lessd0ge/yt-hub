@@ -9,6 +9,7 @@ import {
 import { createLogger } from "~/logger";
 import { PinoLoggerAdapter } from "~/logger/pinoLoggerAdapter";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
+import { InternalHttpServer } from "~/internalHttp";
 import { GrpcServer } from "~/server";
 
 const logger = createLogger(process.env.LOG_LEVEL ?? "info");
@@ -38,6 +39,15 @@ const server = new GrpcServer(
   { maxMessageSize: config.maxMessageSize },
   logger,
 );
+const internalHttpServer = new InternalHttpServer(
+  {
+    host: config.internalHttpHost,
+    port: config.internalHttpPort,
+    downloadDir: config.downloadDir,
+    internalApiKey: config.internalApiKey,
+  },
+  logger,
+);
 
 let isShuttingDown = false;
 
@@ -48,6 +58,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Received signal, starting graceful shutdown");
 
   try {
+    await internalHttpServer.stop();
+    logger.info("Internal HTTP server stopped gracefully");
     await server.stop();
     logger.info("gRPC server stopped gracefully");
     process.exit(0);
@@ -60,15 +72,20 @@ async function gracefulShutdown(signal: string): Promise<void> {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-server
-  .start(config.host, config.port)
-  .then(() =>
+Promise.all([
+  internalHttpServer.start().then(() => {
+    logger.info(
+      { host: config.internalHttpHost, port: config.internalHttpPort },
+      "Internal HTTP server listening",
+    );
+  }),
+  server.start(config.host, config.port).then(() => {
     logger.info(
       { host: config.host, port: config.port },
       "gRPC server listening",
-    ),
-  )
-  .catch((err) => {
+    );
+  }),
+]).catch((err) => {
     logger.error({ err }, "Failed to start server");
     process.exit(1);
   });

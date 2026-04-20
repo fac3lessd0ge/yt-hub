@@ -19,9 +19,7 @@ use std::net::SocketAddr;
 use yt_api::grpc::GrpcClient;
 use yt_api::AppState;
 use yt_api::middleware::rateLimit::build_governor_layer;
-
-mod config;
-use config::Config;
+use yt_api::config::Config;
 
 async fn handle_timeout_error(err: BoxError) -> impl IntoResponse {
     if err.is::<tower::timeout::error::Elapsed>() {
@@ -150,6 +148,10 @@ async fn main() {
         shutting_down: Arc::clone(&shutting_down),
         metrics_handle,
         downloads_dir,
+        file_delivery_mode: config.file_delivery_mode,
+        internal_file_base_url: config.internal_file_base_url.clone(),
+        internal_api_key: config.internal_api_key.clone(),
+        http_client: reqwest::Client::new(),
     };
 
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);

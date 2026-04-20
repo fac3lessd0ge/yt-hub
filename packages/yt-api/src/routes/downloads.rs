@@ -6,6 +6,7 @@ use axum::Json;
 use axum::body::Body;
 use axum::extract::{self, State};
 use axum::http::header;
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::sse::{Event, Sse};
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
@@ -14,6 +15,7 @@ use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
 use crate::AppState;
+use crate::FileDeliveryMode;
 use crate::error::AppError;
 use crate::grpc::GrpcClientTrait;
 use crate::middleware::RequestId;
@@ -156,7 +158,17 @@ pub async fn serve_file<C: GrpcClientTrait>(
 ) -> Result<Response, AppError> {
     validation::validate_filename(&filename).map_err(AppError::Validation)?;
 
-    let file_path = state.downloads_dir.join(&filename);
+    match state.file_delivery_mode {
+        FileDeliveryMode::Local => serve_file_local(&state, &filename).await,
+        FileDeliveryMode::Remote => serve_file_remote(&state, &filename).await,
+    }
+}
+
+async fn serve_file_local<C: GrpcClientTrait>(
+    state: &AppState<C>,
+    filename: &str,
+) -> Result<Response, AppError> {
+    let file_path = state.downloads_dir.join(filename);
 
     // Ensure the resolved path is still within downloads_dir (defense in depth)
     let canonical_dir = state.downloads_dir.canonicalize().map_err(|e| {
@@ -211,6 +223,118 @@ pub async fn serve_file<C: GrpcClientTrait>(
         .body(body)
         .unwrap()
         .into_response())
+}
+
+async fn serve_file_remote<C: GrpcClientTrait>(
+    state: &AppState<C>,
+    filename: &str,
+) -> Result<Response, AppError> {
+    let base_url = state
+        .internal_file_base_url
+        .as_deref()
+        .ok_or_else(|| AppError::Validation("INTERNAL_FILE_BASE_URL is not configured".to_string()))?;
+    let api_key = state
+        .internal_api_key
+        .as_deref()
+        .ok_or_else(|| AppError::Validation("INTERNAL_API_KEY is not configured".to_string()))?;
+
+    let upstream_url = format!(
+        "{}/internal/files/{}",
+        base_url.trim_end_matches('/'),
+        filename
+    );
+
+    let upstream = state
+        .http_client
+        .get(&upstream_url)
+        .header("x-internal-api-key", api_key)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, %upstream_url, "Failed to reach internal file endpoint");
+            AppError::GrpcCall(tonic::Status::unavailable("Internal file service is unavailable"))
+        })?;
+
+    let status = upstream.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Err(AppError::NotFound(format!("File not found: {filename}")));
+    }
+
+    if !status.is_success() {
+        tracing::error!(status = %status, %upstream_url, "Internal file endpoint returned non-success status");
+        return Err(AppError::GrpcCall(tonic::Status::unavailable(
+            "Failed to retrieve file from internal service",
+        )));
+    }
+
+    let mut headers = HeaderMap::new();
+    copy_header_if_present(
+        upstream.headers(),
+        &mut headers,
+        reqwest::header::CONTENT_TYPE,
+        header::CONTENT_TYPE,
+    );
+    copy_header_if_present(
+        upstream.headers(),
+        &mut headers,
+        reqwest::header::CONTENT_LENGTH,
+        header::CONTENT_LENGTH,
+    );
+    copy_header_if_present(
+        upstream.headers(),
+        &mut headers,
+        reqwest::header::CONTENT_DISPOSITION,
+        header::CONTENT_DISPOSITION,
+    );
+
+    if !headers.contains_key(header::CONTENT_TYPE) {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(mime_from_extension(filename)),
+        );
+    }
+    if !headers.contains_key(header::CONTENT_DISPOSITION) {
+        let disposition = content_disposition_for(filename);
+        if let Ok(header_value) = HeaderValue::from_str(&disposition) {
+            headers.insert(header::CONTENT_DISPOSITION, header_value);
+        }
+    }
+
+    let stream = upstream.bytes_stream();
+    let body = Body::from_stream(stream);
+
+    Ok((StatusCode::OK, headers, body).into_response())
+}
+
+fn copy_header_if_present(
+    source: &reqwest::header::HeaderMap,
+    target: &mut HeaderMap,
+    source_name: reqwest::header::HeaderName,
+    target_name: header::HeaderName,
+) {
+    if let Some(value) = source.get(source_name) {
+        if let Ok(converted) = HeaderValue::from_bytes(value.as_bytes()) {
+            target.insert(target_name, converted);
+        }
+    }
+}
+
+fn content_disposition_for(filename: &str) -> String {
+    let ascii_filename: String = filename
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { '_' })
+        .collect();
+    let encoded: String = filename
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' {
+                format!("{}", b as char)
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect();
+    format!("attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded}")
 }
 
 fn mime_from_extension(filename: &str) -> &'static str {

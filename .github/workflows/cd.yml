@@ -3,12 +3,74 @@ name: CD
 on:
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "deploy or rollback"
+        required: true
+        default: deploy
+        type: choice
+        options: [deploy, rollback]
+      version_tag:
+        description: "Version tag (e.g. v1.2.3)"
+        required: true
+        type: string
+      target_vm:
+        description: "Deployment target"
+        required: true
+        default: both
+        type: choice
+        options: [vm1, vm2, both]
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      deploy_action: ${{ steps.vars.outputs.deploy_action }}
+      target_vm: ${{ steps.vars.outputs.target_vm }}
+    steps:
+      - name: Resolve action variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "deploy_action=deploy" >> "$GITHUB_OUTPUT"
+            echo "target_vm=both" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version_tag }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
+            echo "target_vm=${{ inputs.target_vm }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Validate required secrets and vars
+        env:
+          VM1_SSH_HOST: ${{ secrets.VM1_SSH_HOST }}
+          VM1_SSH_PORT: ${{ secrets.VM1_SSH_PORT }}
+          VM1_SSH_USER: ${{ secrets.VM1_SSH_USER }}
+          VM1_SSH_PRIVATE_KEY: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+          VM1_DEPLOY_PATH: ${{ secrets.VM1_DEPLOY_PATH }}
+          VM2_SSH_HOST: ${{ secrets.VM2_SSH_HOST }}
+          VM2_SSH_PORT: ${{ secrets.VM2_SSH_PORT }}
+          VM2_SSH_USER: ${{ secrets.VM2_SSH_USER }}
+          VM2_SSH_PRIVATE_KEY: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
+          VM2_DEPLOY_PATH: ${{ secrets.VM2_DEPLOY_PATH }}
+        run: |
+          for key in \
+            VM1_SSH_HOST VM1_SSH_PORT VM1_SSH_USER VM1_SSH_PRIVATE_KEY VM1_DEPLOY_PATH \
+            VM2_SSH_HOST VM2_SSH_PORT VM2_SSH_USER VM2_SSH_PRIVATE_KEY VM2_DEPLOY_PATH
+          do
+            if [ -z "${!key}" ]; then
+              echo "Missing required secret: $key"
+              exit 1
+            fi
+          done
+
   verify-ci:
+    needs: preflight
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -52,7 +114,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push-yt-api:
-    needs: verify-ci
+    needs: [preflight, verify-ci]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,9 +130,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract tag name
-        id: tag
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
       - name: Build and push yt-api image
         uses: docker/build-push-action@v7
         with:
@@ -79,11 +139,12 @@ jobs:
           cache-from: type=gha,scope=yt-api
           cache-to: type=gha,mode=max,scope=yt-api
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-api:${{ steps.tag.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-api:${{ needs.preflight.outputs.version }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-api:latest
 
   build-and-push-yt-service:
-    needs: verify-ci
+    needs: [preflight, verify-ci]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,9 +159,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract tag name
-        id: tag
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
       - name: Build and push yt-service image
         uses: docker/build-push-action@v7
         with:
@@ -110,5 +168,101 @@ jobs:
           cache-from: type=gha,scope=yt-service
           cache-to: type=gha,mode=max,scope=yt-service
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-service:${{ steps.tag.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-service:${{ needs.preflight.outputs.version }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/yt-service:latest
+
+  deploy-vm2:
+    needs: [preflight, build-and-push-yt-api, build-and-push-yt-service]
+    if: needs.preflight.outputs.deploy_action == 'deploy' && (needs.preflight.outputs.target_vm == 'both' || needs.preflight.outputs.target_vm == 'vm2')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy VM2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM2_SSH_HOST }}
+          username: ${{ secrets.VM2_SSH_USER }}
+          key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM2_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM2_DEPLOY_PATH }}"
+            VERSION="${{ needs.preflight.outputs.version }}" DEPLOY_TIMEOUT_SECONDS="${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}" ./scripts/deploy-vm2.sh
+
+  deploy-vm1-after-vm2:
+    needs: [preflight, deploy-vm2]
+    if: needs.preflight.outputs.deploy_action == 'deploy' && needs.preflight.outputs.target_vm == 'both'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy VM1
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM1_SSH_HOST }}
+          username: ${{ secrets.VM1_SSH_USER }}
+          key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM1_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM1_DEPLOY_PATH }}"
+            VERSION="${{ needs.preflight.outputs.version }}" DEPLOY_TIMEOUT_SECONDS="${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}" ./scripts/deploy-vm1.sh
+
+  deploy-vm1-direct:
+    needs: [preflight, build-and-push-yt-api, build-and-push-yt-service]
+    if: needs.preflight.outputs.deploy_action == 'deploy' && needs.preflight.outputs.target_vm == 'vm1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy VM1
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM1_SSH_HOST }}
+          username: ${{ secrets.VM1_SSH_USER }}
+          key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM1_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM1_DEPLOY_PATH }}"
+            VERSION="${{ needs.preflight.outputs.version }}" DEPLOY_TIMEOUT_SECONDS="${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}" ./scripts/deploy-vm1.sh
+
+  rollback-vm2:
+    needs: preflight
+    if: needs.preflight.outputs.deploy_action == 'rollback' && (needs.preflight.outputs.target_vm == 'both' || needs.preflight.outputs.target_vm == 'vm2')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback VM2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM2_SSH_HOST }}
+          username: ${{ secrets.VM2_SSH_USER }}
+          key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM2_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM2_DEPLOY_PATH }}"
+            ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
+
+  rollback-vm1-after-vm2:
+    needs: [preflight, rollback-vm2]
+    if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'both'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback VM1
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM1_SSH_HOST }}
+          username: ${{ secrets.VM1_SSH_USER }}
+          key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM1_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM1_DEPLOY_PATH }}"
+            ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
+
+  rollback-vm1-direct:
+    needs: preflight
+    if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'vm1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback VM1
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VM1_SSH_HOST }}
+          username: ${{ secrets.VM1_SSH_USER }}
+          key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM1_SSH_PORT }}
+          script: |
+            cd "${{ secrets.VM1_DEPLOY_PATH }}"
+            ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"

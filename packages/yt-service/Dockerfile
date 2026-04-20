@@ -62,7 +62,10 @@ USER appuser
 VOLUME /home/appuser/Downloads/yt-downloader
 ENV GRPC_HOST=0.0.0.0
 ENV GRPC_PORT=50051
+ENV INTERNAL_HTTP_HOST=0.0.0.0
+ENV INTERNAL_HTTP_PORT=8081
 EXPOSE 50051
+EXPOSE 8081
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD node -e "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"
 WORKDIR /app/packages/yt-service

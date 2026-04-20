@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::env;
+use std::fmt;
 
 fn default_host() -> String {
     "0.0.0.0".into()
@@ -37,6 +38,37 @@ fn default_download_dir() -> String {
     "/home/appuser/Downloads/yt-downloader".into()
 }
 
+fn default_file_delivery_mode() -> String {
+    "local".into()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileDeliveryMode {
+    Local,
+    Remote,
+}
+
+impl FileDeliveryMode {
+    fn from_env_value(raw: &str) -> Result<Self, String> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "local" => Ok(Self::Local),
+            "remote" => Ok(Self::Remote),
+            other => Err(format!(
+                "FILE_DELIVERY_MODE must be 'local' or 'remote', got '{other}'"
+            )),
+        }
+    }
+}
+
+impl fmt::Display for FileDeliveryMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local => write!(f, "local"),
+            Self::Remote => write!(f, "remote"),
+        }
+    }
+}
+
 /// Intermediate struct used by envy for env-var deserialization.
 /// `allowed_origins` is handled manually after parsing.
 #[derive(Deserialize)]
@@ -67,6 +99,12 @@ struct RawConfig {
 
     #[serde(default = "default_download_dir")]
     download_dir: String,
+
+    #[serde(default = "default_file_delivery_mode")]
+    file_delivery_mode: String,
+
+    internal_file_base_url: Option<String>,
+    internal_api_key: Option<String>,
 }
 
 pub struct Config {
@@ -80,6 +118,9 @@ pub struct Config {
     pub rate_limit_rpm: u32,
     pub allowed_origins: Vec<String>,
     pub download_dir: std::path::PathBuf,
+    pub file_delivery_mode: FileDeliveryMode,
+    pub internal_file_base_url: Option<String>,
+    pub internal_api_key: Option<String>,
 }
 
 fn default_allowed_origins() -> Vec<String> {
@@ -127,8 +168,20 @@ impl Config {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(default_rate_limit_rpm),
                 download_dir: env::var("DOWNLOAD_DIR").unwrap_or_else(|_| default_download_dir()),
+                file_delivery_mode: env::var("FILE_DELIVERY_MODE")
+                    .unwrap_or_else(|_| default_file_delivery_mode()),
+                internal_file_base_url: env::var("INTERNAL_FILE_BASE_URL").ok(),
+                internal_api_key: env::var("INTERNAL_API_KEY").ok(),
             }
         });
+
+        let file_delivery_mode = match FileDeliveryMode::from_env_value(&raw.file_delivery_mode) {
+            Ok(mode) => mode,
+            Err(msg) => {
+                tracing::error!(%msg, "Invalid configuration");
+                std::process::exit(1);
+            }
+        };
 
         let config = Self {
             yt_api_host: raw.yt_api_host,
@@ -141,6 +194,13 @@ impl Config {
             rate_limit_rpm: raw.rate_limit_rpm,
             allowed_origins: parse_allowed_origins(),
             download_dir: std::path::PathBuf::from(raw.download_dir),
+            file_delivery_mode,
+            internal_file_base_url: raw
+                .internal_file_base_url
+                .and_then(|v| if v.trim().is_empty() { None } else { Some(v) }),
+            internal_api_key: raw
+                .internal_api_key
+                .and_then(|v| if v.trim().is_empty() { None } else { Some(v) }),
         };
 
         if let Err(msg) = config.validate() {
@@ -158,6 +218,7 @@ impl Config {
             max_body_size_bytes = config.max_body_size_bytes,
             rate_limit_rpm = config.rate_limit_rpm,
             download_dir = %config.download_dir.display(),
+            file_delivery_mode = %config.file_delivery_mode,
             "Resolved yt-api config"
         );
 
@@ -177,6 +238,24 @@ impl Config {
                 "GRPC_TARGET must start with http:// or https://, got '{}'",
                 self.grpc_target
             ));
+        }
+
+        if self.file_delivery_mode == FileDeliveryMode::Remote {
+            let base_url = self
+                .internal_file_base_url
+                .as_deref()
+                .ok_or_else(|| {
+                    "INTERNAL_FILE_BASE_URL is required when FILE_DELIVERY_MODE=remote".to_string()
+                })?;
+            if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+                return Err(format!(
+                    "INTERNAL_FILE_BASE_URL must start with http:// or https://, got '{base_url}'"
+                ));
+            }
+
+            self.internal_api_key.as_deref().ok_or_else(|| {
+                "INTERNAL_API_KEY is required when FILE_DELIVERY_MODE=remote".to_string()
+            })?;
         }
 
         Ok(())
