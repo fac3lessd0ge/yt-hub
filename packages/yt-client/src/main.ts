@@ -9,6 +9,7 @@ import {
   Menu,
   nativeTheme,
   net,
+  screen,
   shell,
 } from "electron";
 import started from "electron-squirrel-startup";
@@ -35,10 +36,25 @@ interface HistoryEntry {
   downloadedAt: number;
 }
 
+interface WindowBounds {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  isMaximized: boolean;
+}
+
 interface StoreSchema {
   settings: Settings;
   downloadHistory: HistoryEntry[];
+  windowBounds: WindowBounds;
 }
+
+const DEFAULT_WINDOW_BOUNDS: WindowBounds = {
+  width: 1000,
+  height: 700,
+  isMaximized: false,
+};
 
 const MAX_HISTORY_ENTRIES = 500;
 
@@ -71,6 +87,17 @@ const store = new Store<StoreSchema>({
       type: "array",
       default: [],
     },
+    windowBounds: {
+      type: "object",
+      properties: {
+        width: { type: "number" },
+        height: { type: "number" },
+        x: { type: "number" },
+        y: { type: "number" },
+        isMaximized: { type: "boolean" },
+      },
+      default: DEFAULT_WINDOW_BOUNDS,
+    },
   },
 });
 
@@ -84,14 +111,60 @@ function resolveBackgroundColor(): string {
   return isDark ? DARK_BG : LIGHT_BG;
 }
 
+function isPositionOnScreen(x: number, y: number): boolean {
+  return screen.getAllDisplays().some(({ workArea }) => {
+    return (
+      x >= workArea.x &&
+      x <= workArea.x + workArea.width &&
+      y >= workArea.y &&
+      y <= workArea.y + workArea.height
+    );
+  });
+}
+
+function loadWindowBounds(): WindowBounds {
+  const bounds = store.get("windowBounds", DEFAULT_WINDOW_BOUNDS);
+  if (
+    typeof bounds.x === "number" &&
+    typeof bounds.y === "number" &&
+    !isPositionOnScreen(bounds.x, bounds.y)
+  ) {
+    return { ...bounds, x: undefined, y: undefined };
+  }
+  return bounds;
+}
+
+function createBoundsPersister(win: BrowserWindow): () => void {
+  let timer: NodeJS.Timeout | null = null;
+  return () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (win.isDestroyed()) return;
+      const isMaximized = win.isMaximized();
+      const { x, y, width, height } = win.getBounds();
+      store.set("windowBounds", {
+        width,
+        height,
+        x,
+        y,
+        isMaximized,
+      });
+    }, 300);
+  };
+}
+
 const createWindow = () => {
   if (process.platform !== "darwin") {
     Menu.setApplicationMenu(null);
   }
 
+  const bounds = loadWindowBounds();
+
   const mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 700,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
     show: false,
     backgroundColor: resolveBackgroundColor(),
     webPreferences: {
@@ -103,8 +176,17 @@ const createWindow = () => {
   });
 
   mainWindow.once("ready-to-show", () => {
+    if (bounds.isMaximized) {
+      mainWindow.maximize();
+    }
     mainWindow.show();
   });
+
+  const persistBounds = createBoundsPersister(mainWindow);
+  mainWindow.on("resize", persistBounds);
+  mainWindow.on("move", persistBounds);
+  mainWindow.on("maximize", persistBounds);
+  mainWindow.on("unmaximize", persistBounds);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
