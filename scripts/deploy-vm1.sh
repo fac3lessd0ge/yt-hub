@@ -23,6 +23,17 @@ if [ ! -f "./traefik/traefik.yml" ]; then
   exit 1
 fi
 
+mkdir -p ./traefik
+if [ -d "./traefik/acme.json" ]; then
+  error "./traefik/acme.json is a directory; remove it and use a regular file for Let's Encrypt storage."
+  exit 1
+fi
+if [ ! -f "./traefik/acme.json" ]; then
+  log "Creating empty ./traefik/acme.json for ACME (Traefik requires chmod 600)"
+  printf '%s\n' '{}' > ./traefik/acme.json
+fi
+chmod 600 ./traefik/acme.json
+
 if [ "${SKIP_GRPC_TUNNEL_CHECK:-0}" != "1" ]; then
   if command -v nc >/dev/null 2>&1; then
     if ! nc -z -w 3 127.0.0.1 15051 2>/dev/null; then

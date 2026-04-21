@@ -132,6 +132,9 @@ jobs:
             if [ -d "$DEP/traefik/traefik.yml" ]; then
               rm -rf "$DEP/traefik/traefik.yml"
             fi
+            if [ -f "$DEP/traefik/acme.json" ]; then
+              chmod 600 "$DEP/traefik/acme.json" || true
+            fi
 
       - name: Sync Traefik static config (VM1)
         if: inputs.vm_target == 'vm1'
