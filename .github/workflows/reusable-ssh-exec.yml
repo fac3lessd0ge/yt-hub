@@ -10,6 +10,9 @@ on:
       deploy_timeout_seconds:
         type: string
         default: "120"
+      compose_file:
+        required: true
+        type: string
     secrets:
       ssh_host:
         required: true
@@ -21,12 +24,19 @@ on:
         required: true
       ssh_private_key:
         required: true
+      ghcr_username:
+        required: true
+      ghcr_pat:
+        required: true
 
 jobs:
   ssh-exec:
     runs-on: ubuntu-latest
     steps:
-      - name: Run remote command
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Ensure deployment path exists on remote
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.ssh_host }}
@@ -34,6 +44,43 @@ jobs:
           key: ${{ secrets.ssh_private_key }}
           port: ${{ secrets.ssh_port }}
           script: |
+            set -euo pipefail
+            mkdir -p "${{ secrets.deploy_path }}"
+
+      - name: Sync deployment scripts to remote
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: scripts
+          target: ${{ secrets.deploy_path }}
+
+      - name: Sync docker compose file to remote
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: ${{ inputs.compose_file }}
+          target: ${{ secrets.deploy_path }}
+
+      - name: Run remote command
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          GHCR_USERNAME: ${{ secrets.ghcr_username }}
+          GHCR_PAT: ${{ secrets.ghcr_pat }}
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          envs: GHCR_USERNAME,GHCR_PAT
+          script: |
+            set -euo pipefail
             cd "${{ secrets.deploy_path }}"
             export DEPLOY_TIMEOUT_SECONDS="${{ inputs.deploy_timeout_seconds }}"
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             ${{ inputs.script_body }}
