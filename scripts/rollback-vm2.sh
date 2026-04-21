@@ -20,6 +20,8 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+ensure_host_downloads_dir_for_vm2 "$ENV_FILE"
+
 log "Rolling back VM2 to VERSION=${VERSION}"
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull "$SERVICE"
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$SERVICE"
