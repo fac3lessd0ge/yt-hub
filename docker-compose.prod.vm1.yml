@@ -3,11 +3,9 @@
 
 services:
   traefik:
-    image: traefik:v3.3
+    # v3.3 pins Docker API 1.24 and breaks against modern Docker daemons (min API 1.40+). v3.6+ negotiates API version.
+    image: traefik:v3.6
     restart: unless-stopped
-    environment:
-      # Host Docker often requires API >= 1.40; Traefik v3.3 may negotiate too old a client without this.
-      DOCKER_API_VERSION: "1.45"
     deploy:
       resources:
         limits:
