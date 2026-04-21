@@ -114,6 +114,35 @@ jobs:
           source: ${{ inputs.compose_file }}
           target: ${{ secrets.deploy_path }}
 
+      # VM1: Traefik bind-mounts ./traefik/traefik.yml. If the file was missing on first
+      # `docker compose up`, Docker may have created traefik.yml as a directory — fix and ship the real file from the repo (do not touch acme.json).
+      - name: Prepare Traefik static config path (VM1)
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          script: |
+            set -euo pipefail
+            DEP="${{ secrets.deploy_path }}"
+            mkdir -p "$DEP/traefik"
+            if [ -d "$DEP/traefik/traefik.yml" ]; then
+              rm -rf "$DEP/traefik/traefik.yml"
+            fi
+
+      - name: Sync Traefik static config (VM1)
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: traefik/traefik.yml
+          target: ${{ secrets.deploy_path }}
+
       - name: Set executable bits for synced scripts
         uses: appleboy/ssh-action@v1.2.2
         with:

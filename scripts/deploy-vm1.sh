@@ -14,6 +14,26 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+if [ -d "./traefik/traefik.yml" ]; then
+  error "./traefik/traefik.yml is a directory (Docker bind-mount quirk). Remove it and restore traefik.yml as a file, or re-run CD after syncing traefik/traefik.yml from the repo."
+  exit 1
+fi
+if [ ! -f "./traefik/traefik.yml" ]; then
+  error "./traefik/traefik.yml missing under deploy directory. CD should sync it from the repo for VM1."
+  exit 1
+fi
+
+if [ "${SKIP_GRPC_TUNNEL_CHECK:-0}" != "1" ]; then
+  if command -v nc >/dev/null 2>&1; then
+    if ! nc -z -w 3 127.0.0.1 15051 2>/dev/null; then
+      error "127.0.0.1:15051 is not reachable (gRPC tunnel to VM2 expected). Start the tunnel or set SKIP_GRPC_TUNNEL_CHECK=1 to deploy anyway."
+      exit 1
+    fi
+  else
+    log "nc not installed; skipping gRPC tunnel probe (install netcat-openbsd for preflight checks)"
+  fi
+fi
+
 log "Deploying VM1 with VERSION=${VERSION}"
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
