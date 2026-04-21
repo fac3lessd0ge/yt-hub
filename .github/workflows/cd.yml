@@ -209,13 +209,13 @@ jobs:
       )
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm2.sh
+    secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
       ssh_port: ${{ secrets.VM2_SSH_PORT }}
       ssh_user: ${{ secrets.VM2_SSH_USER }}
       deploy_path: ${{ secrets.VM2_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm2.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
 
   deploy-vm1-after-vm2:
@@ -223,13 +223,13 @@ jobs:
     if: needs.preflight.outputs.deploy_action == 'deploy' && needs.preflight.outputs.target_vm == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
 
   deploy-vm1-direct:
@@ -248,13 +248,13 @@ jobs:
       )
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
 
   rollback-vm2:
@@ -262,13 +262,13 @@ jobs:
     if: needs.preflight.outputs.deploy_action == 'rollback' && (needs.preflight.outputs.target_vm == 'both' || needs.preflight.outputs.target_vm == 'vm2')
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
       ssh_port: ${{ secrets.VM2_SSH_PORT }}
       ssh_user: ${{ secrets.VM2_SSH_USER }}
       deploy_path: ${{ secrets.VM2_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
 
   rollback-vm1-after-vm2:
@@ -276,13 +276,13 @@ jobs:
     if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
 
   rollback-vm1-direct:
@@ -290,11 +290,11 @@ jobs:
     if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'vm1'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
