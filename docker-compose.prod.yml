@@ -16,13 +16,14 @@ services:
         max-size: "10m"
         max-file: "5"
     command:
+      - "--configFile=/etc/traefik/traefik.yml"
       - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/acme.json:/acme/acme.json
     networks:
       - proxy

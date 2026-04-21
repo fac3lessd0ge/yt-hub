@@ -114,7 +114,8 @@ jobs:
           source: ${{ inputs.compose_file }}
           target: ${{ secrets.deploy_path }}
 
-      # VM1: Traefik bind-mounts ./traefik/traefik.yml. If the file was missing on first
+      # VM1: compose bind-mounts host ./traefik/traefik.yml into the container as /etc/traefik/traefik.yml.
+      # If the file was missing on first
       # `docker compose up`, Docker may have created traefik.yml as a directory — fix and ship the real file from the repo (do not touch acme.json).
       - name: Prepare Traefik static config path (VM1)
         if: inputs.vm_target == 'vm1'
