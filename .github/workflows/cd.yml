@@ -233,7 +233,15 @@ jobs:
 
   deploy-vm1-after-vm2:
     needs: [preflight, deploy-vm2]
-    if: needs.preflight.outputs.deploy_mode == 'deploy' && needs.preflight.outputs.deploy_target == 'both'
+    # Do not rely on implicit success(): it can be false when other jobs in the same
+    # workflow (e.g. skipped build-and-push on workflow_dispatch) are not success.
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.preflight.result == 'success' &&
+      needs.deploy-vm2.result == 'success' &&
+      needs.preflight.outputs.deploy_mode == 'deploy' &&
+      needs.preflight.outputs.deploy_target == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
@@ -298,7 +306,13 @@ jobs:
 
   rollback-vm1-after-vm2:
     needs: [preflight, rollback-vm2]
-    if: needs.preflight.outputs.deploy_mode == 'rollback' && needs.preflight.outputs.deploy_target == 'both'
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.preflight.result == 'success' &&
+      needs.rollback-vm2.result == 'success' &&
+      needs.preflight.outputs.deploy_mode == 'rollback' &&
+      needs.preflight.outputs.deploy_target == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
