@@ -37,6 +37,10 @@ fi
 log "Deploying VM1 with VERSION=${VERSION}"
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
+# Bind-mount for ./traefik/traefik.yml is fixed at container create time. If the host path was
+# once a directory and is now a file, the old Traefik container keeps failing until recreated.
+log "Recreating Traefik so bind-mounts match current host paths"
+VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps --force-recreate traefik
 
 TIMEOUT="${DEPLOY_TIMEOUT_SECONDS:-120}"
 INTERVAL=3
