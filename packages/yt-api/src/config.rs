@@ -42,6 +42,11 @@ fn default_file_delivery_mode() -> String {
     "local".into()
 }
 
+/// Mirrors `INTERNAL_API_KEY_MIN_LEN` in `packages/yt-service/src/config.ts`.
+/// Both sides of the shared-secret contract reject keys shorter than this at startup,
+/// so a misconfigured operator gets a loud failure instead of opaque 403s in production.
+const INTERNAL_API_KEY_MIN_LEN: usize = 16;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileDeliveryMode {
     Local,
@@ -253,9 +258,15 @@ impl Config {
                 ));
             }
 
-            self.internal_api_key.as_deref().ok_or_else(|| {
+            let api_key = self.internal_api_key.as_deref().ok_or_else(|| {
                 "INTERNAL_API_KEY is required when FILE_DELIVERY_MODE=remote".to_string()
             })?;
+
+            if api_key.len() < INTERNAL_API_KEY_MIN_LEN {
+                return Err(format!(
+                    "INTERNAL_API_KEY must be at least {INTERNAL_API_KEY_MIN_LEN} characters when FILE_DELIVERY_MODE=remote (use e.g. openssl rand -hex 32)"
+                ));
+            }
         }
 
         Ok(())
@@ -267,5 +278,60 @@ impl Config {
 
     pub fn governor_period_secs(&self) -> u64 {
         60u64 / (self.rate_limit_rpm as u64).max(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn remote_config_with_key(key: Option<&str>) -> Config {
+        Config {
+            yt_api_host: "0.0.0.0".into(),
+            yt_api_port: 3000,
+            grpc_target: "http://yt-service:50051".into(),
+            log_level: "info".into(),
+            request_timeout_ms: 30_000,
+            streaming_timeout_secs: 600,
+            max_body_size_bytes: 1_048_576,
+            rate_limit_rpm: 30,
+            allowed_origins: default_allowed_origins(),
+            download_dir: std::path::PathBuf::from("/tmp"),
+            file_delivery_mode: FileDeliveryMode::Remote,
+            internal_file_base_url: Some("http://10.0.2.15:8081".into()),
+            internal_api_key: key.map(String::from),
+        }
+    }
+
+    #[test]
+    fn remote_mode_requires_internal_api_key() {
+        let err = remote_config_with_key(None).validate().unwrap_err();
+        assert!(err.contains("INTERNAL_API_KEY is required"));
+    }
+
+    #[test]
+    fn remote_mode_rejects_too_short_internal_api_key() {
+        let err = remote_config_with_key(Some("short"))
+            .validate()
+            .unwrap_err();
+        assert!(
+            err.contains("at least 16 characters"),
+            "expected min-length error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn remote_mode_accepts_min_length_internal_api_key() {
+        remote_config_with_key(Some("0123456789abcdef"))
+            .validate()
+            .unwrap();
+    }
+
+    #[test]
+    fn local_mode_does_not_require_internal_api_key() {
+        let mut cfg = remote_config_with_key(None);
+        cfg.file_delivery_mode = FileDeliveryMode::Local;
+        cfg.internal_file_base_url = None;
+        cfg.validate().unwrap();
     }
 }
