@@ -220,6 +220,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm2.yml
+      vm_target: vm2
       script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm2.sh
     secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
@@ -237,6 +238,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm1.yml
+      vm_target: vm1
       script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
     secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
@@ -265,6 +267,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm1.yml
+      vm_target: vm1
       script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
     secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
@@ -282,6 +285,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm2.yml
+      vm_target: vm2
       script_body: ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
     secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
@@ -299,6 +303,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm1.yml
+      vm_target: vm1
       script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
     secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
@@ -316,6 +321,7 @@ jobs:
     with:
       deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
       compose_file: docker-compose.prod.vm1.yml
+      vm_target: vm1
       script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
     secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
