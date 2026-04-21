@@ -6,7 +6,7 @@ import type { IInputReader } from "~/input";
 import { type InputValidator, ValidationError } from "~/input";
 import type { IMetadataFetcher } from "~/metadata";
 import { MetadataError } from "~/metadata";
-import type { OutputPathBuilder } from "~/output";
+import { buildStorageStem, type OutputPathBuilder } from "~/output";
 
 export class Application {
   constructor(
@@ -35,8 +35,9 @@ export class Application {
         .find((f) => f.id === input.formatId);
       if (!formatInfo) throw new Error(`Unknown format: ${input.formatId}`);
       this.fileSystem.mkdirRecursive(input.destination);
-      const outputPath = this.outputPathBuilder.build(
-        input.name,
+      const stem = buildStorageStem(input.link, input.formatId, input.name);
+      const outputPath = this.outputPathBuilder.buildStorage(
+        stem,
         input.formatId,
         input.destination,
       );

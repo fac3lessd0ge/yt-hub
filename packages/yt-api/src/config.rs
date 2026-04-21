@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::env;
+use std::fmt;
 
 fn default_host() -> String {
     "0.0.0.0".into()
@@ -37,6 +38,42 @@ fn default_download_dir() -> String {
     "/home/appuser/Downloads/yt-downloader".into()
 }
 
+fn default_file_delivery_mode() -> String {
+    "local".into()
+}
+
+/// Mirrors `INTERNAL_API_KEY_MIN_LEN` in `packages/yt-service/src/config.ts`.
+/// Both sides of the shared-secret contract reject keys shorter than this at startup,
+/// so a misconfigured operator gets a loud failure instead of opaque 403s in production.
+const INTERNAL_API_KEY_MIN_LEN: usize = 16;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileDeliveryMode {
+    Local,
+    Remote,
+}
+
+impl FileDeliveryMode {
+    fn from_env_value(raw: &str) -> Result<Self, String> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "local" => Ok(Self::Local),
+            "remote" => Ok(Self::Remote),
+            other => Err(format!(
+                "FILE_DELIVERY_MODE must be 'local' or 'remote', got '{other}'"
+            )),
+        }
+    }
+}
+
+impl fmt::Display for FileDeliveryMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local => write!(f, "local"),
+            Self::Remote => write!(f, "remote"),
+        }
+    }
+}
+
 /// Intermediate struct used by envy for env-var deserialization.
 /// `allowed_origins` is handled manually after parsing.
 #[derive(Deserialize)]
@@ -67,6 +104,12 @@ struct RawConfig {
 
     #[serde(default = "default_download_dir")]
     download_dir: String,
+
+    #[serde(default = "default_file_delivery_mode")]
+    file_delivery_mode: String,
+
+    internal_file_base_url: Option<String>,
+    internal_api_key: Option<String>,
 }
 
 pub struct Config {
@@ -80,6 +123,9 @@ pub struct Config {
     pub rate_limit_rpm: u32,
     pub allowed_origins: Vec<String>,
     pub download_dir: std::path::PathBuf,
+    pub file_delivery_mode: FileDeliveryMode,
+    pub internal_file_base_url: Option<String>,
+    pub internal_api_key: Option<String>,
 }
 
 fn default_allowed_origins() -> Vec<String> {
@@ -127,8 +173,20 @@ impl Config {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(default_rate_limit_rpm),
                 download_dir: env::var("DOWNLOAD_DIR").unwrap_or_else(|_| default_download_dir()),
+                file_delivery_mode: env::var("FILE_DELIVERY_MODE")
+                    .unwrap_or_else(|_| default_file_delivery_mode()),
+                internal_file_base_url: env::var("INTERNAL_FILE_BASE_URL").ok(),
+                internal_api_key: env::var("INTERNAL_API_KEY").ok(),
             }
         });
+
+        let file_delivery_mode = match FileDeliveryMode::from_env_value(&raw.file_delivery_mode) {
+            Ok(mode) => mode,
+            Err(msg) => {
+                tracing::error!(%msg, "Invalid configuration");
+                std::process::exit(1);
+            }
+        };
 
         let config = Self {
             yt_api_host: raw.yt_api_host,
@@ -141,6 +199,13 @@ impl Config {
             rate_limit_rpm: raw.rate_limit_rpm,
             allowed_origins: parse_allowed_origins(),
             download_dir: std::path::PathBuf::from(raw.download_dir),
+            file_delivery_mode,
+            internal_file_base_url: raw
+                .internal_file_base_url
+                .and_then(|v| if v.trim().is_empty() { None } else { Some(v) }),
+            internal_api_key: raw
+                .internal_api_key
+                .and_then(|v| if v.trim().is_empty() { None } else { Some(v) }),
         };
 
         if let Err(msg) = config.validate() {
@@ -158,6 +223,7 @@ impl Config {
             max_body_size_bytes = config.max_body_size_bytes,
             rate_limit_rpm = config.rate_limit_rpm,
             download_dir = %config.download_dir.display(),
+            file_delivery_mode = %config.file_delivery_mode,
             "Resolved yt-api config"
         );
 
@@ -179,6 +245,30 @@ impl Config {
             ));
         }
 
+        if self.file_delivery_mode == FileDeliveryMode::Remote {
+            let base_url = self
+                .internal_file_base_url
+                .as_deref()
+                .ok_or_else(|| {
+                    "INTERNAL_FILE_BASE_URL is required when FILE_DELIVERY_MODE=remote".to_string()
+                })?;
+            if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+                return Err(format!(
+                    "INTERNAL_FILE_BASE_URL must start with http:// or https://, got '{base_url}'"
+                ));
+            }
+
+            let api_key = self.internal_api_key.as_deref().ok_or_else(|| {
+                "INTERNAL_API_KEY is required when FILE_DELIVERY_MODE=remote".to_string()
+            })?;
+
+            if api_key.len() < INTERNAL_API_KEY_MIN_LEN {
+                return Err(format!(
+                    "INTERNAL_API_KEY must be at least {INTERNAL_API_KEY_MIN_LEN} characters when FILE_DELIVERY_MODE=remote (use e.g. openssl rand -hex 32)"
+                ));
+            }
+        }
+
         Ok(())
     }
 
@@ -188,5 +278,60 @@ impl Config {
 
     pub fn governor_period_secs(&self) -> u64 {
         60u64 / (self.rate_limit_rpm as u64).max(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn remote_config_with_key(key: Option<&str>) -> Config {
+        Config {
+            yt_api_host: "0.0.0.0".into(),
+            yt_api_port: 3000,
+            grpc_target: "http://yt-service:50051".into(),
+            log_level: "info".into(),
+            request_timeout_ms: 30_000,
+            streaming_timeout_secs: 600,
+            max_body_size_bytes: 1_048_576,
+            rate_limit_rpm: 30,
+            allowed_origins: default_allowed_origins(),
+            download_dir: std::path::PathBuf::from("/tmp"),
+            file_delivery_mode: FileDeliveryMode::Remote,
+            internal_file_base_url: Some("http://10.0.2.15:8081".into()),
+            internal_api_key: key.map(String::from),
+        }
+    }
+
+    #[test]
+    fn remote_mode_requires_internal_api_key() {
+        let err = remote_config_with_key(None).validate().unwrap_err();
+        assert!(err.contains("INTERNAL_API_KEY is required"));
+    }
+
+    #[test]
+    fn remote_mode_rejects_too_short_internal_api_key() {
+        let err = remote_config_with_key(Some("short"))
+            .validate()
+            .unwrap_err();
+        assert!(
+            err.contains("at least 16 characters"),
+            "expected min-length error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn remote_mode_accepts_min_length_internal_api_key() {
+        remote_config_with_key(Some("0123456789abcdef"))
+            .validate()
+            .unwrap();
+    }
+
+    #[test]
+    fn local_mode_does_not_require_internal_api_key() {
+        let mut cfg = remote_config_with_key(None);
+        cfg.file_delivery_mode = FileDeliveryMode::Local;
+        cfg.internal_file_base_url = None;
+        cfg.validate().unwrap();
     }
 }

@@ -42,7 +42,7 @@ async fn formats_returns_200_with_formats() {
 #[tokio::test]
 async fn formats_grpc_error_returns_500() {
     let mock = common::MockGrpcClient::builder()
-        .with_list_formats(|| Err(tonic::Status::internal("db error")))
+        .with_list_formats(|| Err(Box::new(tonic::Status::internal("db error"))))
         .build();
     let app = common::make_app(mock);
 

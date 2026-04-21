@@ -14,6 +14,8 @@ export class DownloadHandler
     private downloadService: DownloadService,
     private errorMapper: ErrorMapper,
     private responseMapper: ResponseMapper,
+    /** When the client omits `destination`, files go here (must match yt-api DOWNLOAD_DIR for local file delivery). */
+    private readonly defaultDownloadDestination: string,
   ) {}
 
   async handle(
@@ -22,12 +24,18 @@ export class DownloadHandler
     signal?: AbortSignal,
   ) {
     try {
+      const trimmed = request.destination?.trim();
+      const destination =
+        trimmed && trimmed.length > 0
+          ? trimmed
+          : this.defaultDownloadDestination;
+
       const result = await this.downloadService.download(
         {
           link: request.link,
           format: request.format,
           name: request.name,
-          destination: request.destination,
+          destination,
           backend: request.backend,
         },
         (progress) => {

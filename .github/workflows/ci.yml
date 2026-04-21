@@ -135,7 +135,13 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build and start stack
         run: |
-          echo "DOWNLOAD_DIR=./downloads" > .env
+          # Minimal .env for compose (no secrets). Matches yt-service loadConfig default (local) and
+          # yt-api → yt-service DNS name inside the Docker network (not localhost).
+          {
+            echo "DOWNLOAD_DIR=./downloads"
+            echo "FILE_DELIVERY_MODE=local"
+            echo "GRPC_TARGET=http://yt-service:50051"
+          } > .env
           mkdir -p downloads
           docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
         timeout-minutes: 10

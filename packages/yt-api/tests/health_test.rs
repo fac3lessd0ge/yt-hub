@@ -58,7 +58,7 @@ async fn health_deep_ok_when_grpc_reachable() {
 #[tokio::test]
 async fn health_deep_503_when_grpc_unreachable() {
     let mock = common::MockGrpcClient::builder()
-        .with_list_backends(|| Err(tonic::Status::unavailable("connection refused")))
+        .with_list_backends(|| Err(Box::new(tonic::Status::unavailable("connection refused"))))
         .build();
     let app = common::make_app(mock);
 

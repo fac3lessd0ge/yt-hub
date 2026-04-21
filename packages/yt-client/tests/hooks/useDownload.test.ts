@@ -333,7 +333,7 @@ describe("useDownload", () => {
     // Save should have been called after streamDownload resolved
     expect(window.electronAPI?.saveDownload).toHaveBeenCalledWith(
       "http://localhost:3000/api/downloads/test.mp3",
-      "test.mp3",
+      "Video.mp3",
       undefined,
     );
 

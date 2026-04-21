@@ -3,6 +3,8 @@ import type { DownloadService, ProgressCallback } from "yt-downloader";
 import { DownloadHandler, MetadataHandler } from "~/handlers";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
 
+const DEFAULT_DEST = "/tmp/yt-service-test-downloads";
+
 function fakeDownloadServiceThatThrows(error: Error): DownloadService {
   return {
     getMetadata: async () => {
@@ -51,6 +53,7 @@ describe("Handler error scenarios", () => {
         fakeDownloadServiceThatThrows(error),
         new ErrorMapper(),
         new ResponseMapper(),
+        DEFAULT_DEST,
       );
 
       const messages: any[] = [];
@@ -82,6 +85,7 @@ describe("Handler error scenarios", () => {
         fakeDownloadServiceThatThrows(error),
         new ErrorMapper(),
         new ResponseMapper(),
+        DEFAULT_DEST,
       );
 
       const messages: any[] = [];
@@ -113,6 +117,7 @@ describe("Handler error scenarios", () => {
         service,
         new ErrorMapper(),
         new ResponseMapper(),
+        DEFAULT_DEST,
       );
 
       const messages: any[] = [];
