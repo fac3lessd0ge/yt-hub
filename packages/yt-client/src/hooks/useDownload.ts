@@ -1,6 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { useSettings } from "@/hooks/useSettings";
-import { getBaseUrl } from "@/lib/apiClient";
+import {
+  resolveDownloadFetchUrl,
+  suggestedDownloadFilename,
+} from "@/lib/downloadArtifact";
 import { getFormatType } from "@/lib/formatType";
 import { streamDownload } from "@/lib/sse";
 import type {
@@ -72,8 +75,8 @@ export function useDownload() {
       setState("saving");
 
       const data = completeData as DownloadComplete;
-      const filename = data.download_url.split("/").pop() ?? "download";
-      const fullUrl = `${getBaseUrl()}${data.download_url}`;
+      const filename = suggestedDownloadFilename(data);
+      const fullUrl = resolveDownloadFetchUrl(data);
 
       try {
         const destDir = settings?.defaultDownloadDir ?? undefined;

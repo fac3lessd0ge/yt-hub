@@ -1,0 +1,27 @@
+# VM2 production compose: yt-service + downloads + internal HTTP
+# Usage: VERSION=v0.4.0 docker compose -f docker-compose.prod.vm2.yml --env-file .env.prod.vm2 up -d
+
+services:
+  yt-service:
+    image: ghcr.io/fac3lessd0ge/yt-service:${VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ${VM2_ENV_FILE:-.env.prod.vm2}
+    volumes:
+      - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader
+    healthcheck:
+      # Requires INTERNAL_API_KEY from env_file; probes internal HTTP (not raw gRPC).
+      test:
+        [
+          "CMD-SHELL",
+          'curl -fsS -H "x-internal-api-key: $$INTERNAL_API_KEY" http://127.0.0.1:8081/internal/health || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    stop_grace_period: 10s
+    # Bind to loopback on the host by default so gRPC/internal HTTP are not exposed on a public NIC.
+    ports:
+      - "127.0.0.1:${VM2_GRPC_BIND:-50051}:50051"
+      - "127.0.0.1:${VM2_INTERNAL_HTTP_BIND:-8081}:8081"

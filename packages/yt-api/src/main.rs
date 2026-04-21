@@ -19,9 +19,7 @@ use std::net::SocketAddr;
 use yt_api::grpc::GrpcClient;
 use yt_api::AppState;
 use yt_api::middleware::rateLimit::build_governor_layer;
-
-mod config;
-use config::Config;
+use yt_api::config::Config;
 
 async fn handle_timeout_error(err: BoxError) -> impl IntoResponse {
     if err.is::<tower::timeout::error::Elapsed>() {
@@ -145,11 +143,21 @@ async fn main() {
 
     let downloads_dir = config.download_dir.clone();
 
+    let http_client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(config.streaming_timeout_secs))
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .build()
+        .expect("Failed to build HTTP client");
+
+    let file_delivery = yt_api::file_delivery::build(&config, http_client);
+
     let state = AppState {
         grpc_client,
         shutting_down: Arc::clone(&shutting_down),
         metrics_handle,
         downloads_dir,
+        file_delivery,
     };
 
     let regular_timeout = Duration::from_millis(config.request_timeout_ms);

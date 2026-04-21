@@ -59,7 +59,7 @@ describe("DownloadService", () => {
 
     expect(result.metadata.title).toBe("Test Video");
     expect(result.metadata.authorName).toBe("Test Channel");
-    expect(result.outputPath).toContain("test-song.mp3");
+    expect(result.outputPath).toMatch(/[a-f0-9]{32}\.mp3$/);
     expect(result.format.id).toBe("mp3");
   });
 

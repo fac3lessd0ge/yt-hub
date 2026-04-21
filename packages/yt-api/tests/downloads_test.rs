@@ -142,6 +142,10 @@ async fn download_complete_event() {
 
     assert!(text.contains("event: complete"), "expected event: complete in SSE:\n{text}");
     assert!(text.contains("/tmp/video.mp4"), "expected output_path in SSE:\n{text}");
+    assert!(
+        text.contains("/api/downloads/") && text.contains("video"),
+        "expected download_url in SSE:\n{text}"
+    );
 }
 
 #[tokio::test]
@@ -178,7 +182,7 @@ async fn download_error_event() {
 #[tokio::test]
 async fn download_grpc_error_returns_503() {
     let mock = common::MockGrpcClient::builder()
-        .with_download(|_req| Err(tonic::Status::unavailable("backend down")))
+        .with_download(|_req| Err(Box::new(tonic::Status::unavailable("backend down"))))
         .build();
     let app = common::make_app(mock);
 

@@ -138,7 +138,8 @@ GitHub Actions runs on every pull request to `main` or `dev`:
 
 ### CD (Releases)
 
-- Tag-triggered (`v*.*.*`) workflow publishes Docker images to GHCR
+- Tag-triggered (`v*.*.*`) workflow builds Docker images in GitHub runner, publishes to GHCR, then deploys VM2 -> VM1 over SSH
+- `workflow_dispatch` supports manual deploy/rollback by tag (`action`, `version_tag`, `target_vm`)
 - Dependabot keeps npm, Cargo, and GitHub Actions dependencies up to date (weekly, targeting `dev`)
 - Weekly security scanning via `npm audit` and `cargo audit` (also runs on PRs)
 - SBOM generation (CycloneDX) and `cargo-deny` advisory/license scanning in the security workflow
@@ -165,7 +166,11 @@ docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
 
 ## Production Deployment
 
-Production uses Traefik as a reverse proxy with automatic Let's Encrypt TLS.
+Production supports:
+- single-host fallback: `docker-compose.prod.yml`
+- two-VM rollout: VM1 (`docker-compose.prod.vm1.yml`) + VM2 (`docker-compose.prod.vm2.yml`)
+
+In two-VM mode, VM1 is the only public entrypoint. `yt-api` stays public-facing and keeps the same external download URL, while file bytes are streamed from VM2 internal HTTP with `INTERNAL_API_KEY`.
 
 ```bash
 # First-time setup
@@ -181,6 +186,19 @@ bash scripts/rollback.sh v1.1.0
 ```
 
 See [`docs/deploymentRunbook.md`](docs/deploymentRunbook.md) for the full deployment guide.
+
+### Two-VM deploy (manual fallback)
+
+```bash
+# VM2 first
+cp .env.prod.vm2.example .env.prod.vm2
+VERSION=v1.3.0 bash scripts/deploy-vm2.sh
+
+# VM1 second
+cp .env.prod.vm1.example .env.prod.vm1
+touch traefik/acme.json && chmod 600 traefik/acme.json
+VERSION=v1.3.0 bash scripts/deploy-vm1.sh
+```
 
 ## Testing
 
@@ -221,8 +239,13 @@ Each package is configured via environment variables. See `.env.example` files i
 | `MAX_BODY_SIZE_BYTES` | yt-api | `1048576` | Maximum request body size in bytes |
 | `RATE_LIMIT_RPM` | yt-api | `30` | Rate limit: requests per minute per IP |
 | `DOWNLOAD_DIR` | yt-api | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
+| `FILE_DELIVERY_MODE` | yt-api | `local` | `local` serves from local disk, `remote` streams from VM2 internal HTTP |
+| `INTERNAL_FILE_BASE_URL` | yt-api | — | Base URL of VM2 internal HTTP service (required in `remote`) |
+| `INTERNAL_API_KEY` | yt-api/yt-service | — | Shared secret for VM1->VM2 internal endpoints |
 | `VITE_API_BASE_URL` | yt-client | `http://localhost:3000` | yt-api base URL |
 | `YT_HUB_API_URL` | yt-client | — | Electron runtime override for API base URL |
+| `INTERNAL_HTTP_HOST` | yt-service | `0.0.0.0` | Internal HTTP bind address on VM2 |
+| `INTERNAL_HTTP_PORT` | yt-service | `8081` | Internal HTTP port used by VM1 for file proxy and health |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
 
