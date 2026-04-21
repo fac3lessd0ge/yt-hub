@@ -30,21 +30,27 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.vars.outputs.version }}
-      deploy_action: ${{ steps.vars.outputs.deploy_action }}
-      target_vm: ${{ steps.vars.outputs.target_vm }}
+      deploy_mode: ${{ steps.vars.outputs.deploy_mode }}
+      deploy_target: ${{ steps.vars.outputs.deploy_target }}
     steps:
       - name: Resolve action variables
         id: vars
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-            echo "deploy_action=deploy" >> "$GITHUB_OUTPUT"
-            echo "target_vm=both" >> "$GITHUB_OUTPUT"
+            echo "deploy_mode=deploy" >> "$GITHUB_OUTPUT"
+            echo "deploy_target=both" >> "$GITHUB_OUTPUT"
           else
             echo "version=${{ inputs.version_tag }}" >> "$GITHUB_OUTPUT"
-            echo "deploy_action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
-            echo "target_vm=${{ inputs.target_vm }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_mode=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_target=${{ inputs.target_vm }}" >> "$GITHUB_OUTPUT"
           fi
+      - name: Print deployment intent
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "version=${{ steps.vars.outputs.version }}"
+          echo "deploy_mode=${{ steps.vars.outputs.deploy_mode }}"
+          echo "deploy_target=${{ steps.vars.outputs.deploy_target }}"
       - name: Validate version tag (semver)
         env:
           VERSION_TAG: ${{ steps.vars.outputs.version }}
@@ -65,10 +71,13 @@ jobs:
           VM2_SSH_USER: ${{ secrets.VM2_SSH_USER }}
           VM2_SSH_PRIVATE_KEY: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
           VM2_DEPLOY_PATH: ${{ secrets.VM2_DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
         run: |
           for key in \
             VM1_SSH_HOST VM1_SSH_PORT VM1_SSH_USER VM1_SSH_PRIVATE_KEY VM1_DEPLOY_PATH \
-            VM2_SSH_HOST VM2_SSH_PORT VM2_SSH_USER VM2_SSH_PRIVATE_KEY VM2_DEPLOY_PATH
+            VM2_SSH_HOST VM2_SSH_PORT VM2_SSH_USER VM2_SSH_PRIVATE_KEY VM2_DEPLOY_PATH \
+            GHCR_USERNAME GHCR_PAT
           do
             if [ -z "${!key}" ]; then
               echo "Missing required secret: $key"
@@ -198,8 +207,8 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
-      needs.preflight.outputs.deploy_action == 'deploy' &&
-      (needs.preflight.outputs.target_vm == 'both' || needs.preflight.outputs.target_vm == 'vm2') &&
+      needs.preflight.outputs.deploy_mode == 'deploy' &&
+      (needs.preflight.outputs.deploy_target == 'both' || needs.preflight.outputs.deploy_target == 'vm2') &&
       (
         github.event_name == 'workflow_dispatch' ||
         (
@@ -209,36 +218,42 @@ jobs:
       )
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm2.yml
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm2.sh
+    secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
       ssh_port: ${{ secrets.VM2_SSH_PORT }}
       ssh_user: ${{ secrets.VM2_SSH_USER }}
       deploy_path: ${{ secrets.VM2_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm2.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
 
   deploy-vm1-after-vm2:
     needs: [preflight, deploy-vm2]
-    if: needs.preflight.outputs.deploy_action == 'deploy' && needs.preflight.outputs.target_vm == 'both'
+    if: needs.preflight.outputs.deploy_mode == 'deploy' && needs.preflight.outputs.deploy_target == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm1.yml
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
 
   deploy-vm1-direct:
     needs: [preflight, build-and-push-yt-api, build-and-push-yt-service]
     if: |
       always() &&
       needs.preflight.result == 'success' &&
-      needs.preflight.outputs.deploy_action == 'deploy' &&
-      needs.preflight.outputs.target_vm == 'vm1' &&
+      needs.preflight.outputs.deploy_mode == 'deploy' &&
+      needs.preflight.outputs.deploy_target == 'vm1' &&
       (
         github.event_name == 'workflow_dispatch' ||
         (
@@ -248,53 +263,65 @@ jobs:
       )
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm1.yml
+      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: VERSION="${{ needs.preflight.outputs.version }}" ./scripts/deploy-vm1.sh
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
 
   rollback-vm2:
     needs: preflight
-    if: needs.preflight.outputs.deploy_action == 'rollback' && (needs.preflight.outputs.target_vm == 'both' || needs.preflight.outputs.target_vm == 'vm2')
+    if: needs.preflight.outputs.deploy_mode == 'rollback' && (needs.preflight.outputs.deploy_target == 'both' || needs.preflight.outputs.deploy_target == 'vm2')
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm2.yml
+      script_body: ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM2_SSH_HOST }}
       ssh_port: ${{ secrets.VM2_SSH_PORT }}
       ssh_user: ${{ secrets.VM2_SSH_USER }}
       deploy_path: ${{ secrets.VM2_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm2.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM2_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
 
   rollback-vm1-after-vm2:
     needs: [preflight, rollback-vm2]
-    if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'both'
+    if: needs.preflight.outputs.deploy_mode == 'rollback' && needs.preflight.outputs.deploy_target == 'both'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm1.yml
+      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
 
   rollback-vm1-direct:
     needs: preflight
-    if: needs.preflight.outputs.deploy_action == 'rollback' && needs.preflight.outputs.target_vm == 'vm1'
+    if: needs.preflight.outputs.deploy_mode == 'rollback' && needs.preflight.outputs.deploy_target == 'vm1'
     uses: ./.github/workflows/reusable-ssh-exec.yml
     with:
+      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
+      compose_file: docker-compose.prod.vm1.yml
+      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
+    secrets:
       ssh_host: ${{ secrets.VM1_SSH_HOST }}
       ssh_port: ${{ secrets.VM1_SSH_PORT }}
       ssh_user: ${{ secrets.VM1_SSH_USER }}
       deploy_path: ${{ secrets.VM1_DEPLOY_PATH }}
-      deploy_timeout_seconds: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '120' }}
-      script_body: ./scripts/rollback-vm1.sh "${{ needs.preflight.outputs.version }}"
-    secrets:
       ssh_private_key: ${{ secrets.VM1_SSH_PRIVATE_KEY }}
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_pat: ${{ secrets.GHCR_PAT }}
