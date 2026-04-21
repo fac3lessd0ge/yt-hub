@@ -57,7 +57,12 @@ beforeAll(async () => {
     new MetadataHandler(service, responseMapper),
     new FormatsHandler(service, responseMapper),
     new BackendsHandler(service),
-    new DownloadHandler(service, errorMapper, responseMapper),
+    new DownloadHandler(
+      service,
+      errorMapper,
+      responseMapper,
+      "/tmp/yt-service-test-downloads",
+    ),
   );
 
   port = 0;

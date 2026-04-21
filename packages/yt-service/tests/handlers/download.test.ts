@@ -27,6 +27,8 @@ function fakeDownloadService(options?: {
   } as unknown as DownloadService;
 }
 
+const DEFAULT_DEST = "/tmp/yt-service-test-downloads";
+
 describe("DownloadHandler", () => {
   it("streams progress updates and completion", async () => {
     const progressUpdates = [
@@ -37,6 +39,7 @@ describe("DownloadHandler", () => {
       fakeDownloadService({ progressUpdates }),
       new ErrorMapper(),
       new ResponseMapper(),
+      DEFAULT_DEST,
     );
 
     const messages: any[] = [];
@@ -68,6 +71,7 @@ describe("DownloadHandler", () => {
       fakeDownloadService({ throwError: new ValidationError("bad link") }),
       new ErrorMapper(),
       new ResponseMapper(),
+      DEFAULT_DEST,
     );
 
     const messages: any[] = [];
@@ -95,6 +99,7 @@ describe("DownloadHandler", () => {
       fakeDownloadService(),
       new ErrorMapper(),
       new ResponseMapper(),
+      DEFAULT_DEST,
     );
 
     const messages: any[] = [];
@@ -105,5 +110,31 @@ describe("DownloadHandler", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].complete).toBeDefined();
+  });
+
+  it("passes default destination when request has no destination", async () => {
+    let received: { destination?: string } | undefined;
+    const service = {
+      download: async (params: { destination?: string }) => {
+        received = params;
+        return {
+          outputPath: "/tmp/test.mp3",
+          metadata: { title: "T", authorName: "A" },
+          format: { id: "mp3", label: "MP3 audio" },
+        };
+      },
+    } as unknown as DownloadService;
+
+    const handler = new DownloadHandler(
+      service,
+      new ErrorMapper(),
+      new ResponseMapper(),
+      DEFAULT_DEST,
+    );
+    await handler.handle(
+      { link: "https://youtube.com/watch?v=abc", format: "mp3", name: "test" },
+      () => {},
+    );
+    expect(received?.destination).toBe(DEFAULT_DEST);
   });
 });

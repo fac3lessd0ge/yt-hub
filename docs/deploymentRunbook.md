@@ -1,6 +1,9 @@
 # Production Deployment Runbook
 
-This runbook covers deploying yt-hub to a VPS, performing updates, rolling back, and troubleshooting.
+This runbook covers:
+- single-host deployment (legacy-compatible)
+- two-VM deployment (VM1 public edge + VM2 internal downloader)
+- automated CD deploy/rollback from GitHub Actions
 
 ---
 
@@ -14,6 +17,8 @@ This runbook covers deploying yt-hub to a VPS, performing updates, rolling back,
 | RAM | 1 GB |
 | Disk | 10 GB |
 | OS | Ubuntu 22.04 LTS (recommended) |
+
+For two-VM setup, apply these minimums per VM. VM2 should usually have more CPU/RAM for yt-dlp/ffmpeg workloads.
 
 ### Required Software
 
@@ -32,17 +37,19 @@ sudo usermod -aG docker $USER
 
 ### DNS
 
-Before the first deploy, create an **A record** pointing `api.DOMAIN` to your VPS public IP. Let's Encrypt's HTTP challenge requires DNS to be resolving before certificate issuance.
+Before the first deploy, create an **A record** pointing `api.DOMAIN` to VM1 public IP. Let's Encrypt's HTTP challenge requires DNS to be resolving before certificate issuance.
 
 ### Firewall
 
-Open the following inbound ports:
+Open inbound ports:
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
 | 22 | TCP | SSH |
-| 80 | TCP | HTTP (redirects to HTTPS) |
-| 443 | TCP | HTTPS |
+| 80 | TCP | HTTP (VM1 only, redirects to HTTPS) |
+| 443 | TCP | HTTPS (VM1 only) |
+| 50051 | TCP | gRPC (VM2; private network / VM1 only) |
+| 8081 | TCP | Internal HTTP (VM2; private network / VM1 only) |
 
 ### Container Registry
 
@@ -52,11 +59,30 @@ Images are stored in the GitHub Container Registry (ghcr.io). If the packages ar
 echo $GHCR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
+### Security model (two-VM / internal HTTP)
+
+- **Shared secret:** `INTERNAL_API_KEY` is required by both VM1 (`yt-api`, remote file mode) and VM2 (`yt-service` internal HTTP). Treat it like a service credential: generate a long random value, store it only in env files or a secrets manager, and never log it or commit it.
+- **Scope:** Internal routes (`/internal/health`, `/internal/files/...`) are authenticated with that header. Public traffic should only hit VM1 (Traefik + `yt-api`). VM2 should not expose application ports on a public interface.
+- **Network:** Prefer private connectivity from VM1 to VM2 for gRPC and internal HTTP. If you must publish ports on VM2, restrict them with firewall rules to VM1’s address or your VPC CIDR.
+- **Rate limiting:** The internal file route applies per-IP rate limiting on VM2 to reduce abuse if the port is ever reachable beyond VM1.
+
+### VM2 host port binding (production)
+
+`docker-compose.prod.vm2.yml` publishes gRPC and internal HTTP on **127.0.0.1** on the host by default (`127.0.0.1:${VM2_GRPC_BIND}:50051`, same for `8081`). That keeps them off the public NIC while still allowing **SSH port forwarding** or **private network** access from VM1.
+
+If you change the bind to `0.0.0.0` (or drop the `127.0.0.1` prefix), anyone who can reach those ports on the host can attempt to speak gRPC or hit internal HTTP. Only do that inside a trusted private network and with firewall rules you have explicitly validated.
+
+### Version skew and rollout order
+
+Images for VM1 and VM2 should normally run the **same release tag**. Deploy **VM2 first, then VM1** so VM1 never calls an internal HTTP contract that the VM2 image does not yet implement. For rollbacks, prefer **VM1 first, then VM2** (reverse order) to avoid a window where a newer VM2 is paired with an older VM1, unless you accept that temporary mismatch.
+
 ---
 
 ## 2. First-Time VPS Setup
 
 Follow these steps in order on a fresh VPS.
+
+For two-VM mode, repeat setup on both VMs and use the VM-specific env/compose files.
 
 **Step 1 — Clone the repository:**
 
@@ -65,14 +91,17 @@ git clone https://github.com/fac3lessd0ge/yt-hub.git
 cd yt-hub
 ```
 
-**Step 2 — Create and edit the production environment file:**
+**Step 2 — Create and edit environment file(s):**
 
 ```bash
 cp .env.prod.example .env.prod
-nano .env.prod   # or your preferred editor
+cp .env.prod.vm1.example .env.prod.vm1
+cp .env.prod.vm2.example .env.prod.vm2
+nano .env.prod.vm1
+nano .env.prod.vm2
 ```
 
-Fill in real values for `DOMAIN`, `LETSENCRYPT_EMAIL`, and any other settings. Never commit `.env.prod`.
+Fill in real values (`DOMAIN`, `LETSENCRYPT_EMAIL`, VM2 private addresses, shared `INTERNAL_API_KEY`). Never commit real env files.
 
 **Step 3 — Prepare the ACME storage file:**
 
@@ -86,10 +115,17 @@ Traefik requires this file to exist with permissions `600` before startup. If th
 **Step 4 — Deploy:**
 
 ```bash
+# Single host fallback:
 bash scripts/deploy.sh
+
+# Two-VM rollout:
+# 1) VM2 first
+VERSION=v0.4.0 bash scripts/deploy-vm2.sh
+# 2) VM1 second
+VERSION=v0.4.0 bash scripts/deploy-vm1.sh
 ```
 
-The script will pull images, start all services, and wait up to 60 seconds for `yt-api` to become healthy.
+Two-VM scripts pull prebuilt images, recreate only target services, and wait for health checks.
 
 **Step 5 — Verify:**
 
@@ -113,6 +149,14 @@ The deploy script:
 3. Polls `yt-api`'s Docker health status until `healthy` or 60-second timeout.
 4. Exits non-zero on failure so the calling shell or CI pipeline captures the error.
 
+Two-VM explicit deploy:
+
+```bash
+# VM2 -> VM1 order is required
+VERSION=v0.4.0 bash scripts/deploy-vm2.sh
+VERSION=v0.4.0 bash scripts/deploy-vm1.sh
+```
+
 ---
 
 ## 4. Rolling Back
@@ -126,9 +170,32 @@ The rollback script targets only `yt-api` and `yt-service` (Traefik is not resta
 2. Recreates them with `--no-deps` to avoid touching Traefik.
 3. Waits for `yt-api` to become healthy before returning success.
 
+Two-VM rollback:
+
+```bash
+bash scripts/rollback-vm2.sh v0.3.0
+bash scripts/rollback-vm1.sh v0.3.0
+```
+
+## 5. GitHub Actions CD (automatic deploy)
+
+`cd.yml` does:
+1. Preflight: validates the version tag matches `vMAJOR.MINOR.PATCH`, checks required secrets, and opens a **TCP probe** to each VM’s SSH port (dry-run reachability).
+2. On tag push (`v*.*.*`), waits for the **ci** check on the tagged commit, then builds images on the GitHub runner and pushes to GHCR.
+3. Deploys VM2 first, then VM1 over SSH via the reusable workflow `.github/workflows/reusable-ssh-exec.yml` (runner never builds on the VPS).
+4. Supports manual `workflow_dispatch` for deploy/rollback by tag and target VM (deploy assumes images for that tag already exist in GHCR).
+
+### Required GitHub secrets
+
+- `VM1_SSH_HOST`, `VM1_SSH_PORT`, `VM1_SSH_USER`, `VM1_SSH_PRIVATE_KEY`, `VM1_DEPLOY_PATH`
+- `VM2_SSH_HOST`, `VM2_SSH_PORT`, `VM2_SSH_USER`, `VM2_SSH_PRIVATE_KEY`, `VM2_DEPLOY_PATH`
+
+Optional repository variable:
+- `DEPLOY_TIMEOUT_SECONDS`
+
 ---
 
-## 5. Checking Logs
+## 6. Checking Logs
 
 Stream logs for all services:
 
@@ -152,7 +219,7 @@ docker compose -f docker-compose.prod.yml logs --tail=100 yt-api
 
 ---
 
-## 6. Restarting Services
+## 7. Restarting Services
 
 Restart a single service without pulling a new image:
 
@@ -176,7 +243,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-rec
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
@@ -185,13 +252,14 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-rec
 | Let's Encrypt cert not issued; browser shows TLS error | DNS not resolved at cert issuance time, or `acme.json` missing | Ensure DNS is propagated, `traefik/acme.json` exists with `chmod 600`, and `LETSENCRYPT_EMAIL` is set. Check Traefik logs: `docker compose logs traefik`. |
 | Rate limit hits immediately for all clients | Traefik IP not being forwarded; all requests appear to come from proxy IP | Ensure `SmartIpKeyExtractor` is in use (it is, as of this version). Verify Traefik forwards `X-Forwarded-For` by default — it does. No extra config needed unless a custom middleware strips the header. |
 | `chmod: changing permissions of 'acme.json': Operation not permitted` | `acme.json` was created by Docker (root-owned) | Remove it and recreate: `sudo rm traefik/acme.json && touch traefik/acme.json && chmod 600 traefik/acme.json`. |
-| `yt-api` can't reach `yt-service`; gRPC errors in logs | Services on different networks, or `yt-service` not healthy | Verify both are on the `internal` network. Check `yt-service` health: `docker inspect $(docker compose ps -q yt-service) --format '{{.State.Health.Status}}'`. |
+| `yt-api` can't reach `yt-service`; gRPC errors in logs | VM1->VM2 private route/firewall problem, or `yt-service` not healthy | Check VM2 `yt-service` health and VM1 `GRPC_TARGET`. Ensure VM2 gRPC port allows only VM1/private CIDR. |
+| File download endpoint returns 404 in remote mode | File missing on VM2 downloads dir or wrong `INTERNAL_FILE_BASE_URL` | Verify VM2 `/internal/files/:filename` availability and shared `INTERNAL_API_KEY`. |
 | Container keeps restarting (`Restarting` status) | Application crash on startup, usually bad config or missing env vars | Check logs immediately after start: `docker compose logs --tail=50 yt-api`. Common culprits: wrong `GRPC_TARGET`, invalid `ALLOWED_ORIGINS`. |
 | Let's Encrypt ACME rate limit hit (`too many certificates` error) | More than 5 certificates issued for the same domain in a week | Switch to the staging CA temporarily (see section 8), wait one week, then switch back to production. |
 
 ---
 
-## 8. Testing with Let's Encrypt Staging
+## 9. Testing with Let's Encrypt Staging
 
 Before your first production deploy, test certificate issuance with the Let's Encrypt staging environment to avoid consuming production rate limits.
 

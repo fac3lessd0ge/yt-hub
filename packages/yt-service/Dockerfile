@@ -62,8 +62,12 @@ USER appuser
 VOLUME /home/appuser/Downloads/yt-downloader
 ENV GRPC_HOST=0.0.0.0
 ENV GRPC_PORT=50051
+ENV INTERNAL_HTTP_HOST=0.0.0.0
+ENV INTERNAL_HTTP_PORT=8081
 EXPOSE 50051
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "const net=require('net');const s=new net.Socket();s.connect(50051,'localhost',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));"
+EXPOSE 8081
+# Prefer internal HTTP + shared secret (INTERNAL_API_KEY must be set at runtime).
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fsS -H "x-internal-api-key: ${INTERNAL_API_KEY}" http://127.0.0.1:8081/internal/health || exit 1
 WORKDIR /app/packages/yt-service
 CMD ["node", "dist/index.js"]
