@@ -4,18 +4,6 @@ name: Reusable SSH exec
 on:
   workflow_call:
     inputs:
-      ssh_host:
-        required: true
-        type: string
-      ssh_port:
-        required: true
-        type: string
-      ssh_user:
-        required: true
-        type: string
-      deploy_path:
-        required: true
-        type: string
       script_body:
         required: true
         type: string
@@ -23,6 +11,14 @@ on:
         type: string
         default: "120"
     secrets:
+      ssh_host:
+        required: true
+      ssh_port:
+        required: true
+      ssh_user:
+        required: true
+      deploy_path:
+        required: true
       ssh_private_key:
         required: true
 
@@ -33,11 +29,11 @@ jobs:
       - name: Run remote command
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ inputs.ssh_host }}
-          username: ${{ inputs.ssh_user }}
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
           key: ${{ secrets.ssh_private_key }}
-          port: ${{ inputs.ssh_port }}
+          port: ${{ secrets.ssh_port }}
           script: |
-            cd "${{ inputs.deploy_path }}"
+            cd "${{ secrets.deploy_path }}"
             export DEPLOY_TIMEOUT_SECONDS="${{ inputs.deploy_timeout_seconds }}"
             ${{ inputs.script_body }}
