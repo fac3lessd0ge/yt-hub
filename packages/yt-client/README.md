@@ -70,8 +70,8 @@ The app connects to `yt-api` at `http://localhost:3000`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server |
-| `YT_HUB_API_URL` | — | Electron runtime override for API base URL |
+| `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server (baked into the renderer at **build** time for production) |
+| `YT_HUB_API_URL` | — | Electron **main** process override (see `main.ts`). In **dev**, this wins over `VITE_*`. In **packaged** builds, **baked `VITE_API_BASE_URL` wins** so a leftover `YT_HUB_API_URL=http://localhost:3000` on your OS does not break production installs. |
 
 ## Testing
 
