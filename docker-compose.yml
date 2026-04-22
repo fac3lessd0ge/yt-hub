@@ -5,11 +5,15 @@ services:
       dockerfile: packages/yt-service/Dockerfile
       args:
         YT_DLP_VERSION: ${YT_DLP_VERSION:-2026.03.17}
+        APP_UID: ${APP_UID:-1001}
+        APP_GID: ${APP_GID:-1001}
     ports:
       - "50051:50051"
     env_file:
       - path: .env
         required: false
+    environment:
+      DOWNLOAD_DIR: /home/appuser/Downloads/yt-downloader
     volumes:
       - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader
     restart: unless-stopped
@@ -35,6 +39,9 @@ services:
     build:
       context: .
       dockerfile: packages/yt-api/Dockerfile
+      args:
+        APP_UID: ${APP_UID:-1001}
+        APP_GID: ${APP_GID:-1001}
     ports:
       - "3000:3000"
     env_file:

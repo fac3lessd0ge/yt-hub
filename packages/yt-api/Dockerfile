@@ -35,11 +35,14 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 # ---- Stage 4: Runtime ----
 FROM debian:bookworm-slim AS runtime
+# Match host uid/gid so bind-mounted ./downloads stays readable from the container
+ARG APP_UID=1001
+ARG APP_GID=1001
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
-RUN groupadd --gid 1001 appuser && \
-    useradd --uid 1001 --gid 1001 --create-home appuser
+RUN groupadd --gid ${APP_GID} appuser && \
+    useradd --uid ${APP_UID} --gid ${APP_GID} --create-home appuser
 COPY --from=build /app/yt-api /usr/local/bin/yt-api
 RUN mkdir -p /home/appuser/Downloads/yt-downloader && \
     chown -R appuser:appuser /home/appuser/Downloads

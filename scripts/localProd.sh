@@ -41,6 +41,10 @@ ensure_env() {
 start_stack() {
   ensure_env
 
+  # Build container user with the host's uid/gid so bind-mounted ./downloads is writable
+  export APP_UID="$(id -u)"
+  export APP_GID="$(id -g)"
+
   log "Building and starting stack (app + monitoring)..."
   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build --remove-orphans
 
