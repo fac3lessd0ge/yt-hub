@@ -5,12 +5,33 @@ import type {
 } from "@/types/api";
 import { HttpError, RateLimitError, withRetry } from "./retry";
 
+function stripTrailingSlashes(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * Electron: preload exposes `YT_HUB_API_URL` from the main process (dev-friendly override).
+ * Packaged apps bake `VITE_API_BASE_URL` at build time; if the OS still has
+ * `YT_HUB_API_URL=http://localhost:3000` from local dev, using that first would break prod.
+ *
+ * - **DEV** (`vite` / `electron-forge start`): prefer env override, then Vite env.
+ * - **PROD** (packaged): prefer baked `VITE_API_BASE_URL`, then override.
+ */
 export function getBaseUrl(): string {
-  if (typeof window !== "undefined" && window.electronAPI?.getApiBaseUrl) {
-    const url = window.electronAPI.getApiBaseUrl();
-    if (url) return url;
+  const viteUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const electronUrl =
+    typeof window !== "undefined"
+      ? window.electronAPI?.getApiBaseUrl?.()?.trim()
+      : undefined;
+
+  if (import.meta.env.DEV) {
+    if (electronUrl) return stripTrailingSlashes(electronUrl);
+    if (viteUrl) return stripTrailingSlashes(viteUrl);
+  } else {
+    if (viteUrl) return stripTrailingSlashes(viteUrl);
+    if (electronUrl) return stripTrailingSlashes(electronUrl);
   }
-  return import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+  return "http://localhost:3000";
 }
 
 export function parseRetryAfter(header: string | null): number {
