@@ -26,14 +26,17 @@ FROM node:20-bookworm-slim AS runtime
 ARG YT_DLP_VERSION=2026.03.17
 # Update this hash when bumping YT_DLP_VERSION (from SHA2-256SUMS in the release)
 ARG YT_DLP_SHA256=3bda0968a01cde70d26720653003b28553c71be14dcb2e5f4c24e9921fdad745
+# Match host uid/gid so bind-mounted ./downloads stays writable from the container
+ARG APP_UID=1001
+ARG APP_GID=1001
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg curl python3 ca-certificates && \
     curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" -o /usr/local/bin/yt-dlp && \
     echo "${YT_DLP_SHA256}  /usr/local/bin/yt-dlp" | sha256sum -c - && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     rm -rf /var/lib/apt/lists/*
-RUN groupadd --gid 1001 appuser && \
-    useradd --uid 1001 --gid 1001 --create-home appuser
+RUN groupadd --gid ${APP_GID} appuser && \
+    useradd --uid ${APP_UID} --gid ${APP_GID} --create-home appuser
 WORKDIR /app
 
 # Copy production-only node_modules from deps stage (no devDeps like tsx, vitest, etc.)
