@@ -46,7 +46,7 @@ jobs:
         run: cargo cyclonedx --format json --override-filename bom
         working-directory: packages/yt-api
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-sbom
           path: packages/yt-api/bom.cdx.json
