@@ -14,9 +14,44 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+if [ -d "./traefik/traefik.yml" ]; then
+  error "./traefik/traefik.yml is a directory (Docker bind-mount quirk). Remove it and restore traefik.yml as a file, or re-run CD after syncing traefik/traefik.yml from the repo."
+  exit 1
+fi
+if [ ! -f "./traefik/traefik.yml" ]; then
+  error "./traefik/traefik.yml missing under deploy directory. CD should sync it from the repo for VM1."
+  exit 1
+fi
+
+mkdir -p ./traefik
+if [ -d "./traefik/acme.json" ]; then
+  error "./traefik/acme.json is a directory; remove it and use a regular file for Let's Encrypt storage."
+  exit 1
+fi
+if [ ! -f "./traefik/acme.json" ]; then
+  log "Creating empty ./traefik/acme.json for ACME (Traefik requires chmod 600)"
+  printf '%s\n' '{}' > ./traefik/acme.json
+fi
+chmod 600 ./traefik/acme.json
+
+if [ "${SKIP_GRPC_TUNNEL_CHECK:-0}" != "1" ]; then
+  if command -v nc >/dev/null 2>&1; then
+    if ! nc -z -w 3 127.0.0.1 15051 2>/dev/null; then
+      error "127.0.0.1:15051 is not reachable (gRPC tunnel to VM2 expected). Start the tunnel or set SKIP_GRPC_TUNNEL_CHECK=1 to deploy anyway."
+      exit 1
+    fi
+  else
+    log "nc not installed; skipping gRPC tunnel probe (install netcat-openbsd for preflight checks)"
+  fi
+fi
+
 log "Deploying VM1 with VERSION=${VERSION}"
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
+# Bind-mount for ./traefik/traefik.yml is fixed at container create time. If the host path was
+# once a directory and is now a file, the old Traefik container keeps failing until recreated.
+log "Recreating Traefik so bind-mounts match current host paths"
+VERSION="${VERSION}" docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps --force-recreate traefik
 
 TIMEOUT="${DEPLOY_TIMEOUT_SECONDS:-120}"
 INTERVAL=3

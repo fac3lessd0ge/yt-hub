@@ -7,6 +7,10 @@ services:
     restart: unless-stopped
     env_file:
       - ${VM2_ENV_FILE:-.env.prod.vm2}
+    # DOWNLOAD_DIR in .env is the host bind-mount path for Compose interpolation.
+    # Inside the container the app must use the mount target (see Dockerfile / loadConfig default).
+    environment:
+      DOWNLOAD_DIR: /home/appuser/Downloads/yt-downloader
     volumes:
       - ${DOWNLOAD_DIR:-./downloads}:/home/appuser/Downloads/yt-downloader
     healthcheck:

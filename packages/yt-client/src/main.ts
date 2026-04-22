@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { config as loadDotenv } from "dotenv";
 import {
   app,
   BrowserWindow,
@@ -22,6 +23,11 @@ if (started) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
+}
+
+// Vite loads .env into the renderer; main only sees OS env unless we load it here.
+if (!app.isPackaged) {
+  loadDotenv({ path: path.join(app.getAppPath(), ".env") });
 }
 
 app.on("second-instance", () => {
