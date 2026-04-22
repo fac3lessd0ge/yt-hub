@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **CD workflow targets per VM**: `workflow_dispatch` inputs refactored to `action` (`deploy`/`rollback`) + `version_tag` + `target_vm` (`vm1`/`vm2`/`both`). Preflight now resolves and prints `deploy_mode` / `deploy_target` before any downstream jobs run.
 - `DOWNLOAD_DIR` env baked into the VM2 yt-service container; host downloads directory is ensured before container start
 
+### Security
+
+- Bumped `rustls-webpki` 0.103.12 → 0.103.13 in yt-api to clear **RUSTSEC-2026-0104** (reachable panic when parsing certificate revocation lists with an empty `BIT STRING` in `IssuingDistributionPoint.onlySomeReasons`). Transitive via `rustls` / `tokio-rustls` / `hyper-rustls` / `metrics-exporter-prometheus`.
+
 ### Infrastructure
 
 - Dev script (`npm run dev`) made cross-platform (Windows-friendly)
