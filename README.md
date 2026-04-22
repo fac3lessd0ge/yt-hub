@@ -63,10 +63,12 @@ docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
 To test the full Docker stack locally (without Traefik):
 
 ```bash
-bash scripts/localProd.sh up      # build + start
+bash scripts/localProd.sh up      # build + start (also exports APP_UID/APP_GID = host user)
 bash scripts/localProd.sh test    # run smoke tests
 bash scripts/localProd.sh down    # stop + cleanup
 ```
+
+The script automatically exports the host user's uid/gid as `APP_UID` / `APP_GID` build args so files written under `./downloads/` are owned by you — no `sudo` needed to clean up. Production builds keep the default `1001:1001`.
 
 ### Local development
 
@@ -138,8 +140,9 @@ GitHub Actions runs on every pull request to `main` or `dev`:
 
 ### CD (Releases)
 
-- Tag-triggered (`v*.*.*`) workflow builds Docker images in GitHub runner, publishes to GHCR, then deploys VM2 -> VM1 over SSH
-- `workflow_dispatch` supports manual deploy/rollback by tag (`action`, `version_tag`, `target_vm`)
+- Tag-triggered (`v*.*.*`) workflow waits for the CI check on the tagged commit, builds Docker images on the GitHub runner, publishes them to GHCR, and then deploys VM2 → VM1 over SSH
+- Before each SSH step the runner SCPs `scripts/` and the VM-specific `docker-compose.prod.vm*.yml` to the target VM, then performs `docker login ghcr.io` with `GHCR_USERNAME`/`GHCR_PAT` on the remote before `docker compose pull` (VMs don't need a pre-cloned repo)
+- `workflow_dispatch` supports manual deploy/rollback by tag with inputs `action` (`deploy`/`rollback`), `version_tag`, and `target_vm` (`vm1`/`vm2`/`both`)
 - Dependabot keeps npm, Cargo, and GitHub Actions dependencies up to date (weekly, targeting `dev`)
 - Weekly security scanning via `npm audit` and `cargo audit` (also runs on PRs)
 - SBOM generation (CycloneDX) and `cargo-deny` advisory/license scanning in the security workflow
@@ -179,10 +182,10 @@ cp .env.prod.example .env.prod
 touch traefik/acme.json && chmod 600 traefik/acme.json
 
 # Deploy
-VERSION=v1.3.0 bash scripts/deploy.sh
+VERSION=v1.3.3 bash scripts/deploy.sh
 
 # Rollback
-bash scripts/rollback.sh v1.1.0
+bash scripts/rollback.sh v1.3.2
 ```
 
 See [`docs/deploymentRunbook.md`](docs/deploymentRunbook.md) for the full deployment guide.
@@ -192,12 +195,12 @@ See [`docs/deploymentRunbook.md`](docs/deploymentRunbook.md) for the full deploy
 ```bash
 # VM2 first
 cp .env.prod.vm2.example .env.prod.vm2
-VERSION=v1.3.0 bash scripts/deploy-vm2.sh
+VERSION=v1.3.3 bash scripts/deploy-vm2.sh
 
 # VM1 second
 cp .env.prod.vm1.example .env.prod.vm1
 touch traefik/acme.json && chmod 600 traefik/acme.json
-VERSION=v1.3.0 bash scripts/deploy-vm1.sh
+VERSION=v1.3.3 bash scripts/deploy-vm1.sh
 ```
 
 ## Testing
@@ -209,10 +212,10 @@ Each package has its own test suite:
 npx nx run-many -t test
 
 # Per-package
-npx nx test yt-api           # 75+ Rust tests (cargo test)
-npx nx test yt-service       # 48 Vitest tests
-npx nx test yt-client        # 110+ Vitest + React Testing Library (jsdom)
-npx nx test yt-downloader    # 99 Vitest tests
+npx nx test yt-api           # 95+ Rust tests (cargo test)
+npx nx test yt-service       # 60+ Vitest tests
+npx nx test yt-client        # 95+ Vitest + React Testing Library (jsdom)
+npx nx test yt-downloader    # 105+ Vitest tests
 
 # Integration tests for yt-downloader (requires yt-dlp on PATH)
 INTEGRATION=1 npx nx test yt-downloader
@@ -246,6 +249,8 @@ Each package is configured via environment variables. See `.env.example` files i
 | `YT_HUB_API_URL` | yt-client | — | Electron runtime override for API base URL |
 | `INTERNAL_HTTP_HOST` | yt-service | `0.0.0.0` | Internal HTTP bind address on VM2 |
 | `INTERNAL_HTTP_PORT` | yt-service | `8081` | Internal HTTP port used by VM1 for file proxy and health |
+| `APP_UID` | yt-api / yt-service (Docker build arg) | `1001` | Container `appuser` uid. `scripts/localProd.sh` sets this to `$(id -u)` so bind-mounted `./downloads` is writable from the host user. |
+| `APP_GID` | yt-api / yt-service (Docker build arg) | `1001` | Container `appuser` gid (paired with `APP_UID`). |
 
 yt-downloader is configured programmatically via `YtDlpConfig` (audioQuality, customArgs, proxy, cookiesFile, socketTimeout).
 
@@ -262,11 +267,14 @@ yt-hub/
 │   └── yt-client/        # Desktop app (Electron/React)
 ├── scripts/              # Dev orchestration (npm run dev)
 ├── .github/workflows/    # CI pipeline
-├── docker-compose.yml         # Docker Compose for backend services
-├── docker-compose.prod.yml   # Production Docker Compose with Traefik
-├── traefik/                  # Traefik v3 configuration
-├── docs/                     # TLS strategy, deployment runbook
-├── .env.example              # Environment variable template
+├── docker-compose.yml            # Local dev / backend services (optional monitoring overlay)
+├── docker-compose.monitoring.yml # Prometheus, Grafana, Loki, Promtail overlay
+├── docker-compose.prod.yml       # Production (single-host) with Traefik
+├── docker-compose.prod.vm1.yml   # Production VM1 (public edge + yt-api)
+├── docker-compose.prod.vm2.yml   # Production VM2 (internal yt-service)
+├── traefik/                      # Traefik v3 static + dynamic configuration
+├── docs/                         # TLS strategy, deployment runbook
+├── .env.example                  # Environment variable template
 ├── biome.json            # Linting and formatting config
 ├── nx.json               # Nx task orchestration config
 └── tsconfig.base.json    # Shared TypeScript config
@@ -276,7 +284,8 @@ yt-hub/
 
 | Problem | Solution |
 |---------|----------|
-| **Traefik fails with Docker Desktop v29+** | Use `scripts/localProd.sh` for local testing (skips Traefik) |
+| **Local dev stack (no HTTPS needed)** | Use `scripts/localProd.sh` — it spins up the app + monitoring stack without Traefik on `localhost:3000`. |
+| **Files in `./downloads/` owned by root/uid 1001 after `docker compose up`** | Use `scripts/localProd.sh` (which exports `APP_UID`/`APP_GID` to your host user), or pass them manually: `APP_UID=$(id -u) APP_GID=$(id -g) docker compose up --build`. |
 | **yt-dlp fails to download** | Update yt-dlp version: `docker compose build --build-arg YT_DLP_VERSION=YYYY.MM.DD yt-service` |
 | **Download path shows container path** | Use the Electron save dialog (v0.4.5+) or access files in `./downloads/` on the host |
 | **"Downloads directory not available"** | Ensure `DOWNLOAD_DIR` env var points to an existing directory, or create `./downloads/` |

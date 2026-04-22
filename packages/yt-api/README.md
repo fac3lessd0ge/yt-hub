@@ -41,7 +41,10 @@ The server listens on `0.0.0.0:3000` by default. Configure via environment varia
 | `MAX_BODY_SIZE_BYTES` | `1048576` | Maximum request body size in bytes |
 | `RATE_LIMIT_RPM` | `30` | Rate limit: requests per minute per IP |
 | `STREAMING_TIMEOUT_SECS` | `600` | SSE download stream timeout in seconds |
-| `DOWNLOAD_DIR` | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from |
+| `DOWNLOAD_DIR` | `/home/appuser/Downloads/yt-downloader` | Directory to serve downloaded files from (in-container path) |
+| `FILE_DELIVERY_MODE` | `local` | `local` serves files from disk; `remote` proxies from VM2 internal HTTP (two-VM mode) |
+| `INTERNAL_FILE_BASE_URL` | — | Base URL of the VM2 internal HTTP service. Required when `FILE_DELIVERY_MODE=remote`. |
+| `INTERNAL_API_KEY` | — | Shared secret for VM1 → VM2 internal endpoints. Required ≥16 chars in remote mode. |
 
 ## REST API
 
@@ -192,9 +195,18 @@ docker compose up --build yt-api
 
 The Dockerfile uses a multi-stage build with [cargo-chef](https://github.com/LukeMathWalker/cargo-chef) for dependency caching. Build context is the monorepo root (required because `build.rs` references proto files from `../yt-service/proto/`).
 
+### Build args
+
+| Arg | Default | Purpose |
+|-----|---------|---------|
+| `APP_UID` | `1001` | uid of the container `appuser`. Set to the host uid for local dev so bind-mounted `./downloads` stays writable. `scripts/localProd.sh` sets this to `$(id -u)` automatically. |
+| `APP_GID` | `1001` | gid of the container `appuser` (paired with `APP_UID`). |
+
+`DOWNLOAD_DIR` is pinned in the Dockerfile (`ENV DOWNLOAD_DIR=/home/appuser/Downloads/yt-downloader`) so a bind-mounted `.env` cannot override the in-container file-serving path. Set the **host** download directory via the top-level `DOWNLOAD_DIR` in `.env` / `docker-compose.yml` instead — that controls the bind-mount source.
+
 ## Testing
 
-yt-api has 62 tests covering error mapping, input validation, route handlers, and SSE stream lifecycle.
+yt-api has 95+ tests covering error mapping, input validation, route handlers, SSE stream lifecycle, rate limiting middleware, and file delivery (local + remote modes).
 
 ```bash
 # Run all tests
@@ -206,14 +218,15 @@ npx nx test yt-api
 
 Tests use a `GrpcClientTrait` abstraction extracted from the concrete gRPC client, allowing route handlers to be tested with mock clients via `tower::ServiceExt::oneshot` (no running server needed).
 
-Test breakdown:
+Test areas:
 
-- **Error mapping tests (10)**: verify AppError to HTTP status code mapping
-- **Validation tests (22)**: URL format, format ID, filename, destination rules
-- **Integration tests (12)**: all routes using tower oneshot with mock gRPC client
-- **Fuzz tests (6)**: property-based testing for URL/filename/destination validators
-- **Config tests (6)**: configuration parsing and validation
-- **SSE stream tests (6)**: stream lifecycle, progress events, completion, error propagation
+- **Error mapping**: `AppError` → HTTP status code
+- **Validation**: URL format, format ID, filename, destination rules (plus property-based fuzz tests)
+- **Route integration**: all routes exercised via `tower::ServiceExt::oneshot` with a mock gRPC client
+- **Middleware**: rate limiting, request ID, CORS, security headers, metrics
+- **SSE streams**: lifecycle, progress events, completion, error propagation
+- **File delivery**: `serve_file` in local mode, remote-mode proxy behavior against VM2 internal HTTP
+- **Config**: environment parsing and validation
 
 ## Development
 
