@@ -59,6 +59,8 @@ Images are stored in the GitHub Container Registry (ghcr.io). If the packages ar
 echo $GHCR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
+The automated CD pipeline (see §5) runs this login step on the target VM before each `docker compose pull`, using the `GHCR_USERNAME` / `GHCR_PAT` GitHub secrets — so manual login on the VM is only needed for out-of-band debugging.
+
 ### Security model (two-VM / internal HTTP)
 
 - **Shared secret:** `INTERNAL_API_KEY` is required by both VM1 (`yt-api`, remote file mode) and VM2 (`yt-service` internal HTTP). Treat it like a service credential: generate a long random value, store it only in env files or a secrets manager, and never log it or commit it.
@@ -84,7 +86,9 @@ Follow these steps in order on a fresh VPS.
 
 For two-VM mode, repeat setup on both VMs and use the VM-specific env/compose files.
 
-**Step 1 — Clone the repository:**
+> **Note:** Starting with v1.3.3, the automated CD pipeline syncs `scripts/` and the VM-specific `docker-compose.prod.vm*.yml` to the target VM over SCP before each deploy/rollback, so the VM itself does not need a pre-cloned repo. You still need the env file (`.env.prod.vm1` / `.env.prod.vm2`) on the VM at `VM*_DEPLOY_PATH`. A manual `git clone` is only required for out-of-band debugging or fully manual deploys.
+
+**Step 1 — Clone the repository (manual-deploy path only):**
 
 ```bash
 git clone https://github.com/fac3lessd0ge/yt-hub.git
@@ -120,9 +124,9 @@ bash scripts/deploy.sh
 
 # Two-VM rollout:
 # 1) VM2 first
-VERSION=v0.4.0 bash scripts/deploy-vm2.sh
+VERSION=v1.3.3 bash scripts/deploy-vm2.sh
 # 2) VM1 second
-VERSION=v0.4.0 bash scripts/deploy-vm1.sh
+VERSION=v1.3.3 bash scripts/deploy-vm1.sh
 ```
 
 Two-VM scripts pull prebuilt images, recreate only target services, and wait for health checks.
@@ -140,7 +144,7 @@ Expected response: `HTTP/2 200`.
 ## 3. Deploying a New Version
 
 ```bash
-VERSION=v0.4.0 bash scripts/deploy.sh
+VERSION=v1.3.3 bash scripts/deploy.sh
 ```
 
 The deploy script:
@@ -153,8 +157,8 @@ Two-VM explicit deploy:
 
 ```bash
 # VM2 -> VM1 order is required
-VERSION=v0.4.0 bash scripts/deploy-vm2.sh
-VERSION=v0.4.0 bash scripts/deploy-vm1.sh
+VERSION=v1.3.3 bash scripts/deploy-vm2.sh
+VERSION=v1.3.3 bash scripts/deploy-vm1.sh
 ```
 
 ---
@@ -162,7 +166,7 @@ VERSION=v0.4.0 bash scripts/deploy-vm1.sh
 ## 4. Rolling Back
 
 ```bash
-bash scripts/rollback.sh v0.3.0
+bash scripts/rollback.sh v1.3.2
 ```
 
 The rollback script targets only `yt-api` and `yt-service` (Traefik is not restarted). It:
@@ -173,25 +177,35 @@ The rollback script targets only `yt-api` and `yt-service` (Traefik is not resta
 Two-VM rollback:
 
 ```bash
-bash scripts/rollback-vm2.sh v0.3.0
-bash scripts/rollback-vm1.sh v0.3.0
+bash scripts/rollback-vm2.sh v1.3.2
+bash scripts/rollback-vm1.sh v1.3.2
 ```
 
 ## 5. GitHub Actions CD (automatic deploy)
 
 `cd.yml` does:
-1. Preflight: validates the version tag matches `vMAJOR.MINOR.PATCH`, checks required secrets, and opens a **TCP probe** to each VM’s SSH port (dry-run reachability).
-2. On tag push (`v*.*.*`), waits for the **ci** check on the tagged commit, then builds images on the GitHub runner and pushes to GHCR.
-3. Deploys VM2 first, then VM1 over SSH via the reusable workflow `.github/workflows/reusable-ssh-exec.yml` (runner never builds on the VPS).
-4. Supports manual `workflow_dispatch` for deploy/rollback by tag and target VM (deploy assumes images for that tag already exist in GHCR).
+1. **Preflight**: resolves and prints `version` / `deploy_mode` / `deploy_target`, validates the version tag matches `vMAJOR.MINOR.PATCH`, checks all required secrets (SSH + GHCR), and opens a **TCP probe** to each VM's SSH port (dry-run reachability).
+2. On tag push (`v*.*.*`), waits for the **ci** check to complete successfully on the tagged commit (uses the Checks API on the PR head for merge commits), then builds `yt-api` and `yt-service` images on the GitHub runner and pushes them to GHCR.
+3. Syncs `scripts/` and the VM-specific `docker-compose.prod.vm*.yml` to the target VM over SCP, then runs the deploy/rollback script over SSH via the reusable workflow `.github/workflows/reusable-ssh-exec.yml`. The remote step performs a `docker login ghcr.io` with `GHCR_USERNAME`/`GHCR_PAT` before `docker compose pull`. The runner never builds on the VPS.
+4. Deploy order: **VM2 → VM1** (when `deploy_target=both`). Rollback order: **VM2 → VM1** as well (both use the reverse rollout logic in their individual scripts to protect the internal-HTTP contract between VM1 and VM2).
+5. Supports manual `workflow_dispatch` with inputs:
+   - `action`: `deploy` or `rollback`
+   - `version_tag`: e.g. `v1.3.3`
+   - `target_vm`: `vm1`, `vm2`, or `both`
+
+   For `deploy`, this assumes images for `version_tag` already exist in GHCR (no build step is run). For `rollback`, the script pulls the target version and recreates `yt-api` / `yt-service` with `--no-deps` so Traefik on VM1 is not restarted.
 
 ### Required GitHub secrets
 
+SSH:
 - `VM1_SSH_HOST`, `VM1_SSH_PORT`, `VM1_SSH_USER`, `VM1_SSH_PRIVATE_KEY`, `VM1_DEPLOY_PATH`
 - `VM2_SSH_HOST`, `VM2_SSH_PORT`, `VM2_SSH_USER`, `VM2_SSH_PRIVATE_KEY`, `VM2_DEPLOY_PATH`
 
+GHCR (required since v1.3.3 — the remote `docker login` step uses these):
+- `GHCR_USERNAME`, `GHCR_PAT`
+
 Optional repository variable:
-- `DEPLOY_TIMEOUT_SECONDS`
+- `DEPLOY_TIMEOUT_SECONDS` (default: `120`)
 
 ---
 
