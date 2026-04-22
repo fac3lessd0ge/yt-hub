@@ -38,6 +38,10 @@ The server listens on `0.0.0.0:50051` by default. Configure via environment vari
 | `LOG_LEVEL` | `info` | Log verbosity |
 | `REQUEST_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
 | `MAX_MESSAGE_SIZE` | `4194304` | Max gRPC message size in bytes |
+| `DOWNLOAD_DIR` | `/home/appuser/Downloads/yt-downloader` | Directory yt-downloader writes into. In the production compose files and the VM2 compose, this is pinned to the in-container path; the host-side bind-mount source is the top-level `DOWNLOAD_DIR` in the environment. |
+| `INTERNAL_HTTP_HOST` | `0.0.0.0` | Bind address of the VM2-only internal HTTP server (file proxy + health) |
+| `INTERNAL_HTTP_PORT` | `8081` | Port of the internal HTTP server |
+| `INTERNAL_API_KEY` | — | Shared secret that must be present (header) on every internal HTTP request. Required in two-VM production mode. |
 
 ## gRPC API
 
@@ -175,6 +179,15 @@ docker compose up --build yt-service
 
 The Dockerfile uses a 3-stage build: (1) build stage compiles TypeScript via tsup, (2) deps stage installs production-only node_modules, (3) runtime stage creates a slim image with `ffmpeg`, a pinned `yt-dlp` (SHA256-verified), and compiled JS only — no tsx or devDependencies.
 
+### Build args
+
+| Arg | Default | Purpose |
+|-----|---------|---------|
+| `YT_DLP_VERSION` | e.g. `2026.03.17` | yt-dlp release fetched at build time (SHA256-checked against `YT_DLP_SHA256`). |
+| `YT_DLP_SHA256` | release-specific | Checksum for `yt-dlp`; update this alongside `YT_DLP_VERSION`. |
+| `APP_UID` | `1001` | uid of the container `appuser`. Set to the host uid for local dev so bind-mounted `./downloads` stays writable. `scripts/localProd.sh` sets this to `$(id -u)` automatically. |
+| `APP_GID` | `1001` | gid of the container `appuser` (paired with `APP_UID`). |
+
 To override the yt-dlp version at build time:
 ```bash
 docker compose build --build-arg YT_DLP_VERSION=2026.03.17 yt-service
@@ -182,7 +195,7 @@ docker compose build --build-arg YT_DLP_VERSION=2026.03.17 yt-service
 
 ## Testing
 
-yt-service has 45 tests covering request validation, error propagation, and server lifecycle.
+yt-service has 60+ tests covering request validation, error propagation, server lifecycle, handlers, response mapping, and the PinoLoggerAdapter.
 
 ```bash
 # Run all tests
@@ -192,15 +205,15 @@ npx vitest run
 npx nx test yt-service
 ```
 
-Test breakdown:
+Test areas:
 
-- **RequestValidator tests (6)**: URL format, format/name field validation
-- **Error propagation tests (4)**: yt-downloader errors mapped correctly to gRPC status codes
-- **Error scenario tests (6)**: edge cases in error handling
-- **Response mapper tests (4)**: yt-downloader → proto mapping
-- **Server lifecycle tests (5)**: port binding, graceful shutdown, port conflict detection
-- **Handler tests (12)**: metadata, formats, backends, download handlers
-- **Logger adapter tests (4)**: PinoLoggerAdapter delegation
+- **RequestValidator**: URL format and format/name field validation (shared Zod schemas with yt-downloader)
+- **Error propagation & scenarios**: yt-downloader errors mapped to gRPC status codes; `instanceof`-based error classification
+- **Response mapper**: yt-downloader → proto message mapping
+- **Server lifecycle**: port binding, graceful shutdown, port conflict detection (OS-assigned ports in tests)
+- **Handlers**: metadata, formats, backends, download — unary + streaming
+- **Logger adapter**: PinoLoggerAdapter delegation to Pino
+- **Internal HTTP**: file proxy route auth (shared-secret) and per-IP rate limiting on VM2
 
 ## Development
 

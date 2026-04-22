@@ -5,6 +5,237 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.4] - 2026-04-22
+
+### Fixed
+
+- **Traefik/Docker API v29+ compatibility**: bumped Traefik image, corrected dynamic config file paths in `docker-compose.prod.*.yml`, and the VM1 deploy script now validates Traefik config and recreates the container when host paths change
+- **yt-client `.env` loading**: Electron main process now loads `.env` so `YT_HUB_API_URL` dev overrides actually take effect
+- **Local dev bind-mount permissions**: yt-api and yt-service Dockerfiles accept `APP_UID`/`APP_GID` build args; `scripts/localProd.sh` exports the host's uid/gid before `docker compose up`, so files written under `./downloads/` are owned by the invoking host user. Defaults (1001/1001) preserve existing production behavior.
+
+### Added
+
+- **CD workflow targets per VM**: `workflow_dispatch` inputs refactored to `action` (`deploy`/`rollback`) + `version_tag` + `target_vm` (`vm1`/`vm2`/`both`). Preflight now resolves and prints `deploy_mode` / `deploy_target` before any downstream jobs run.
+- `DOWNLOAD_DIR` env baked into the VM2 yt-service container; host downloads directory is ensured before container start
+
+### Security
+
+- Bumped `rustls-webpki` 0.103.12 → 0.103.13 in yt-api to clear **RUSTSEC-2026-0104** (reachable panic when parsing certificate revocation lists with an empty `BIT STRING` in `IssuingDistributionPoint.onlySomeReasons`). Transitive via `rustls` / `tokio-rustls` / `hyper-rustls` / `metrics-exporter-prometheus`.
+
+### Infrastructure
+
+- Dev script (`npm run dev`) made cross-platform (Windows-friendly)
+
+## [1.3.3] - 2026-04-21
+
+### Added
+
+- **Self-sufficient CD rollout**: deploy/rollback workflows now sync `scripts/` and the VM-specific `docker-compose.prod.vm*.yml` to the target VM over SCP before running. VMs no longer need a pre-cloned repo checkout.
+- CD performs an explicit `docker login ghcr.io` via `GHCR_USERNAME`/`GHCR_PAT` on the remote side before `docker compose pull`. These are new required GitHub secrets.
+- Rollback scripts wait for the service to become healthy and fail the job if health is not reached within `DEPLOY_TIMEOUT_SECONDS`.
+- Preflight prints deployment intent and validates GHCR secrets alongside the existing SSH secret checks.
+
+### Fixed
+
+- `cd.yml` passes SSH connection secrets via the reusable workflow's `secrets:` block instead of `with:` — fixes GitHub's automatic secret masking breaking the SSH step on manual dispatch.
+
+## [1.3.2] - 2026-04-21
+
+### Added
+
+- **Two-VM production topology**: VM1 (public edge, Traefik + yt-api) + VM2 (internal yt-service with file store). New compose files `docker-compose.prod.vm1.yml` and `docker-compose.prod.vm2.yml` and VM-specific env templates (`.env.prod.vm1.example`, `.env.prod.vm2.example`).
+- yt-api file delivery abstraction: `FILE_DELIVERY_MODE=local` serves from local disk (single-host default), `FILE_DELIVERY_MODE=remote` streams from VM2's internal HTTP service via `INTERNAL_FILE_BASE_URL`.
+- yt-service internal HTTP server on VM2 (`/internal/health`, `/internal/files/{filename}`) with shared-secret auth (`INTERNAL_API_KEY`) and per-IP rate limiting.
+- New env vars: `FILE_DELIVERY_MODE`, `INTERNAL_FILE_BASE_URL`, `INTERNAL_API_KEY`, `INTERNAL_HTTP_HOST`, `INTERNAL_HTTP_PORT`.
+- `scripts/deploy-vm1.sh`, `scripts/deploy-vm2.sh`, `scripts/rollback-vm1.sh`, `scripts/rollback-vm2.sh` for explicit per-VM operations.
+- `.editorconfig` and `.gitattributes` for consistent line endings across OSes.
+
+### Changed
+
+- yt-api switched `reqwest` TLS backend to `native-tls` for smaller images and fewer transitive deps.
+- yt-api gRPC error path uses boxed `tonic::Status` for clearer error propagation.
+- yt-api `Content-Disposition` output contract locked by an explicit test.
+
+### Fixed
+
+- `INTERNAL_API_KEY` now enforced to be ≥16 characters in remote mode (startup fails fast otherwise).
+- yt-client dock/window icons set in dev mode as well as packaged builds.
+- Filename handling bugs in yt-api file proxy path.
+
+### Security
+
+- VM2 host ports bound to `127.0.0.1` by default so internal gRPC/HTTP aren't publicly reachable unless explicitly reconfigured.
+
+## [1.3.1] - 2026-04-20
+
+### Added
+
+- yt-client: DMG installer for macOS, real YT wordmark icon wired through electron-forge and renderer favicon.
+- yt-client: single-instance lock — relaunch focuses the existing window.
+- yt-client: persist and restore window bounds between sessions.
+- yt-client: About section in Settings (app version, GitHub link) and version exposed via IPC in the sidebar.
+- yt-client: app name set; About panel configured.
+
+### Changed
+
+- yt-client: hide the native menu bar on Windows and Linux.
+- yt-client: prevent white flash on startup (`show: false` + `backgroundColor`).
+
+### Security
+
+- Bumped `rustls-webpki` in yt-api to clear RUSTSEC-2026-0098/0099.
+- Bumped `protobufjs` via override to clear a critical CVE.
+
+## [1.3.0] - 2026-04-12
+
+Major yt-client UX release.
+
+### Added
+
+- **Settings page**: theme (System/Light/Dark), default download directory, default format — all instant-apply, persisted via `electron-store`, FOUC-free theme switching.
+- **Download queue**: when a default directory is set, downloads enter a queue with up to 2 concurrent slots; inline progress, cancel/retry/remove per item.
+- **Batch downloads**: Single/Batch tab switcher, multi-URL textarea with validation count, `.txt` import, metadata prefetch with unique-name handling to avoid server-side file collisions.
+- **Download history**: persistent (up to 500 entries via electron-store), search by title/author, filter All/Video/Audio, date-grouped (Today/Yesterday/calendar), file-existence check, one-click re-download.
+- Clipboard paste button that validates and fills YouTube URLs.
+- Friendly error messages mapped from raw error codes.
+
+### Changed
+
+- yt-client download form: compact 2-row layout (URL + Format + Paste | File Name).
+- Download page: dual mode — single flow if no default directory, queue mode otherwise.
+- SSE errors are retryable by default; `MAX_CONCURRENT` reduced to 2 to match new queue.
+
+### Fixed
+
+- Clipboard paste no longer lets stale metadata refill the file name field.
+- Format dropdown width made adaptive (was fixed `w-24`).
+- Brighter destructive colors in dark mode for readability.
+
+## [1.2.0] - 2026-04-12
+
+Resilience + contract-safety + test-quality push.
+
+### Added
+
+- yt-client: Zod-based SSE payload validation (schemas shared via yt-downloader).
+- yt-client: React error boundary with graceful crash recovery and reload button.
+- yt-client: refetch capability on `useFormats` and `useBackends`.
+- yt-downloader: Zod schema foundation for contract types (shared with yt-service request validation).
+- yt-api tests: rate limiting middleware, `validate_filename`, `serve_file` integration, `mime_from_extension` coverage.
+- yt-service tests: real error classes in `ErrorMapper` tests; OS-assigned port in tests (no port-collision flakiness).
+
+### Changed
+
+- yt-client: streams file downloads to disk instead of buffering in memory.
+- yt-client: preload caches the API URL so the renderer no longer uses `sendSync`.
+- yt-client: removed silent SSE reconnect — stream drops now surface an error.
+- yt-service: request validation now uses Zod schemas shared with yt-downloader; error checks switched to `instanceof`; `any` replaced with generated proto types.
+- yt-api: `validate_destination` now restricted to the downloads directory.
+- yt-api: `MatchedPath` used in metrics labels (prevents label-cardinality bomb from raw request paths).
+- yt-api: middleware reordered so the metrics layer observes timeout responses; gRPC call boilerplate extracted into a macro.
+
+### Fixed
+
+- yt-client white-screen caused by yt-downloader pulling Node.js code into the renderer bundle.
+
+## [1.1.2] - 2026-04-11
+
+### Fixed
+
+- yt-api container: pinned `DOWNLOAD_DIR` inside the Dockerfile so a bind-mounted `.env` cannot override the container-internal path.
+- yt-api Dockerfile: renamed `DOWNLOADS_DIR` → `DOWNLOAD_DIR` to match the config struct.
+- CI verify-ci job: uses the Checks API on the PR head commit instead of the commit-status API (fixes false negatives on merge commits).
+
+### Changed
+
+- All package READMEs updated to reflect the then-current state of the codebase.
+
+## [1.1.0] - 2026-04-11
+
+Stability, observability and production-readiness follow-up to 1.0.0.
+
+### Added
+
+- yt-downloader: `TimeoutError` class for process timeout signaling.
+- yt-downloader `ILogger` interface extended with `debug`/`warn` methods.
+- Shared error code `RATE_LIMIT_EXCEEDED` across all services.
+- yt-client `DownloadError` type gains a `retryable` field, matching the server contract.
+- Ops: resource limits (CPU/memory) and log rotation (`json-file` driver, size+count caps) applied to all Docker Compose services.
+
+### Changed
+
+- yt-api reads `DOWNLOAD_DIR` via the `Config` struct rather than ad-hoc env reads.
+- yt-api: `assert!` in config validation replaced with structured error logging + proper exit.
+- yt-service production Docker image now ships compiled JS only (no `tsx`, no devDependencies).
+- yt-service: pino logger injected into `DownloadService` so yt-downloader logs share the same structured format.
+- CD pipeline is now gated on CI passing on the tagged commit before images are built/pushed.
+- CI uses a dynamic base branch instead of hardcoded `origin/dev`.
+
+### Fixed
+
+- yt-client: `AbortController` in `useMetadata` prevents stale responses from overwriting current state.
+- yt-client: guard against concurrent downloads; fixed an async `onComplete` race in `useDownload`.
+- yt-service: `DownloadHandler` re-throws the mapped error so `GrpcServer` emits the correct gRPC error status.
+- yt-downloader: `NodeProcessSpawner` no longer double-settles and now surfaces timeout errors; abort listener removed on timeout for defensive cleanup.
+- Monitoring: self-referencing AlertManager receiver replaced with a visible placeholder.
+
+## [1.0.0] - 2026-04-10
+
+First GA release — end-to-end tests, fuzz coverage, and CI smoke tests sealed the 0.x series.
+
+### Added
+
+- CI: integration test job and docker-compose smoke-test job.
+- yt-api: property-based fuzz tests for URL, filename, destination validators.
+- yt-api: middleware integration tests for security headers, CORS, and request ID propagation.
+- yt-client: SSE parser fuzz tests (edge cases, binary payloads, oversized events).
+- yt-downloader: fuzz tests for `sanitizeFilename` and the progress parser.
+
+## [0.7.0] - 2026-04-10
+
+Accessibility, resilience, and proto tooling.
+
+### Added
+
+- yt-client: ARIA attributes on DownloadForm, DownloadProgress, DownloadResult, Sidebar, OfflineBanner (`aria-required`, `aria-invalid`, `aria-describedby`, `aria-current`, `role="alert"`, `role="status"`, `aria-live`); autofocus on URL input; keyboard shortcut Escape-to-cancel.
+- yt-client: client-side YouTube URL pre-validation before requests.
+- yt-client: offline detection with banner and outbound-request guard.
+- yt-client: SSE auto-reconnect on stream drop (later removed in 1.2 in favor of surfacing errors).
+- yt-client: retry with exponential backoff and 429 `Retry-After` handling.
+- yt-client: configurable API URL with Electron runtime override (`YT_HUB_API_URL`).
+- yt-downloader: detect output-path collisions, append `(1)`, `(2)` suffix.
+- yt-downloader: normalize progress — `100%` on completion, `Unknown` speed/ETA fallback.
+- yt-downloader: `--continue` flag for resume support.
+- proto: versioned package (`yt_hub.v1`), proto→TS codegen via buf/ts-proto.
+- `scripts/localProd.sh`: now also starts the monitoring stack.
+
+### Changed
+
+- Error-mapping consolidated in yt-api `error.rs`; shared error codes extracted in yt-service (dedup'd ErrorMapper); duplicate URL validation removed from yt-downloader `DownloadService`.
+
+### Fixed
+
+- yt-downloader: close readline on process exit; capture stderr correctly.
+
+## [0.5.0] - 2026-04-10
+
+Security Hardening II, monitoring reliability, and timeout enforcement.
+
+### Added
+
+- yt-api: deep health check with gRPC connectivity verification.
+- Monitoring: AlertManager with Prometheus alert rules.
+- Monitoring: 7-day Loki retention policy with compactor; Promtail positions persisted across restarts; Grafana credentials parameterized; service healthchecks added.
+- CI/CD: BuildKit GHA cache in both pipelines; npm cache on yt-service.
+- Security Hardening Epic 16 (rate-limit expansion, header tightening, key rotation tooling).
+
+### Fixed
+
+- Enforce timeouts on gRPC connections, RPC calls, yt-dlp process, and SSE streaming.
+- yt-client: fixed silent error swallowing in SSE, API client, and save flow.
+- yt-api: cancel metrics upkeep on shutdown and run final flush.
+- yt-api: apply rate limiting to `/metrics` endpoint.
+
 ## [0.4.5] - 2026-04-02
 
 ### Added

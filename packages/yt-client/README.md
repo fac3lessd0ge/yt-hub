@@ -70,12 +70,14 @@ The app connects to `yt-api` at `http://localhost:3000`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server |
-| `YT_HUB_API_URL` | — | Electron runtime override for API base URL |
+| `VITE_API_BASE_URL` | `http://localhost:3000` | Base URL of the yt-api REST server (baked into the renderer at **build** time for production) |
+| `YT_HUB_API_URL` | — | Electron **main** process override (see `main.ts`). In **dev**, this wins over `VITE_*`. In **packaged** builds, **baked `VITE_API_BASE_URL` wins** so a leftover `YT_HUB_API_URL=http://localhost:3000` on your OS does not break production installs. |
+
+> Since v1.3.4, the Electron main process also loads a `.env` file at startup (via `dotenv`) so putting `YT_HUB_API_URL=...` into `packages/yt-client/.env` is enough — you don't need to export it in your shell for dev.
 
 ## Testing
 
-yt-client has 110+ tests covering React components and custom hooks using [Vitest](https://vitest.dev/) with [jsdom](https://github.com/jsdom/jsdom) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro).
+yt-client has 95+ tests covering React components and custom hooks using [Vitest](https://vitest.dev/) with [jsdom](https://github.com/jsdom/jsdom) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro).
 
 ```bash
 npx nx test yt-client

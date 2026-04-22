@@ -18,10 +18,12 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      # Email is set via --certificatesresolvers.letsencrypt.acme.email in docker-compose.prod.yml
+      # Email is set via --certificatesresolvers.letsencrypt.acme.email in docker-compose.
       storage: /acme/acme.json
-      httpChallenge:
-        entryPoint: web
+      # tlsChallenge uses ALPN on :443 (websecure). Do NOT use httpChallenge on :80 here:
+      # entryPoints.web has a global HTTP→HTTPS redirect, which runs before ACME routers and
+      # breaks Let's Encrypt HTTP-01 (browser then sees Traefik's default / fallback cert).
+      tlsChallenge: {}
 
 providers:
   docker:

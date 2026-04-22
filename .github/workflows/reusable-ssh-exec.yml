@@ -13,6 +13,9 @@ on:
       compose_file:
         required: true
         type: string
+      vm_target:
+        required: true
+        type: string
     secrets:
       ssh_host:
         required: true
@@ -47,14 +50,58 @@ jobs:
             set -euo pipefail
             mkdir -p "${{ secrets.deploy_path }}"
 
-      - name: Sync deployment scripts to remote
+      - name: Sync shared deploy script library
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
           key: ${{ secrets.ssh_private_key }}
           port: ${{ secrets.ssh_port }}
-          source: scripts
+          source: scripts/lib/deployCommon.sh
+          target: ${{ secrets.deploy_path }}
+
+      - name: Sync VM1 deploy script
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: scripts/deploy-vm1.sh
+          target: ${{ secrets.deploy_path }}
+
+      - name: Sync VM1 rollback script
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: scripts/rollback-vm1.sh
+          target: ${{ secrets.deploy_path }}
+
+      - name: Sync VM2 deploy script
+        if: inputs.vm_target == 'vm2'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: scripts/deploy-vm2.sh
+          target: ${{ secrets.deploy_path }}
+
+      - name: Sync VM2 rollback script
+        if: inputs.vm_target == 'vm2'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: scripts/rollback-vm2.sh
           target: ${{ secrets.deploy_path }}
 
       - name: Sync docker compose file to remote
@@ -66,6 +113,51 @@ jobs:
           port: ${{ secrets.ssh_port }}
           source: ${{ inputs.compose_file }}
           target: ${{ secrets.deploy_path }}
+
+      # VM1: compose bind-mounts host ./traefik/traefik.yml into the container as /etc/traefik/traefik.yml.
+      # If the file was missing on first
+      # `docker compose up`, Docker may have created traefik.yml as a directory — fix and ship the real file from the repo (do not touch acme.json).
+      - name: Prepare Traefik static config path (VM1)
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          script: |
+            set -euo pipefail
+            DEP="${{ secrets.deploy_path }}"
+            mkdir -p "$DEP/traefik"
+            if [ -d "$DEP/traefik/traefik.yml" ]; then
+              rm -rf "$DEP/traefik/traefik.yml"
+            fi
+            if [ -f "$DEP/traefik/acme.json" ]; then
+              chmod 600 "$DEP/traefik/acme.json" || true
+            fi
+
+      - name: Sync Traefik static config (VM1)
+        if: inputs.vm_target == 'vm1'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          source: traefik/traefik.yml
+          target: ${{ secrets.deploy_path }}
+
+      - name: Set executable bits for synced scripts
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.ssh_host }}
+          username: ${{ secrets.ssh_user }}
+          key: ${{ secrets.ssh_private_key }}
+          port: ${{ secrets.ssh_port }}
+          script: |
+            set -euo pipefail
+            chmod +x "${{ secrets.deploy_path }}/scripts/deploy-${{ inputs.vm_target }}.sh"
+            chmod +x "${{ secrets.deploy_path }}/scripts/rollback-${{ inputs.vm_target }}.sh"
 
       - name: Run remote command
         uses: appleboy/ssh-action@v1.2.2

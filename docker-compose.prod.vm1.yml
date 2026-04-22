@@ -3,7 +3,8 @@
 
 services:
   traefik:
-    image: traefik:v3.3
+    # v3.3 pins Docker API 1.24 and breaks against modern Docker daemons (min API 1.40+). v3.6+ negotiates API version.
+    image: traefik:v3.6
     restart: unless-stopped
     deploy:
       resources:
@@ -11,13 +12,18 @@ services:
           memory: 256m
           cpus: "0.5"
     command:
+      # Official image expects static config under /etc/traefik; mounting at /traefik.yml can
+      # conflict with image layout and triggers "mount directory onto a file (or vice-versa)".
+      - "--configFile=/etc/traefik/traefik.yml"
       - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
+      # traefik/traefik.yml defaults to network yt-hub_proxy; this stack uses yt-hub-vm1_proxy.
+      - "--providers.docker.network=yt-hub-vm1_proxy"
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/acme.json:/acme/acme.json
     networks:
       - proxy
@@ -27,6 +33,8 @@ services:
     restart: unless-stopped
     env_file:
       - ${VM1_ENV_FILE:-.env.prod.vm1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/health?deep=true"]
       interval: 10s
