@@ -64,6 +64,7 @@ The automated CD pipeline (see §5) runs this login step on the target VM before
 ### Security model (two-VM / internal HTTP)
 
 - **Shared secret:** `INTERNAL_API_KEY` is required by both VM1 (`yt-api`, remote file mode) and VM2 (`yt-service` internal HTTP). Treat it like a service credential: generate a long random value, store it only in env files or a secrets manager, and never log it or commit it.
+- **`FILE_DELIVERY_MODE=remote` required on both VMs.** On VM1 (`yt-api`) it enables the proxy to VM2's internal HTTP. On VM2 (`yt-service`) it enables the `/internal/files/*` route that the VM1 proxy depends on. If VM2 is left as `local` (default), VM1 file fetches return a misleading `FILE_NOT_FOUND` 404 — actual root cause is the route being disabled on VM2. Both `.env.prod.vm1` and `.env.prod.vm2` must set it explicitly.
 - **Scope:** Internal routes (`/internal/health`, `/internal/files/...`) are authenticated with that header. Public traffic should only hit VM1 (Traefik + `yt-api`). VM2 should not expose application ports on a public interface.
 - **Network:** Prefer private connectivity from VM1 to VM2 for gRPC and internal HTTP. If you must publish ports on VM2, restrict them with firewall rules to VM1’s address or your VPC CIDR.
 - **Rate limiting:** The internal file route applies per-IP rate limiting on VM2 to reduce abuse if the port is ever reachable beyond VM1.

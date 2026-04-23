@@ -310,4 +310,66 @@ describe("InternalHttpServer", () => {
       "unavailable",
     );
   });
+
+  it("logs an internal_http_server_started event with mode and route flag on start()", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const calls: Array<{ obj: unknown; msg: string }> = [];
+    const base = createLogger("silent");
+    const spyLogger = Object.assign(Object.create(base) as typeof base, {
+      info: (obj: unknown, msg: string) => {
+        calls.push({ obj, msg });
+      },
+    });
+
+    const server = new InternalHttpServer(
+      {
+        host: "127.0.0.1",
+        port: 0,
+        downloadDir: dir,
+        fileDeliveryMode: "local",
+        internalApiKey: "",
+      },
+      spyLogger,
+    );
+    servers.push(server);
+    await server.start();
+
+    const started = calls.find((c) => c.msg === "internal_http_server_started");
+    expect(started).toBeDefined();
+    expect(started?.obj).toMatchObject({
+      fileDeliveryMode: "local",
+      internalFilesRouteEnabled: false,
+      port: expect.any(Number),
+    });
+  });
+
+  it("reports internalFilesRouteEnabled=true in remote mode", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const calls: Array<{ obj: unknown; msg: string }> = [];
+    const base = createLogger("silent");
+    const spyLogger = Object.assign(Object.create(base) as typeof base, {
+      info: (obj: unknown, msg: string) => {
+        calls.push({ obj, msg });
+      },
+    });
+
+    const server = new InternalHttpServer(
+      {
+        host: "127.0.0.1",
+        port: 0,
+        downloadDir: dir,
+        fileDeliveryMode: "remote",
+        internalApiKey: KEY,
+      },
+      spyLogger,
+    );
+    servers.push(server);
+    await server.start();
+
+    const started = calls.find((c) => c.msg === "internal_http_server_started");
+    expect(started?.obj).toMatchObject({
+      fileDeliveryMode: "remote",
+      internalFilesRouteEnabled: true,
+    });
+  });
 });
