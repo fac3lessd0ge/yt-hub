@@ -15,6 +15,7 @@ import {
 } from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
+import { showItemInFolder as showItemInFolderImpl } from "./main/showItemInFolder";
 
 if (started) {
   app.quit();
@@ -233,16 +234,12 @@ ipcMain.handle("dialog:selectFolder", async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
-  if (typeof filePath !== "string" || filePath.includes("\0")) {
-    throw new Error("Invalid file path");
-  }
-  const resolved = path.resolve(filePath);
-  const home = app.getPath("home");
-  if (!resolved.startsWith(home)) {
-    throw new Error("File path must be within user home directory");
-  }
-  shell.showItemInFolder(resolved);
+ipcMain.handle("shell:showItemInFolder", (_event, filePath: unknown) => {
+  return showItemInFolderImpl(filePath, {
+    access: (p) => fs.access(p),
+    showItemInFolder: (p) => shell.showItemInFolder(p),
+    openPath: (p) => shell.openPath(p),
+  });
 });
 
 const ALLOWED_EXTERNAL_HOSTS = new Set(["github.com"]);

@@ -42,6 +42,9 @@ The server listens on `0.0.0.0:50051` by default. Configure via environment vari
 | `INTERNAL_HTTP_HOST` | `0.0.0.0` | Bind address of the VM2-only internal HTTP server (file proxy + health) |
 | `INTERNAL_HTTP_PORT` | `8081` | Port of the internal HTTP server |
 | `INTERNAL_API_KEY` | — | Shared secret that must be present (header) on every internal HTTP request. Required in two-VM production mode. |
+| `DOWNLOAD_RETENTION_MINUTES` | `60` | TTL for files in `DOWNLOAD_DIR`. Files older than this are deleted by the in-process sweeper. Also the window for client-retry of `/api/downloads/{file}` — set long enough to tolerate one or two client-side save retries. |
+| `DOWNLOAD_SWEEP_INTERVAL_SECONDS` | `300` | How often the sweeper runs. Minimum 60; recommended `max(60, retention_minutes * 60 / 10)`. |
+| `DOWNLOAD_CLEANUP_DISABLED` | `false` | Escape hatch. When `true`, the sweeper is not started and a warning log line is emitted. Files accumulate indefinitely — use only for debugging. |
 
 ## gRPC API
 

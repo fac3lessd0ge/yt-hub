@@ -310,4 +310,75 @@ describe("InternalHttpServer", () => {
       "unavailable",
     );
   });
+
+  function makeSpyLogger(): {
+    logger: ReturnType<typeof createLogger>;
+    calls: Array<{ obj: unknown; msg: string }>;
+  } {
+    const calls: Array<{ obj: unknown; msg: string }> = [];
+    const base = createLogger("silent");
+    const logger = Object.assign(Object.create(base) as typeof base, {
+      info: (obj: unknown, msg: string) => {
+        calls.push({ obj, msg });
+      },
+    });
+    return { logger, calls };
+  }
+
+  it("logs an internal_http_server_started event with mode and route flag on start()", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const { logger, calls } = makeSpyLogger();
+
+    const server = new InternalHttpServer(
+      {
+        host: "127.0.0.1",
+        port: 0,
+        downloadDir: dir,
+        fileDeliveryMode: "local",
+        internalApiKey: "",
+      },
+      logger,
+    );
+    servers.push(server);
+    await server.start();
+
+    const startedCalls = calls.filter(
+      (c) => c.msg === "internal_http_server_started",
+    );
+    expect(startedCalls).toHaveLength(1);
+    expect(startedCalls[0].obj).toMatchObject({
+      fileDeliveryMode: "local",
+      internalFilesRouteEnabled: false,
+      host: "127.0.0.1",
+      port: expect.any(Number),
+    });
+  });
+
+  it("reports internalFilesRouteEnabled=true in remote mode", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const { logger, calls } = makeSpyLogger();
+
+    const server = new InternalHttpServer(
+      {
+        host: "127.0.0.1",
+        port: 0,
+        downloadDir: dir,
+        fileDeliveryMode: "remote",
+        internalApiKey: KEY,
+      },
+      logger,
+    );
+    servers.push(server);
+    await server.start();
+
+    const startedCalls = calls.filter(
+      (c) => c.msg === "internal_http_server_started",
+    );
+    expect(startedCalls).toHaveLength(1);
+    expect(startedCalls[0].obj).toMatchObject({
+      fileDeliveryMode: "remote",
+      internalFilesRouteEnabled: true,
+      host: "127.0.0.1",
+    });
+  });
 });

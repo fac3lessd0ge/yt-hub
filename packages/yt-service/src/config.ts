@@ -15,6 +15,9 @@ export interface ServiceConfig {
   internalHttpPort: number;
   fileDeliveryMode: FileDeliveryMode;
   internalApiKey: string;
+  downloadRetentionMinutes: number;
+  downloadSweepIntervalSeconds: number;
+  downloadCleanupDisabled: boolean;
 }
 
 export function loadConfig(logger: Logger): ServiceConfig {
@@ -28,6 +31,21 @@ export function loadConfig(logger: Logger): ServiceConfig {
   const internalHttpHost = process.env.INTERNAL_HTTP_HOST ?? "0.0.0.0";
   const internalHttpPort = Number(process.env.INTERNAL_HTTP_PORT ?? 8081);
   const internalApiKeyRaw = process.env.INTERNAL_API_KEY?.trim() ?? "";
+  const downloadRetentionMinutes = Number(
+    process.env.DOWNLOAD_RETENTION_MINUTES ?? 60,
+  );
+  const downloadSweepIntervalSeconds = Number(
+    process.env.DOWNLOAD_SWEEP_INTERVAL_SECONDS ?? 300,
+  );
+  const downloadCleanupDisabledRaw = (
+    process.env.DOWNLOAD_CLEANUP_DISABLED ?? ""
+  )
+    .trim()
+    .toLowerCase();
+  const downloadCleanupDisabled =
+    downloadCleanupDisabledRaw === "true" ||
+    downloadCleanupDisabledRaw === "1" ||
+    downloadCleanupDisabledRaw === "yes";
   const fileDeliveryModeRaw =
     process.env.FILE_DELIVERY_MODE?.trim().toLowerCase() ?? "";
   // Match yt-api: unset / empty defaults to local (Docker Compose often has no env_file in CI).
@@ -75,6 +93,24 @@ export function loadConfig(logger: Logger): ServiceConfig {
   }
 
   if (
+    !Number.isFinite(downloadRetentionMinutes) ||
+    downloadRetentionMinutes < 1
+  ) {
+    throw new Error(
+      `Invalid DOWNLOAD_RETENTION_MINUTES: ${process.env.DOWNLOAD_RETENTION_MINUTES}. Must be a number >= 1.`,
+    );
+  }
+
+  if (
+    !Number.isFinite(downloadSweepIntervalSeconds) ||
+    downloadSweepIntervalSeconds < 60
+  ) {
+    throw new Error(
+      `Invalid DOWNLOAD_SWEEP_INTERVAL_SECONDS: ${process.env.DOWNLOAD_SWEEP_INTERVAL_SECONDS}. Must be a number >= 60.`,
+    );
+  }
+
+  if (
     fileDeliveryMode === "remote" &&
     internalApiKeyRaw.length < INTERNAL_API_KEY_MIN_LEN
   ) {
@@ -94,6 +130,9 @@ export function loadConfig(logger: Logger): ServiceConfig {
     internalHttpPort,
     fileDeliveryMode,
     internalApiKey: internalApiKeyRaw,
+    downloadRetentionMinutes,
+    downloadSweepIntervalSeconds,
+    downloadCleanupDisabled,
   };
 
   logger.info(

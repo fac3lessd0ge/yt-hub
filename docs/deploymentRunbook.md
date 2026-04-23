@@ -64,6 +64,7 @@ The automated CD pipeline (see §5) runs this login step on the target VM before
 ### Security model (two-VM / internal HTTP)
 
 - **Shared secret:** `INTERNAL_API_KEY` is required by both VM1 (`yt-api`, remote file mode) and VM2 (`yt-service` internal HTTP). Treat it like a service credential: generate a long random value, store it only in env files or a secrets manager, and never log it or commit it.
+- **`FILE_DELIVERY_MODE=remote` required on both VMs.** On VM1 (`yt-api`) it enables the proxy to VM2's internal HTTP. On VM2 (`yt-service`) it enables the `/internal/files/*` route that the VM1 proxy depends on. If VM2 is left as `local` (default), VM1 file fetches return a misleading `FILE_NOT_FOUND` 404 — actual root cause is the route being disabled on VM2. Both `.env.prod.vm1` and `.env.prod.vm2` must set it explicitly.
 - **Scope:** Internal routes (`/internal/health`, `/internal/files/...`) are authenticated with that header. Public traffic should only hit VM1 (Traefik + `yt-api`). VM2 should not expose application ports on a public interface.
 - **Network:** Prefer private connectivity from VM1 to VM2 for gRPC and internal HTTP. If you must publish ports on VM2, restrict them with firewall rules to VM1’s address or your VPC CIDR.
 - **Rate limiting:** The internal file route applies per-IP rate limiting on VM2 to reduce abuse if the port is ever reachable beyond VM1.
@@ -194,6 +195,16 @@ bash scripts/rollback-vm1.sh v1.3.2
    - `target_vm`: `vm1`, `vm2`, or `both`
 
    For `deploy`, this assumes images for `version_tag` already exist in GHCR (no build step is run). For `rollback`, the script pulls the target version and recreates `yt-api` / `yt-service` with `--no-deps` so Traefik on VM1 is not restarted.
+
+### Post-release sync
+
+After every tagged release, `.github/workflows/sync-main-to-dev.yml` opens an automated PR titled `sync: merge main (<tag>) back into dev`. Merge it promptly — do not let it linger. If it has conflicts (someone pushed to `dev` during the release window), resolve them by hand on the sync branch before merging; do not auto-merge.
+
+Labels on the PR: `sync`, `automated`.
+
+Manual trigger (safety net, e.g. if a prior release skipped the sync): Actions → **Sync main into dev** → **Run workflow** → the **Release tag** input is required (e.g. `v1.3.5`).
+
+If the workflow is re-run for the same tag (after a failed first attempt or a transient error), it short-circuits when it finds an already-open sync PR for that tag — no duplicate PRs, no force-push. Close the stale open PR first if you want the workflow to re-open a fresh one.
 
 ### Required GitHub secrets
 
