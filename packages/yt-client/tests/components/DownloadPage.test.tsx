@@ -8,6 +8,31 @@ vi.mock("@/hooks/useDownload", () => ({
   useDownload: () => mockUseDownload(),
 }));
 
+vi.mock("@/hooks/useSettings", () => ({
+  useSettings: () => ({
+    settings: {
+      theme: "system",
+      defaultDownloadDir: null,
+      defaultFormat: "mp4",
+    },
+    updateSetting: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useQueue", () => ({
+  useQueue: () => ({
+    items: [],
+    addItem: vi.fn(),
+    cancelItem: vi.fn(),
+    removeItem: vi.fn(),
+    retryItem: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useKeyboardShortcuts", () => ({
+  useKeyboardShortcuts: vi.fn(),
+}));
+
 // Mock child components to avoid needing their dependencies
 vi.mock("@/components/download/DownloadForm", () => ({
   DownloadForm: ({ onSubmit }: { onSubmit: () => void }) => (
@@ -134,5 +159,41 @@ describe("DownloadPage", () => {
       "aria-busy",
       "true",
     );
+  });
+
+  it("starts the download when re-download is requested in single-mode", () => {
+    const start = vi.fn();
+    const req = { link: "https://youtu.be/abc", format: "mp3", name: "Clip" };
+    const consumeRedownload = vi.fn().mockReturnValueOnce(req);
+    mockUseDownload.mockReturnValue(makeHookReturn({ state: "idle", start }));
+
+    render(<DownloadPage consumeRedownload={consumeRedownload} />);
+
+    expect(consumeRedownload).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledWith(req);
+  });
+
+  it("does not start when consumeRedownload returns null", () => {
+    const start = vi.fn();
+    const consumeRedownload = vi.fn().mockReturnValue(null);
+    mockUseDownload.mockReturnValue(makeHookReturn({ state: "idle", start }));
+
+    render(<DownloadPage consumeRedownload={consumeRedownload} />);
+
+    expect(consumeRedownload).toHaveBeenCalledTimes(1);
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("does not start when already downloading", () => {
+    const start = vi.fn();
+    const req = { link: "https://youtu.be/abc", format: "mp3", name: "Clip" };
+    const consumeRedownload = vi.fn().mockReturnValue(req);
+    mockUseDownload.mockReturnValue(
+      makeHookReturn({ state: "downloading", start }),
+    );
+
+    render(<DownloadPage consumeRedownload={consumeRedownload} />);
+
+    expect(start).not.toHaveBeenCalled();
   });
 });

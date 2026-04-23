@@ -15,7 +15,11 @@ interface DownloadPageProps {
   consumeRedownload?: () => RedownloadRequest | null;
 }
 
-function SingleDownloadPage() {
+function SingleDownloadPage({
+  consumeRedownload,
+}: {
+  consumeRedownload?: () => RedownloadRequest | null;
+}) {
   const { state, progress, result, localPath, error, start, cancel, reset } =
     useDownload();
 
@@ -25,6 +29,14 @@ function SingleDownloadPage() {
     [state, cancel],
   );
   useKeyboardShortcuts(shortcuts);
+
+  useEffect(() => {
+    if (state !== "idle") return;
+    const req = consumeRedownload?.();
+    if (req) {
+      start(req);
+    }
+  }, [consumeRedownload, start, state]);
 
   return (
     <>
@@ -133,7 +145,7 @@ export function DownloadPage({ consumeRedownload }: DownloadPageProps) {
       {queueEnabled ? (
         <QueueDownloadPage consumeRedownload={consumeRedownload} />
       ) : (
-        <SingleDownloadPage />
+        <SingleDownloadPage consumeRedownload={consumeRedownload} />
       )}
     </div>
   );
