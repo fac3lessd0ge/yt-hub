@@ -36,4 +36,4 @@ urlencoding = "2"
 mockito = "1"
 
 [build-dependencies]
-tonic-build = "0.13"
+tonic-build = "0.14"
