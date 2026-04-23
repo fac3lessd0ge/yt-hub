@@ -55,7 +55,7 @@
     "png2icons": "^2.0.1",
     "sharp": "^0.33.5",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^3.0.0"
   }
 }
