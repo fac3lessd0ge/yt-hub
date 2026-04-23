@@ -24,7 +24,7 @@ export class DownloadSweeper {
   private readonly logger: Logger;
   private timer: NodeJS.Timeout | null = null;
   private running: Promise<SweepResult> | null = null;
-  private stopped = false;
+  private state: "idle" | "running" | "stopped" = "idle";
 
   constructor(options: DownloadSweeperOptions) {
     this.downloadDir = resolve(options.downloadDir);
@@ -34,17 +34,25 @@ export class DownloadSweeper {
   }
 
   async start(): Promise<void> {
-    this.stopped = false;
+    if (this.state !== "idle") {
+      throw new Error(
+        `DownloadSweeper.start(): cannot start from state "${this.state}"`,
+      );
+    }
+    this.state = "running";
     await this.runSweep();
-    if (this.stopped) return;
+    if (this.state !== "running") return; // stopped concurrently during initial sweep
     this.timer = setInterval(() => {
-      void this.runSweep();
+      this.runSweep().catch((err) => {
+        this.logger.error({ err }, "download_sweep_tick_failed");
+      });
     }, this.sweepIntervalMs);
-    this.timer.unref?.();
+    this.timer.unref();
   }
 
   async stop(): Promise<void> {
-    this.stopped = true;
+    if (this.state === "stopped") return;
+    this.state = "stopped";
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -54,6 +62,11 @@ export class DownloadSweeper {
     }
   }
 
+  /**
+   * Trigger a sweep immediately. If a sweep is already running (e.g. an
+   * interval tick is in flight), returns the in-flight promise instead of
+   * starting a new one. Mainly useful for tests.
+   */
   async sweepOnce(): Promise<SweepResult> {
     return this.runSweep();
   }
@@ -107,7 +120,7 @@ export class DownloadSweeper {
           await unlink(full);
           result.deleted++;
           result.freedBytes += st.size;
-          this.logger.info(
+          this.logger.debug(
             {
               file: name,
               sizeBytes: st.size,

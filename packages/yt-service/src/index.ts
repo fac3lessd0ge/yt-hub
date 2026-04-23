@@ -86,14 +86,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Received signal, starting graceful shutdown");
 
   try {
-    await internalHttpServer.stop();
-    logger.info("Internal HTTP server stopped gracefully");
-    await server.stop();
-    logger.info("gRPC server stopped gracefully");
     if (downloadSweeper) {
       await downloadSweeper.stop();
       logger.info("Download sweeper stopped gracefully");
     }
+    await internalHttpServer.stop();
+    logger.info("Internal HTTP server stopped gracefully");
+    await server.stop();
+    logger.info("gRPC server stopped gracefully");
     process.exit(0);
   } catch (err) {
     logger.error({ err }, "Error during graceful shutdown");
@@ -122,14 +122,6 @@ async function bootstrap(): Promise<void> {
     await server.start(config.host, config.port);
   } catch (err) {
     logger.error({ err }, "gRPC failed to start, stopping internal HTTP");
-    try {
-      await internalHttpServer.stop();
-    } catch (stopErr) {
-      logger.error(
-        { stopErr },
-        "Failed to stop internal HTTP after gRPC failure",
-      );
-    }
     if (downloadSweeper) {
       try {
         await downloadSweeper.stop();
@@ -139,6 +131,14 @@ async function bootstrap(): Promise<void> {
           "Failed to stop download sweeper after gRPC failure",
         );
       }
+    }
+    try {
+      await internalHttpServer.stop();
+    } catch (stopErr) {
+      logger.error(
+        { stopErr },
+        "Failed to stop internal HTTP after gRPC failure",
+      );
     }
     throw err;
   }

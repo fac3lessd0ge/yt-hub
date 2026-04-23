@@ -68,4 +68,20 @@ describe("loadConfig — retention", () => {
       ),
     ).toThrow(/DOWNLOAD_SWEEP_INTERVAL_SECONDS/);
   });
+
+  it("accepts retention = 1 (minimum)", () => {
+    const cfg = withEnv(
+      { DOWNLOAD_RETENTION_MINUTES: "1", FILE_DELIVERY_MODE: "local" },
+      () => loadConfig(createLogger("silent")),
+    );
+    expect(cfg.downloadRetentionMinutes).toBe(1);
+  });
+
+  it("accepts sweep interval = 60 (minimum)", () => {
+    const cfg = withEnv(
+      { DOWNLOAD_SWEEP_INTERVAL_SECONDS: "60", FILE_DELIVERY_MODE: "local" },
+      () => loadConfig(createLogger("silent")),
+    );
+    expect(cfg.downloadSweepIntervalSeconds).toBe(60);
+  });
 });

@@ -83,6 +83,8 @@ describe("DownloadSweeper", () => {
 
     const result = await sw.sweepOnce();
     expect(result.deleted).toBe(0);
+    expect(result.scanned).toBe(1); // the subdir itself was counted
+    expect(result.deleted).toBe(0);
     const st = await stat(nested);
     expect(st.isFile()).toBe(true);
   });
@@ -108,6 +110,9 @@ describe("DownloadSweeper", () => {
     await unlink(a);
 
     const result = await sw.sweepOnce();
+    // `a` was unlinked before sweepOnce(), so readdir doesn't see it → 0 errors.
+    // If the unlink were to race *between* readdir and stat, errors would be 1.
+    // Both outcomes are acceptable; we care that the sweep doesn't crash.
     expect(result.errors).toBeLessThanOrEqual(1);
     expect(await readdir(dir)).toEqual([]);
   });
