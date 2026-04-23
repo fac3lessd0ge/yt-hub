@@ -60,4 +60,19 @@ describe("showItemInFolder", () => {
       "Invalid file path",
     );
   });
+
+  it("surfaces openPath OS errors instead of masking them as 'folder gone'", async () => {
+    let call = 0;
+    const deps = makeDeps({
+      access: vi.fn(async () => {
+        call++;
+        if (call === 1) throw new Error("ENOENT: file");
+      }),
+      openPath: vi.fn().mockResolvedValue("permission denied"),
+    });
+    await expect(showItemInFolder("/tmp/moved/clip.mp4", deps)).rejects.toThrow(
+      "Failed to open folder: permission denied",
+    );
+    expect(deps.openPath).toHaveBeenCalledTimes(1);
+  });
 });
