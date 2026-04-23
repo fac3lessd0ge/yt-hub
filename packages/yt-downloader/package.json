@@ -31,7 +31,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.6.0",
     "@types/prompt-sync": "^4.2.3",
     "@types/which": "^3.0.4",
     "msw": "^2.12.14",
