@@ -13,6 +13,7 @@ import { InternalHttpServer } from "~/internalHttp";
 import { createLogger } from "~/logger";
 import { PinoLoggerAdapter } from "~/logger/pinoLoggerAdapter";
 import { ErrorMapper, ResponseMapper } from "~/mapping";
+import { DownloadSweeper } from "~/retention";
 import { GrpcServer } from "~/server";
 
 const serviceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,6 +61,22 @@ const internalHttpServer = new InternalHttpServer(
   logger,
 );
 
+const downloadSweeper = config.downloadCleanupDisabled
+  ? null
+  : new DownloadSweeper({
+      downloadDir: config.downloadDir,
+      retentionMinutes: config.downloadRetentionMinutes,
+      sweepIntervalSeconds: config.downloadSweepIntervalSeconds,
+      logger: logger.child({ component: "download-sweeper" }),
+    });
+
+if (config.downloadCleanupDisabled) {
+  logger.warn(
+    {},
+    "download_sweeper_disabled: DOWNLOAD_CLEANUP_DISABLED=true — files will accumulate",
+  );
+}
+
 let isShuttingDown = false;
 
 async function gracefulShutdown(signal: string): Promise<void> {
@@ -69,6 +86,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Received signal, starting graceful shutdown");
 
   try {
+    if (downloadSweeper) {
+      await downloadSweeper.stop();
+      logger.info("Download sweeper stopped gracefully");
+    }
     await internalHttpServer.stop();
     logger.info("Internal HTTP server stopped gracefully");
     await server.stop();
@@ -86,10 +107,31 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 async function bootstrap(): Promise<void> {
   await internalHttpServer.start();
 
+  if (downloadSweeper) {
+    await downloadSweeper.start();
+    logger.info(
+      {
+        retentionMinutes: config.downloadRetentionMinutes,
+        sweepIntervalSeconds: config.downloadSweepIntervalSeconds,
+      },
+      "download_sweeper_started",
+    );
+  }
+
   try {
     await server.start(config.host, config.port);
   } catch (err) {
     logger.error({ err }, "gRPC failed to start, stopping internal HTTP");
+    if (downloadSweeper) {
+      try {
+        await downloadSweeper.stop();
+      } catch (stopErr) {
+        logger.error(
+          { stopErr },
+          "Failed to stop download sweeper after gRPC failure",
+        );
+      }
+    }
     try {
       await internalHttpServer.stop();
     } catch (stopErr) {
