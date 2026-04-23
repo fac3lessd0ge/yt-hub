@@ -311,15 +311,23 @@ describe("InternalHttpServer", () => {
     );
   });
 
-  it("logs an internal_http_server_started event with mode and route flag on start()", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+  function makeSpyLogger(): {
+    logger: ReturnType<typeof createLogger>;
+    calls: Array<{ obj: unknown; msg: string }>;
+  } {
     const calls: Array<{ obj: unknown; msg: string }> = [];
     const base = createLogger("silent");
-    const spyLogger = Object.assign(Object.create(base) as typeof base, {
+    const logger = Object.assign(Object.create(base) as typeof base, {
       info: (obj: unknown, msg: string) => {
         calls.push({ obj, msg });
       },
     });
+    return { logger, calls };
+  }
+
+  it("logs an internal_http_server_started event with mode and route flag on start()", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
+    const { logger, calls } = makeSpyLogger();
 
     const server = new InternalHttpServer(
       {
@@ -329,29 +337,26 @@ describe("InternalHttpServer", () => {
         fileDeliveryMode: "local",
         internalApiKey: "",
       },
-      spyLogger,
+      logger,
     );
     servers.push(server);
     await server.start();
 
-    const started = calls.find((c) => c.msg === "internal_http_server_started");
-    expect(started).toBeDefined();
-    expect(started?.obj).toMatchObject({
+    const startedCalls = calls.filter(
+      (c) => c.msg === "internal_http_server_started",
+    );
+    expect(startedCalls).toHaveLength(1);
+    expect(startedCalls[0].obj).toMatchObject({
       fileDeliveryMode: "local",
       internalFilesRouteEnabled: false,
+      host: "127.0.0.1",
       port: expect.any(Number),
     });
   });
 
   it("reports internalFilesRouteEnabled=true in remote mode", async () => {
     const dir = await mkdtemp(join(tmpdir(), "yt-service-internal-http-"));
-    const calls: Array<{ obj: unknown; msg: string }> = [];
-    const base = createLogger("silent");
-    const spyLogger = Object.assign(Object.create(base) as typeof base, {
-      info: (obj: unknown, msg: string) => {
-        calls.push({ obj, msg });
-      },
-    });
+    const { logger, calls } = makeSpyLogger();
 
     const server = new InternalHttpServer(
       {
@@ -361,15 +366,19 @@ describe("InternalHttpServer", () => {
         fileDeliveryMode: "remote",
         internalApiKey: KEY,
       },
-      spyLogger,
+      logger,
     );
     servers.push(server);
     await server.start();
 
-    const started = calls.find((c) => c.msg === "internal_http_server_started");
-    expect(started?.obj).toMatchObject({
+    const startedCalls = calls.filter(
+      (c) => c.msg === "internal_http_server_started",
+    );
+    expect(startedCalls).toHaveLength(1);
+    expect(startedCalls[0].obj).toMatchObject({
       fileDeliveryMode: "remote",
       internalFilesRouteEnabled: true,
+      host: "127.0.0.1",
     });
   });
 });
