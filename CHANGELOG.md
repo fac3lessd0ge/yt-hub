@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.5] - 2026-04-23
+
+### Fixed
+
+- **`DownloadForm` respects `defaultFormat` from Settings** (#127, #133) — the preferred format is now preselected on the Download page when its id is in the server-provided format list. Falls back to the first server format if the saved value is unavailable, and does not overwrite an explicit user choice mid-session.
+- **"Show in folder" works outside `$HOME`** (#128, #134) — removed the home-directory guard that broke the feature for downloads saved to non-`C:\Users\*` drives on Windows or external volumes on macOS. Handler extracted into a pure helper (`src/main/showItemInFolder.ts`) for unit-testable behavior. Gracefully falls back to `shell.openPath(parent)` when the file has been moved or deleted; surfaces OS-level `openPath` errors instead of masking them.
+- **Re-download from History starts the download in single-mode** (#129, #135) — previously `SingleDownloadPage` ignored the re-download request because `consumeRedownload` was only wired into the queue-mode branch. Now both branches share a `ConsumeRedownloadProps` type and `SingleDownloadPage` calls `start(req)` directly when a redownload is consumed, gated on `state === "idle"` so it does not interrupt an in-flight download.
+
+### Added
+
+- **TTL-based retention for `yt-service` downloads** (#132, #138) — in-process `DownloadSweeper` runs an immediate sweep on boot and periodic `setInterval` sweeps, unlinking regular files in `DOWNLOAD_DIR` older than `DOWNLOAD_RETENTION_MINUTES`. Structured logging per sweep (`download_sweep`) and per delete (`download_sweep_deleted` at `debug`). Registered in graceful shutdown (stopped before internal HTTP and gRPC so disk I/O quiesces first). Prevents unbounded disk growth on VM2. New env vars: `DOWNLOAD_RETENTION_MINUTES` (default `60`, prod `30`), `DOWNLOAD_SWEEP_INTERVAL_SECONDS` (default `300`, minimum `60`), `DOWNLOAD_CLEANUP_DISABLED` (debug escape hatch).
+- **Automated `main → dev` back-merge PR after every release** (#131, #137) — new `.github/workflows/sync-main-to-dev.yml` triggered on `release: published` and `workflow_dispatch`. Idempotent: short-circuits when an open sync PR already exists for the tag, and uses `git switch -C` + `--force-with-lease` so re-runs after a stale remote branch do not fail. Opens a PR to `dev` with `sync` + `automated` labels; no auto-merge. Prevents the version-conflict churn that hit v1.3.3 → v1.3.4 → v1.3.5 planning. Note: this workflow does not fire for v1.3.5's own release (added in the same milestone); back-merge for 1.3.5 is manual, automation kicks in from v1.3.6.
+
+### Documentation
+
+- **Clearer guidance on `FILE_DELIVERY_MODE` in two-VM deploys** (#125, #136) — `yt-service` now emits a structured `internal_http_server_started` log line with `fileDeliveryMode` and `internalFilesRouteEnabled` at boot, so misconfiguration (VM2 left on `local` while VM1 expects `remote`) is grep-able from `docker logs yt-service` immediately. `.env.prod.vm2.example` ships with `FILE_DELIVERY_MODE=remote` plus an explanatory comment; `docs/deploymentRunbook.md` §1 "Security model" has a new callout noting that both VMs must set the var. Splitting the env var into two (per-VM flags) is explicitly deferred.
+
+### Deferred to v1.4.0
+
+- **Move yt-client HTTP traffic from renderer to Electron main (CORS elimination)** (#126) — originally scoped to v1.3.5 but moved to v1.4.0 during planning as the only large architectural change in the milestone. v1.3.5 stays a compact stability/DX release; v1.4.0 becomes the architectural release.
+
 ## [1.3.4] - 2026-04-22
 
 ### Fixed
