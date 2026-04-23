@@ -2,6 +2,7 @@ import { ClipboardPaste } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
+import { useSettings } from "@/hooks/useSettings";
 import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
@@ -34,6 +35,7 @@ export function DownloadForm({
     error: formatsError,
     refetch: refetchFormats,
   } = useFormats();
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (tab === "single") linkRef.current?.focus();
@@ -65,10 +67,15 @@ export function DownloadForm({
   }, [metadataError]);
 
   useEffect(() => {
-    if (formats.length > 0 && !format) {
-      setFormat(formats[0].id);
+    if (format) return;
+    if (formats.length === 0) return;
+    const preferred = settings?.defaultFormat;
+    if (preferred && formats.some((f) => f.id === preferred)) {
+      setFormat(preferred);
+      return;
     }
-  }, [formats, format]);
+    setFormat(formats[0].id);
+  }, [formats, format, settings?.defaultFormat]);
 
   const handlePaste = async () => {
     const text = await window.electronAPI?.readClipboardText();

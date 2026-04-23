@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DownloadForm } from "@/components/download/DownloadForm";
 
 vi.mock("@/hooks/useFormats", () => ({
@@ -22,7 +22,23 @@ vi.mock("@/hooks/useMetadata", () => ({
   }),
 }));
 
+const mockUseSettings = vi.fn();
+vi.mock("@/hooks/useSettings", () => ({
+  useSettings: () => mockUseSettings(),
+}));
+
 describe("DownloadForm", () => {
+  beforeEach(() => {
+    mockUseSettings.mockReturnValue({
+      settings: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "mp4",
+      },
+      updateSetting: vi.fn(),
+    });
+  });
+
   it("renders the link input, format select, and name input", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
 
@@ -96,8 +112,69 @@ describe("DownloadForm", () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       link: "https://www.youtube.com/watch?v=abc",
-      format: "mp3",
+      format: "mp4",
       name: "My Video",
     });
+  });
+
+  it("preselects the format from Settings when it exists in the formats list", () => {
+    mockUseSettings.mockReturnValue({
+      settings: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "mp4",
+      },
+      updateSetting: vi.fn(),
+    });
+    render(<DownloadForm onSubmit={vi.fn()} />);
+
+    const select = screen.getByLabelText("Format") as HTMLSelectElement;
+    expect(select.value).toBe("mp4");
+  });
+
+  it("falls back to first format when defaultFormat is not in the server list", () => {
+    mockUseSettings.mockReturnValue({
+      settings: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "flac",
+      },
+      updateSetting: vi.fn(),
+    });
+    render(<DownloadForm onSubmit={vi.fn()} />);
+
+    const select = screen.getByLabelText("Format") as HTMLSelectElement;
+    expect(select.value).toBe("mp3");
+  });
+
+  it("does not overwrite an explicit user format choice when settings change mid-session", async () => {
+    const user = userEvent.setup();
+    mockUseSettings.mockReturnValue({
+      settings: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "mp4",
+      },
+      updateSetting: vi.fn(),
+    });
+    const { rerender } = render(<DownloadForm onSubmit={vi.fn()} />);
+
+    const select = screen.getByLabelText("Format") as HTMLSelectElement;
+    await user.selectOptions(select, "mp3");
+    expect(select.value).toBe("mp3");
+
+    mockUseSettings.mockReturnValue({
+      settings: {
+        theme: "system",
+        defaultDownloadDir: null,
+        defaultFormat: "mp4",
+      },
+      updateSetting: vi.fn(),
+    });
+    rerender(<DownloadForm onSubmit={vi.fn()} />);
+
+    expect((screen.getByLabelText("Format") as HTMLSelectElement).value).toBe(
+      "mp3",
+    );
   });
 });
