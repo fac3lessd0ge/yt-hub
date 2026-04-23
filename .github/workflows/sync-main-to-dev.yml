@@ -1,0 +1,61 @@
+name: Sync main into dev
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag for the sync branch name (optional; falls back to github.run_id)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create sync branch from main
+        id: branch
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag || github.run_id }}
+        run: |
+          BRANCH="sync/main-into-dev-${TAG}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          git switch -c "$BRANCH"
+          git push origin "$BRANCH"
+
+      - name: Open PR main → dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag || github.run_id }}
+        run: |
+          set -e
+          if gh pr view "$BRANCH" --json number --jq '.number' >/dev/null 2>&1; then
+            echo "PR already exists for $BRANCH — nothing to do."
+            gh pr view "$BRANCH" --json url --jq '.url'
+            exit 0
+          fi
+          gh pr create \
+            --base dev \
+            --head "$BRANCH" \
+            --title "sync: merge main (${TAG}) back into dev" \
+            --body "Automated back-merge opened by \`sync-main-to-dev.yml\` after release ${TAG}. Review and merge promptly so \`dev\` stays current with \`main\` (prevents version-conflict churn on the next release).
+
+          If this PR has conflicts, resolve them on this branch before merging — do not auto-merge." \
+            --label sync \
+            --label automated
