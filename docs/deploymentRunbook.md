@@ -196,6 +196,16 @@ bash scripts/rollback-vm1.sh v1.3.2
 
    For `deploy`, this assumes images for `version_tag` already exist in GHCR (no build step is run). For `rollback`, the script pulls the target version and recreates `yt-api` / `yt-service` with `--no-deps` so Traefik on VM1 is not restarted.
 
+### Post-release sync
+
+After every tagged release, `.github/workflows/sync-main-to-dev.yml` opens an automated PR titled `sync: merge main (<tag>) back into dev`. Merge it promptly — do not let it linger. If it has conflicts (someone pushed to `dev` during the release window), resolve them by hand on the sync branch before merging; do not auto-merge.
+
+Labels on the PR: `sync`, `automated`.
+
+Manual trigger (safety net, e.g. if a prior release skipped the sync): Actions → **Sync main into dev** → **Run workflow** → the **Release tag** input is required (e.g. `v1.3.5`).
+
+If the workflow is re-run for the same tag (after a failed first attempt or a transient error), it short-circuits when it finds an already-open sync PR for that tag — no duplicate PRs, no force-push. Close the stale open PR first if you want the workflow to re-open a fresh one.
+
 ### Required GitHub secrets
 
 SSH:

@@ -1,0 +1,91 @@
+name: Sync main into dev
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag for the sync branch name (required when dispatched manually)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Compute sync branch name
+        id: branch
+        run: |
+          set -euo pipefail
+          BRANCH="sync/main-into-dev-${TAG}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Short-circuit if an open sync PR already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          URL=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // ""')
+          if [ -n "$URL" ]; then
+            echo "Open sync PR already exists: $URL"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git identity
+        if: steps.existing.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create sync branch from main
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          # The branch is always fast-forwarded to the current main tip.
+          # Force-with-lease is safe because sync branches never have
+          # human contributions — the open-PR check above guarantees no
+          # active consumer.
+          git switch -C "$BRANCH"
+          git push --force-with-lease origin "$BRANCH"
+
+      - name: Open PR main → dev
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          BODY=$(cat <<EOF
+          Automated back-merge opened by \`sync-main-to-dev.yml\` after release ${TAG}.
+
+          Review and merge promptly so \`dev\` stays current with \`main\` (prevents version-conflict churn on the next release).
+
+          If this PR has conflicts, resolve them on this branch before merging — do not auto-merge.
+          EOF
+          )
+          gh pr create \
+            --base dev \
+            --head "$BRANCH" \
+            --title "sync: merge main (${TAG}) back into dev" \
+            --body "$BODY" \
+            --label sync \
+            --label automated
