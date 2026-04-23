@@ -184,7 +184,7 @@ describe("DownloadPage", () => {
     expect(start).not.toHaveBeenCalled();
   });
 
-  it("does not start when already downloading", () => {
+  it("does not start when already downloading and preserves the redownload request", () => {
     const start = vi.fn();
     const req = { link: "https://youtu.be/abc", format: "mp3", name: "Clip" };
     const consumeRedownload = vi.fn().mockReturnValue(req);
@@ -195,5 +195,8 @@ describe("DownloadPage", () => {
     render(<DownloadPage consumeRedownload={consumeRedownload} />);
 
     expect(start).not.toHaveBeenCalled();
+    // The request must NOT be drained mid-download — it should still be available
+    // when state returns to "idle" so the redownload eventually fires.
+    expect(consumeRedownload).not.toHaveBeenCalled();
   });
 });

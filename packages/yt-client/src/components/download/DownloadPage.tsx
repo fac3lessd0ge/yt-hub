@@ -11,15 +11,13 @@ import { DownloadProgress } from "./DownloadProgress";
 import { DownloadResult } from "./DownloadResult";
 import { QueueList } from "./QueueList";
 
-interface DownloadPageProps {
+interface ConsumeRedownloadProps {
   consumeRedownload?: () => RedownloadRequest | null;
 }
 
-function SingleDownloadPage({
-  consumeRedownload,
-}: {
-  consumeRedownload?: () => RedownloadRequest | null;
-}) {
+type DownloadPageProps = ConsumeRedownloadProps;
+
+function SingleDownloadPage({ consumeRedownload }: ConsumeRedownloadProps) {
   const { state, progress, result, localPath, error, start, cancel, reset } =
     useDownload();
 
@@ -30,6 +28,8 @@ function SingleDownloadPage({
   );
   useKeyboardShortcuts(shortcuts);
 
+  // Gated on state === "idle": starting mid-download would abort the current one.
+  // Queue-mode has no such gate because addItem is always safe to call.
   useEffect(() => {
     if (state !== "idle") return;
     const req = consumeRedownload?.();
@@ -90,11 +90,7 @@ function SingleDownloadPage({
   );
 }
 
-function QueueDownloadPage({
-  consumeRedownload,
-}: {
-  consumeRedownload?: () => RedownloadRequest | null;
-}) {
+function QueueDownloadPage({ consumeRedownload }: ConsumeRedownloadProps) {
   const { items, addItem, cancelItem, removeItem, retryItem } = useQueue();
 
   // Auto-add re-download request on mount
