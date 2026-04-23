@@ -85,10 +85,6 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 async function bootstrap(): Promise<void> {
   await internalHttpServer.start();
-  logger.info(
-    { host: config.internalHttpHost, port: config.internalHttpPort },
-    "Internal HTTP server listening",
-  );
 
   try {
     await server.start(config.host, config.port);

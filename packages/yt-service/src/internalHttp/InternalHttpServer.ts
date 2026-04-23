@@ -60,6 +60,15 @@ export class InternalHttpServer {
         resolveStart();
       });
     });
+    this.logger.info(
+      {
+        fileDeliveryMode: this.fileDeliveryMode,
+        internalFilesRouteEnabled: this.fileDeliveryMode === "remote",
+        host: this.host,
+        port: this.listeningPort,
+      },
+      "internal_http_server_started",
+    );
   }
 
   get listeningPort(): number {
