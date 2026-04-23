@@ -202,7 +202,9 @@ After every tagged release, `.github/workflows/sync-main-to-dev.yml` opens an au
 
 Labels on the PR: `sync`, `automated`.
 
-Manual trigger (safety net, e.g. if a prior release skipped the sync): Actions → **Sync main into dev** → **Run workflow** → supply the release tag as input.
+Manual trigger (safety net, e.g. if a prior release skipped the sync): Actions → **Sync main into dev** → **Run workflow** → the **Release tag** input is required (e.g. `v1.3.5`).
+
+If the workflow is re-run for the same tag (after a failed first attempt or a transient error), it short-circuits when it finds an already-open sync PR for that tag — no duplicate PRs, no force-push. Close the stale open PR first if you want the workflow to re-open a fresh one.
 
 ### Required GitHub secrets
 
