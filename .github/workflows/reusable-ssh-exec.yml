@@ -51,7 +51,7 @@ jobs:
             mkdir -p "${{ secrets.deploy_path }}"
 
       - name: Sync shared deploy script library
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -62,7 +62,7 @@ jobs:
 
       - name: Sync VM1 deploy script
         if: inputs.vm_target == 'vm1'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -73,7 +73,7 @@ jobs:
 
       - name: Sync VM1 rollback script
         if: inputs.vm_target == 'vm1'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Sync VM2 deploy script
         if: inputs.vm_target == 'vm2'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Sync VM2 rollback script
         if: inputs.vm_target == 'vm2'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -105,7 +105,7 @@ jobs:
           target: ${{ secrets.deploy_path }}
 
       - name: Sync docker compose file to remote
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
@@ -138,7 +138,7 @@ jobs:
 
       - name: Sync Traefik static config (VM1)
         if: inputs.vm_target == 'vm1'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.ssh_host }}
           username: ${{ secrets.ssh_user }}
