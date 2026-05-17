@@ -11,9 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.11.0",
+    "@bufbuild/protobuf": "^2.12.0",
     "@grpc/grpc-js": "^1.12.0",
-    "@grpc/proto-loader": "^0.8.0",
+    "@grpc/proto-loader": "^0.8.1",
     "content-disposition": "^0.5.4",
     "dotenv": "^16.4.7",
     "pino": "^10.3.1",
@@ -23,7 +23,7 @@
     "@types/content-disposition": "^0.5.9",
     "@types/node": "^22.0.0",
     "tsup": "^8.5.1",
-    "tsx": "^4.19.0",
+    "tsx": "^4.22.1",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^3.0.0"
