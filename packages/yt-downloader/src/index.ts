@@ -4,6 +4,7 @@ export type { YtDlpConfig } from "./config";
 export { loadYtDlpConfig } from "./config";
 export type { DownloadParams, DownloadResult } from "./DownloadService";
 export { DownloadService } from "./DownloadService";
+export type { IBinaryResolver } from "./dependencies";
 export { DependencyError } from "./dependencies";
 export type {
   DownloadProgress,

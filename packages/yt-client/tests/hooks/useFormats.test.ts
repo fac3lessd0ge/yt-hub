@@ -1,19 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFormats } from "@/hooks/useFormats";
 
-const mockFetchFormats = vi.fn();
-
-vi.mock("@/lib/apiClient", () => ({
-  fetchFormats: (...args: any[]) => mockFetchFormats(...args),
-}));
+const mockListFormats = vi.fn();
 
 describe("useFormats", () => {
   beforeEach(() => {
-    mockFetchFormats.mockReset();
+    mockListFormats.mockReset();
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      listFormats: mockListFormats,
+    };
   });
+
+  afterEach(() => {
+    (window as unknown as { electronAPI?: unknown }).electronAPI = undefined;
+  });
+
   it("starts in loading state", () => {
-    mockFetchFormats.mockReturnValue(new Promise(() => {})); // never resolves
+    mockListFormats.mockReturnValue(new Promise(() => {})); // never resolves
     const { result } = renderHook(() => useFormats());
 
     expect(result.current.loading).toBe(true);
@@ -26,7 +30,7 @@ describe("useFormats", () => {
       { id: "mp3", label: "MP3 audio" },
       { id: "mp4", label: "MP4 video" },
     ];
-    mockFetchFormats.mockResolvedValue({ formats });
+    mockListFormats.mockResolvedValue({ formats });
 
     const { result } = renderHook(() => useFormats());
 
@@ -39,7 +43,7 @@ describe("useFormats", () => {
   });
 
   it("transitions to error on fetch failure", async () => {
-    mockFetchFormats.mockRejectedValue(new Error("Network error"));
+    mockListFormats.mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useFormats());
 
@@ -52,7 +56,7 @@ describe("useFormats", () => {
   });
 
   it("refetch reloads formats after error", async () => {
-    mockFetchFormats.mockRejectedValueOnce(new Error("Network error"));
+    mockListFormats.mockRejectedValueOnce(new Error("Network error"));
 
     const { result } = renderHook(() => useFormats());
 
@@ -61,9 +65,8 @@ describe("useFormats", () => {
     });
     expect(result.current.error).toBe("Network error");
 
-    // Now mock success and call refetch
     const formats = [{ id: "mp3", label: "MP3 audio" }];
-    mockFetchFormats.mockResolvedValueOnce({ formats });
+    mockListFormats.mockResolvedValueOnce({ formats });
 
     act(() => {
       result.current.refetch();

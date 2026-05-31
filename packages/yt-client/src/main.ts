@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config as loadDotenv } from "dotenv";
 import {
   app,
   BrowserWindow,
@@ -9,12 +8,14 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
-  net,
   screen,
   shell,
 } from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
+import { DownloadService } from "yt-downloader";
+import { getUrlValidationError } from "./lib/urlValidation";
+import { BundledBinaryResolver } from "./main/BundledBinaryResolver";
 import { showItemInFolder as showItemInFolderImpl } from "./main/showItemInFolder";
 
 if (started) {
@@ -24,11 +25,6 @@ if (started) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
-}
-
-// Vite loads .env into the renderer; main only sees OS env unless we load it here.
-if (!app.isPackaged) {
-  loadDotenv({ path: path.join(app.getAppPath(), ".env") });
 }
 
 app.on("second-instance", () => {
@@ -262,110 +258,129 @@ ipcMain.handle("shell:openExternal", async (_event, url: string) => {
   await shell.openExternal(url);
 });
 
-ipcMain.handle(
-  "dialog:saveDownload",
-  async (
-    _event,
-    downloadUrl: string,
-    suggestedFilename: string,
-    destDir?: string,
-  ) => {
-    if (
-      typeof downloadUrl !== "string" ||
-      typeof suggestedFilename !== "string"
-    ) {
-      throw new Error("Invalid arguments");
-    }
+// --- Download IPC (in-process via yt-downloader DownloadService) ---
 
-    const parsed = new URL(downloadUrl);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("Only http and https URLs are allowed");
-    }
+const downloadService = new DownloadService({
+  binaryResolver: new BundledBinaryResolver({
+    userBinDir: path.join(app.getPath("userData"), "bin"),
+    resourcesBinDir: path.join(process.resourcesPath, "bin"),
+  }),
+});
 
-    let filePath: string;
+const inFlightDownloads = new Map<string, AbortController>();
 
-    if (destDir && typeof destDir === "string") {
-      // Direct save mode — skip save dialog
-      const dirExists = await fs
-        .access(destDir)
-        .then(() => true)
-        .catch(() => false);
+interface DownloadStartParams {
+  downloadId: string;
+  link: string;
+  format: string;
+  name: string;
+}
 
-      if (!dirExists) {
-        // Directory deleted — fall back to save dialog
-        const result = await dialog.showSaveDialog({
-          defaultPath: suggestedFilename,
-          filters: [{ name: "All Files", extensions: ["*"] }],
+ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
+  if (
+    !params ||
+    typeof params.downloadId !== "string" ||
+    params.downloadId.length === 0 ||
+    typeof params.link !== "string" ||
+    typeof params.format !== "string" ||
+    typeof params.name !== "string"
+  ) {
+    throw new Error("Invalid download parameters");
+  }
+
+  const urlError = getUrlValidationError(params.link);
+  if (urlError) {
+    throw new Error(urlError);
+  }
+
+  const { downloadId } = params;
+  const controller = new AbortController();
+  inFlightDownloads.set(downloadId, controller);
+
+  // Read destination from the settings store — never trust a renderer-supplied path.
+  const destination =
+    store.get("settings", defaultSettings).defaultDownloadDir ?? undefined;
+
+  const { sender } = event;
+
+  downloadService
+    .download(
+      {
+        link: params.link,
+        format: params.format,
+        name: params.name,
+        destination,
+      },
+      (progress) => {
+        if (sender.isDestroyed()) return;
+        sender.send("download:progress", {
+          downloadId,
+          percent: progress.percent,
+          speed: progress.speed,
+          eta: progress.eta,
         });
-        if (result.canceled || !result.filePath) return null;
-        filePath = result.filePath;
-      } else {
-        // Resolve filename collisions: video.mp4 → video (1).mp4 → video (2).mp4
-        const ext = path.extname(suggestedFilename);
-        const base = path.basename(suggestedFilename, ext);
-        let candidate = path.join(destDir, suggestedFilename);
-        let counter = 0;
-
-        while (
-          await fs
-            .access(candidate)
-            .then(() => true)
-            .catch(() => false)
-        ) {
-          counter++;
-          candidate = path.join(destDir, `${base} (${counter})${ext}`);
-        }
-        filePath = candidate;
+      },
+      controller.signal,
+    )
+    .then((result) => {
+      if (!sender.isDestroyed()) {
+        sender.send("download:complete", {
+          downloadId,
+          filePath: result.outputPath,
+          result: {
+            output_path: result.outputPath,
+            title: result.metadata.title,
+            author_name: result.metadata.authorName,
+            format_id: result.format.id,
+            format_label: result.format.label,
+          },
+        });
       }
-    } else {
-      // Original behavior — show save dialog
-      const result = await dialog.showSaveDialog({
-        defaultPath: suggestedFilename,
-        filters: [{ name: "All Files", extensions: ["*"] }],
+    })
+    .catch((err: unknown) => {
+      if (sender.isDestroyed()) return;
+      const aborted =
+        controller.signal.aborted ||
+        (err instanceof Error &&
+          (err.name === "AbortError" || err.name === "CancellationError"));
+      if (aborted) return;
+      sender.send("download:error", {
+        downloadId,
+        code: err instanceof Error ? err.name : "DOWNLOAD_FAILED",
+        message: err instanceof Error ? err.message : "Download failed",
       });
-      if (result.canceled || !result.filePath) return null;
-      filePath = result.filePath;
-    }
+    })
+    .finally(() => {
+      inFlightDownloads.delete(downloadId);
+    });
+});
 
-    const response = await net.fetch(downloadUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status}`);
-    }
-    if (!response.body) {
-      throw new Error("Response has no body");
-    }
+ipcMain.handle("download:cancel", (_event, downloadId: string) => {
+  const controller = inFlightDownloads.get(downloadId);
+  if (controller) {
+    controller.abort();
+    inFlightDownloads.delete(downloadId);
+  }
+});
 
-    const { Readable } = await import("node:stream");
-    const { createWriteStream } = await import("node:fs");
-    const { pipeline } = await import("node:stream/promises");
+ipcMain.handle("metadata:get", async (_event, url: string) => {
+  if (typeof url !== "string") {
+    throw new Error("Invalid url");
+  }
+  const metadata = await downloadService.getMetadata(url);
+  return { title: metadata.title, author_name: metadata.authorName };
+});
 
-    const readable = Readable.fromWeb(
-      response.body as import("node:stream/web").ReadableStream,
-    );
-    const writable = createWriteStream(filePath);
+ipcMain.handle("formats:list", () => {
+  return { formats: downloadService.listFormats() };
+});
 
-    try {
-      await pipeline(readable, writable);
-    } catch (err) {
-      await fs.unlink(filePath).catch(() => {});
-      throw err;
-    }
-
-    return { filePath };
-  },
-);
-
-ipcMain.on("config:getApiBaseUrl", (event) => {
-  event.returnValue = process.env.YT_HUB_API_URL ?? "";
+ipcMain.handle("backends:list", () => {
+  return { backends: downloadService.listBackends() };
 });
 
 ipcMain.on("app:getVersion", (event) => {
   event.returnValue = app.getVersion();
-});
-
-// Async handler for future use
-ipcMain.handle("config:getApiBaseUrl", () => {
-  return process.env.YT_HUB_API_URL ?? "";
 });
 
 ipcMain.handle("clipboard:readText", () => {

@@ -1,19 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useBackends } from "@/hooks/useBackends";
 
-const mockFetchBackends = vi.fn();
-
-vi.mock("@/lib/apiClient", () => ({
-  fetchBackends: (...args: any[]) => mockFetchBackends(...args),
-}));
+const mockListBackends = vi.fn();
 
 describe("useBackends", () => {
   beforeEach(() => {
-    mockFetchBackends.mockReset();
+    mockListBackends.mockReset();
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      listBackends: mockListBackends,
+    };
   });
+
+  afterEach(() => {
+    (window as unknown as { electronAPI?: unknown }).electronAPI = undefined;
+  });
+
   it("starts in loading state", () => {
-    mockFetchBackends.mockReturnValue(new Promise(() => {}));
+    mockListBackends.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useBackends());
 
     expect(result.current.loading).toBe(true);
@@ -22,7 +26,7 @@ describe("useBackends", () => {
   });
 
   it("transitions to success with backends data", async () => {
-    mockFetchBackends.mockResolvedValue({ backends: ["yt-dlp", "ytdl-core"] });
+    mockListBackends.mockResolvedValue({ backends: ["yt-dlp", "ytdl-core"] });
 
     const { result } = renderHook(() => useBackends());
 
@@ -35,7 +39,7 @@ describe("useBackends", () => {
   });
 
   it("transitions to error on fetch failure", async () => {
-    mockFetchBackends.mockRejectedValue(new Error("Server down"));
+    mockListBackends.mockRejectedValue(new Error("Server down"));
 
     const { result } = renderHook(() => useBackends());
 
@@ -48,7 +52,7 @@ describe("useBackends", () => {
   });
 
   it("refetch reloads backends after error", async () => {
-    mockFetchBackends.mockRejectedValueOnce(new Error("Server down"));
+    mockListBackends.mockRejectedValueOnce(new Error("Server down"));
 
     const { result } = renderHook(() => useBackends());
 
@@ -57,8 +61,7 @@ describe("useBackends", () => {
     });
     expect(result.current.error).toBe("Server down");
 
-    // Now mock success and call refetch
-    mockFetchBackends.mockResolvedValueOnce({ backends: ["yt-dlp"] });
+    mockListBackends.mockResolvedValueOnce({ backends: ["yt-dlp"] });
 
     act(() => {
       result.current.refetch();

@@ -152,15 +152,6 @@ describe("DownloadPage", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
-  it("saving state has aria-busy", () => {
-    mockUseDownload.mockReturnValue(makeHookReturn({ state: "saving" }));
-    render(<DownloadPage />);
-    expect(screen.getByText("Saving file...")).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
-  });
-
   it("starts the download when re-download is requested in single-mode", () => {
     const start = vi.fn();
     const req = { link: "https://youtu.be/abc", format: "mp3", name: "Clip" };

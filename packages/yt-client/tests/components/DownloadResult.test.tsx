@@ -6,7 +6,6 @@ import type { DownloadComplete } from "@/types/api";
 
 const mockResult: DownloadComplete = {
   output_path: "/home/user/Downloads/test.mp3",
-  download_url: "/api/downloads/test.mp3",
   title: "Test Video",
   author_name: "Test Author",
   format_id: "mp3",

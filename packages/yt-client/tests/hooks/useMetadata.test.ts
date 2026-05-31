@@ -2,20 +2,20 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMetadata } from "@/hooks/useMetadata";
 
-const mockFetchMetadata = vi.fn();
-
-vi.mock("@/lib/apiClient", () => ({
-  fetchMetadata: (...args: any[]) => mockFetchMetadata(...args),
-}));
+const mockGetMetadata = vi.fn();
 
 describe("useMetadata", () => {
   beforeEach(() => {
-    mockFetchMetadata.mockReset();
+    mockGetMetadata.mockReset();
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      getMetadata: mockGetMetadata,
+    };
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    (window as unknown as { electronAPI?: unknown }).electronAPI = undefined;
   });
 
   it("returns null metadata and no loading when link is empty", () => {
@@ -29,11 +29,11 @@ describe("useMetadata", () => {
   it("does not fetch immediately due to debounce", () => {
     renderHook(() => useMetadata("https://www.youtube.com/watch?v=abc"));
 
-    expect(mockFetchMetadata).not.toHaveBeenCalled();
+    expect(mockGetMetadata).not.toHaveBeenCalled();
   });
 
   it("fetches metadata after debounce delay (500ms)", async () => {
-    mockFetchMetadata.mockResolvedValue({
+    mockGetMetadata.mockResolvedValue({
       title: "Test Video",
       author_name: "Test Author",
     });
@@ -46,9 +46,8 @@ describe("useMetadata", () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
-    expect(mockFetchMetadata).toHaveBeenCalledWith(
+    expect(mockGetMetadata).toHaveBeenCalledWith(
       "https://www.youtube.com/watch?v=abc",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(result.current.metadata).toEqual({
       title: "Test Video",
@@ -58,7 +57,7 @@ describe("useMetadata", () => {
   });
 
   it("sets error when fetch fails", async () => {
-    mockFetchMetadata.mockRejectedValue(new Error("Not found"));
+    mockGetMetadata.mockRejectedValue(new Error("Not found"));
 
     const { result } = renderHook(() =>
       useMetadata("https://www.youtube.com/watch?v=bad"),
@@ -74,7 +73,7 @@ describe("useMetadata", () => {
   });
 
   it("resets metadata when link changes", async () => {
-    mockFetchMetadata.mockResolvedValue({
+    mockGetMetadata.mockResolvedValue({
       title: "First Video",
       author_name: "Author",
     });
@@ -94,58 +93,39 @@ describe("useMetadata", () => {
     expect(result.current.metadata).toBeNull();
   });
 
-  it("aborts in-flight request when link changes rapidly", async () => {
-    const resolvers: Array<{
-      resolve: (v: any) => void;
-      signal: AbortSignal;
-    }> = [];
-
-    mockFetchMetadata.mockImplementation(
-      (_link: string, opts?: { signal?: AbortSignal }) => {
-        return new Promise((resolve, reject) => {
-          const signal = opts?.signal as AbortSignal;
-          resolvers.push({ resolve, signal });
-          signal?.addEventListener("abort", () => {
-            reject(
-              new DOMException("The operation was aborted.", "AbortError"),
-            );
-          });
-        });
-      },
+  it("drops a stale in-flight response when the link changes rapidly", async () => {
+    const resolvers: Array<(v: unknown) => void> = [];
+    mockGetMetadata.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve)),
     );
 
     const { result, rerender } = renderHook(({ link }) => useMetadata(link), {
       initialProps: { link: "https://www.youtube.com/watch?v=first" },
     });
 
-    // Let first debounce fire
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
+    expect(mockGetMetadata).toHaveBeenCalledTimes(1);
 
-    expect(mockFetchMetadata).toHaveBeenCalledTimes(1);
-    expect(resolvers[0].signal.aborted).toBe(false);
-
-    // Change link — should abort first request
+    // Change link before the first request resolves.
     rerender({ link: "https://www.youtube.com/watch?v=second" });
 
-    expect(resolvers[0].signal.aborted).toBe(true);
-
-    // Let second debounce fire
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
+    expect(mockGetMetadata).toHaveBeenCalledTimes(2);
 
-    expect(mockFetchMetadata).toHaveBeenCalledTimes(2);
-
-    // Resolve second request
+    // Resolve the FIRST (stale) request — must be ignored.
     await act(async () => {
-      resolvers[1].resolve({
-        title: "Second Video",
-        author_name: "Author",
-      });
+      resolvers[0]({ title: "Stale", author_name: "Ghost" });
     });
+    expect(result.current.metadata).toBeNull();
 
+    // Resolve the SECOND (current) request.
+    await act(async () => {
+      resolvers[1]({ title: "Second Video", author_name: "Author" });
+    });
     expect(result.current.metadata).toEqual({
       title: "Second Video",
       author_name: "Author",
@@ -153,17 +133,13 @@ describe("useMetadata", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("does not update state after abort (stale response guard)", async () => {
-    let capturedResolve: ((v: any) => void) | null = null;
-    let capturedSignal: AbortSignal | null = null;
-
-    mockFetchMetadata.mockImplementation(
-      (_link: string, opts?: { signal?: AbortSignal }) => {
-        return new Promise((resolve) => {
+  it("does not update state after unmount (stale response guard)", async () => {
+    let capturedResolve: ((v: unknown) => void) | null = null;
+    mockGetMetadata.mockImplementation(
+      () =>
+        new Promise((resolve) => {
           capturedResolve = resolve;
-          capturedSignal = opts?.signal ?? null;
-        });
-      },
+        }),
     );
 
     const { result, unmount } = renderHook(() =>
@@ -174,20 +150,12 @@ describe("useMetadata", () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
-    expect(capturedSignal).not.toBeNull();
-    expect(capturedSignal?.aborted).toBe(false);
-
-    // Unmount aborts the controller
     unmount();
 
-    expect(capturedSignal?.aborted).toBe(true);
-
-    // Resolve after unmount — should not throw or update state
     await act(async () => {
       capturedResolve?.({ title: "Stale", author_name: "Ghost" });
     });
 
-    // metadata should still be null (was reset, never set to stale data)
     expect(result.current.metadata).toBeNull();
   });
 });
