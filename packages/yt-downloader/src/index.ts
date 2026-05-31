@@ -17,6 +17,7 @@ export { ValidationError } from "./input";
 // Re-export shared types for consumers
 export type { VideoMetadata } from "./metadata";
 export { MetadataError } from "./metadata";
+export { SpawnError } from "./process";
 
 // Zod schemas for runtime validation
 export {

@@ -78,7 +78,9 @@ export class DownloadService {
   ): Promise<DownloadResult> {
     this.validateParams(params);
 
-    this.dependencyChecker.check(this.activeBackend.requiredDependencies());
+    const binaries = this.dependencyChecker.check(
+      this.activeBackend.requiredDependencies(),
+    );
 
     const metadata = await this.metadataFetcher.fetch(params.link, signal);
 
@@ -106,6 +108,7 @@ export class DownloadService {
       params.link,
       outputPath,
       params.format.toLowerCase(),
+      binaries,
       onProgress,
       signal,
     );

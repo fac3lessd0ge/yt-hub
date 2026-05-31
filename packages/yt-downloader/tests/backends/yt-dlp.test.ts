@@ -14,6 +14,11 @@ function fakeSpawner(exitCode: number = 0) {
   return { spawner, getCalls: () => calls };
 }
 
+const TEST_BINARIES: ReadonlyMap<string, string> = new Map([
+  ["yt-dlp", "/opt/bin/yt-dlp"],
+  ["ffmpeg", "/opt/ffmpeg/bin/ffmpeg"],
+]);
+
 function fakeSpawnerWithProgress(lines: string[], exitCode: number = 0) {
   const calls: { args: string[]; options: SpawnOptions }[] = [];
   const spawner: IProcessSpawner = {
@@ -61,9 +66,10 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
     );
     const args = getCalls()[0].args;
-    expect(args[0]).toBe("yt-dlp");
+    expect(args[0]).toBe("/opt/bin/yt-dlp");
     expect(args).toContain("-x");
     expect(args).toContain("--audio-format");
     expect(args).toContain("mp3");
@@ -73,6 +79,60 @@ describe("YtDlpBackend", () => {
     expect(args[args.length - 1]).toBe("https://www.youtube.com/watch?v=abc");
   });
 
+  it("uses the resolved absolute yt-dlp path as argv[0]", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      TEST_BINARIES,
+    );
+    expect(getCalls()[0].args[0]).toBe("/opt/bin/yt-dlp");
+  });
+
+  it("passes --ffmpeg-location pointing at the resolved ffmpeg dir", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp4",
+      "mp4",
+      TEST_BINARIES,
+    );
+    const args = getCalls()[0].args;
+    const idx = args.indexOf("--ffmpeg-location");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("/opt/ffmpeg/bin");
+  });
+
+  it("throws an internal error when yt-dlp path was not resolved", async () => {
+    const { spawner } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await expect(
+      backend.download(
+        "https://www.youtube.com/watch?v=abc",
+        "/tmp/test.mp3",
+        "mp3",
+        new Map(),
+      ),
+    ).rejects.toThrow(/was not resolved/);
+  });
+
+  it("omits --ffmpeg-location when ffmpeg is not resolved", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      new Map([["yt-dlp", "/opt/bin/yt-dlp"]]),
+    );
+    const args = getCalls()[0].args;
+    expect(args[0]).toBe("/opt/bin/yt-dlp");
+    expect(args).not.toContain("--ffmpeg-location");
+  });
+
   it("download spawns yt-dlp with mp4 args", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);
@@ -80,6 +140,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp4",
       "mp4",
+      TEST_BINARIES,
     );
     const args = getCalls()[0].args;
     expect(args).toContain("--merge-output-format");
@@ -95,6 +156,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
     );
     const options = getCalls()[0].options;
     expect(options.stdout).toBe("inherit");
@@ -109,6 +171,7 @@ describe("YtDlpBackend", () => {
         "https://www.youtube.com/watch?v=abc",
         "/tmp/test.mp3",
         "mp3",
+        TEST_BINARIES,
       ),
     ).rejects.toThrow(DownloadError);
   });
@@ -121,6 +184,7 @@ describe("YtDlpBackend", () => {
         "https://www.youtube.com/watch?v=abc",
         "/tmp/test.mp3",
         "mp3",
+        TEST_BINARIES,
       );
     } catch (e) {
       expect(e).toBeInstanceOf(DownloadError);
@@ -135,6 +199,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
     );
     expect(getCalls()[0].args).toContain("--progress");
   });
@@ -146,6 +211,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
     );
     const options = getCalls()[0].options;
     expect(options.stdout).toBe("inherit");
@@ -160,6 +226,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
       () => {},
     );
     const options = getCalls()[0].options;
@@ -183,6 +250,7 @@ describe("YtDlpBackend", () => {
       "https://www.youtube.com/watch?v=abc",
       "/tmp/test.mp3",
       "mp3",
+      TEST_BINARIES,
       (progress) => progressUpdates.push(progress),
     );
 

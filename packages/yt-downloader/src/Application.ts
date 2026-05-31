@@ -22,7 +22,9 @@ export class Application {
 
   async run(): Promise<void> {
     try {
-      this.dependencyChecker.check(this.backend.requiredDependencies());
+      const binaries = this.dependencyChecker.check(
+        this.backend.requiredDependencies(),
+      );
 
       const raw = this.inputReader.read();
       const input = this.validator.validate(raw);
@@ -45,7 +47,12 @@ export class Application {
       this.logger.info(`Downloading as ${formatInfo.label}: ${input.link}`);
       this.logger.info(`Output: ${outputPath}\n`);
 
-      await this.backend.download(input.link, outputPath, input.formatId);
+      await this.backend.download(
+        input.link,
+        outputPath,
+        input.formatId,
+        binaries,
+      );
 
       this.logger.info(`\nDone! Saved to: ${outputPath}`);
     } catch (error) {

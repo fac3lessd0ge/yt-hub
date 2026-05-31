@@ -13,6 +13,7 @@ export interface IDownloadBackend {
     link: string,
     outputPath: string,
     formatId: string,
+    binaries: ReadonlyMap<string, string>,
     onProgress?: ProgressCallback,
     signal?: AbortSignal,
   ): Promise<void>;

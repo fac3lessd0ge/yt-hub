@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import type { YtDlpConfig } from "~/config";
 import type { Dependency } from "~/dependencies";
 import type { IProcessSpawner } from "~/process";
@@ -52,6 +53,7 @@ export class YtDlpBackend implements IDownloadBackend {
     link: string,
     outputPath: string,
     formatId: string,
+    binaries: ReadonlyMap<string, string>,
     onProgress?: ProgressCallback,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -62,8 +64,18 @@ export class YtDlpBackend implements IDownloadBackend {
       throw new DownloadError(1);
     }
 
+    const ytDlpPath = binaries.get("yt-dlp");
+    if (!ytDlpPath) {
+      // Internal invariant: DependencyChecker resolves required binaries before
+      // download() is called, so this signals a wiring bug, not a yt-dlp failure.
+      throw new Error(
+        "yt-dlp binary path was not resolved; ensure DependencyChecker ran before download()",
+      );
+    }
+    const ffmpegPath = binaries.get("ffmpeg");
+
     const args = [
-      "yt-dlp",
+      ytDlpPath,
       ...formatArgs,
       "--no-playlist",
       "--continue",
@@ -71,6 +83,10 @@ export class YtDlpBackend implements IDownloadBackend {
       outputPath,
       "--progress",
     ];
+
+    if (ffmpegPath) {
+      args.push("--ffmpeg-location", dirname(ffmpegPath));
+    }
 
     if (this.config?.proxy) {
       args.push("--proxy", this.config.proxy);

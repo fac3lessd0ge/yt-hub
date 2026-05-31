@@ -28,7 +28,7 @@ function fakeBackend(
       { id: "mp4", label: "MP4 video" },
     ],
     requiredDependencies: () => [],
-    download: async (_link, _path, _format, onProgress?) => {
+    download: async (_link, _path, _format, _binaries, onProgress?) => {
       onDownload?.(onProgress);
     },
   };
