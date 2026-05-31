@@ -128,9 +128,9 @@ export class DownloadService {
     return this.backends.names();
   }
 
-  // URL validation is handled at the API gateway (yt-api/src/validation.rs).
-  // CLI path validates via InputValidator. DownloadService only checks
-  // required fields and format support.
+  // URL validation is handled in the Electron main process before a download
+  // is dispatched. CLI path validates via InputValidator. DownloadService only
+  // checks required fields and format support.
   private validateParams(params: DownloadParams): void {
     if (!params.link || !params.name) {
       throw new ValidationError("link and name are required.");
