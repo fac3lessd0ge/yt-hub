@@ -5,7 +5,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "tsx scripts/dev.ts"
+    "dev": "tsx scripts/dev.ts",
+    "binaries:fetch": "node scripts/fetch-binaries.mjs"
   },
   "overrides": {
     "axios": ">=1.15.0"

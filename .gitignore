@@ -13,3 +13,6 @@ build
 .env.prod
 traefik/acme.json
 .superpowers/
+
+# Bundled yt-dlp/ffmpeg fetched via `npm run binaries:fetch` (never committed)
+packages/yt-client/resources/bin/

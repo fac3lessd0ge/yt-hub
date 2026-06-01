@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-06-01
+
+**Serverless desktop pivot.** YT Hub is no longer a multi-tier client/server system; it is a self-contained Electron desktop app. This is a breaking, architecture-level change. The previous fullstack architecture is preserved on the `legacy/server-architecture` branch and the `v1.3.5-server` tag.
+
+### Changed
+
+- **Downloads now run in-process in the Electron main process.** `yt-client` main owns a `DownloadService` (from `yt-downloader`) and drives it directly; the renderer communicates over IPC only (`download:start`/`download:cancel` plus `download:progress`/`download:complete`/`download:error` events, and `metadata:get`/`formats:list`/`backends:list`). There is no HTTP API, no SSE, and no gRPC.
+- Downloaded files are written straight to the user's chosen folder — no server-side staging directory and no HTTP file transfer.
+
+### Added
+
+- **Tiered binary resolution** (`BundledBinaryResolver`): `yt-dlp`/`ffmpeg` are located at `<userData>/bin` → `<resourcesPath>/bin` (bundled via electron-forge `extraResource`) → `PATH`. The bundled `bin/` folder is gitignored and added to `extraResource` only when present.
+- Installer builds for **Windows** (Squirrel `.exe`) and **Linux** (ZIP; the Linux maker requires the system `zip` binary). Installers are unsigned (Windows: SmartScreen "More info → Run anyway").
+
+### Removed
+
+- The entire server tier: the Rust/Axum `yt-api` package and the Node/gRPC `yt-service` package.
+- All deployment and ops infrastructure: Docker / Docker Compose, Traefik, the two-VM rollout, TLS/Let's Encrypt, the Prometheus/Grafana/Loki monitoring stack, deploy/rollback scripts, and the deployment runbook + TLS strategy docs.
+- HTTP/SSE/gRPC transport, CORS handling, server-side rate limiting, and the associated server environment variables and ports (`3000`, `50051`).
+
+### Platforms
+
+- Supported targets are now **Windows** and **Linux**. macOS is out of scope.
+
 ## [1.3.5] - 2026-04-23
 
 ### Fixed

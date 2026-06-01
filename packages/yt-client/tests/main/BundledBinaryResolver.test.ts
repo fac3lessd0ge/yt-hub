@@ -64,4 +64,19 @@ describe("BundledBinaryResolver", () => {
 
     expect(resolver.resolve("yt-dlp")).toBe(path.resolve("/usr/bin/yt-dlp"));
   });
+
+  it("resolves the bundled .exe on Windows", () => {
+    const exePath = path.join(RES_BIN, "yt-dlp.exe");
+    const existsSet = new Set([path.resolve(exePath)]);
+    const which = vi.fn().mockReturnValue(null);
+    const resolver = new BundledBinaryResolver({
+      resourcesBinDir: RES_BIN,
+      exists: (p) => existsSet.has(path.resolve(p)),
+      which,
+      platform: "win32",
+    });
+
+    expect(resolver.resolve("yt-dlp")).toBe(path.resolve(exePath));
+    expect(which).not.toHaveBeenCalled();
+  });
 });
