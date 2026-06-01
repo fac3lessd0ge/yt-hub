@@ -152,6 +152,37 @@ describe("YtDlpBackend", () => {
     expect(args).toContain("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b");
   });
 
+  it("embeds metadata + thumbnail cover art for mp3", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      TEST_BINARIES,
+    );
+    const args = getCalls()[0].args;
+    expect(args).toContain("--embed-metadata");
+    expect(args).toContain("--embed-thumbnail");
+    const idx = args.indexOf("--convert-thumbnails");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("jpg");
+  });
+
+  it("embeds metadata but not a thumbnail for mp4 (AtomicParsley not bundled)", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp4",
+      "mp4",
+      TEST_BINARIES,
+    );
+    const args = getCalls()[0].args;
+    expect(args).toContain("--embed-metadata");
+    expect(args).not.toContain("--embed-thumbnail");
+  });
+
   it("passes --proxy when a proxy is configured", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner, {
