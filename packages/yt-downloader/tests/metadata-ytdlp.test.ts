@@ -90,7 +90,7 @@ describe("YtDlpMetadataFetcher", () => {
     expect(meta.isAudioOnly).toBe(true);
   });
 
-  it("missing vcodec → isAudioOnly true", async () => {
+  it("missing vcodec on an audio source → isAudioOnly true", async () => {
     const { spawner } = fakeSpawner({ title: "Song", uploader: "Artist" });
     const fetcher = new YtDlpMetadataFetcher(
       spawner,
@@ -98,6 +98,16 @@ describe("YtDlpMetadataFetcher", () => {
     );
     const meta = await fetcher.fetch(SC_URL);
     expect(meta.isAudioOnly).toBe(true);
+  });
+
+  it("missing vcodec on a video source → isAudioOnly false (not flipped)", async () => {
+    const { spawner } = fakeSpawner({ title: "Video", uploader: "Creator" });
+    const fetcher = new YtDlpMetadataFetcher(
+      spawner,
+      fakeResolver("/bin/yt-dlp"),
+    );
+    const meta = await fetcher.fetch(YT_URL);
+    expect(meta.isAudioOnly).toBe(false);
   });
 
   it("falls back through channel / uploader_id / Unknown for author", async () => {

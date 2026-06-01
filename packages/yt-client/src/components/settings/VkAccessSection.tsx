@@ -8,7 +8,7 @@ interface VkAccessSectionProps {
 
 // Browsers yt-dlp can read cookies from. Kept in sync with the engine allowlist
 // (isSupportedCookieBrowser); declared locally so the renderer stays Node-free.
-const BROWSERS: { id: string; label: string }[] = [
+export const BROWSERS: { id: string; label: string }[] = [
   { id: "firefox", label: "Firefox (most reliable)" },
   { id: "chrome", label: "Chrome" },
   { id: "chromium", label: "Chromium" },

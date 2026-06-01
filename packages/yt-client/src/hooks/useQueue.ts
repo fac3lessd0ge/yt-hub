@@ -153,7 +153,9 @@ export function useQueue() {
           link: req.link,
           localPath: payload.filePath,
           downloadedAt: Date.now(),
-          source: getMediaSource(req.link) ?? "youtube",
+          // Prefer the engine-stamped source; fall back to URL detection.
+          source:
+            payload.result.source ?? getMediaSource(req.link) ?? "youtube",
         });
       }
       release(itemId, payload.downloadId);

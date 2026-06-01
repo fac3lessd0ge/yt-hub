@@ -654,6 +654,15 @@ function validateVkAccess(value: unknown): VkAccess {
       "vkAccess.browser and vkAccess.cookiesFile must be strings",
     );
   }
+  // A cookies.txt path, when set, must be an absolute path and must not look
+  // like a flag — it becomes the value of yt-dlp's --cookies argument.
+  const cookiesFile = v.cookiesFile.trim();
+  if (
+    cookiesFile &&
+    (cookiesFile.startsWith("-") || !path.isAbsolute(cookiesFile))
+  ) {
+    throw new Error("vkAccess.cookiesFile must be an absolute file path");
+  }
   return { mode: v.mode, browser: v.browser, cookiesFile: v.cookiesFile };
 }
 

@@ -1,7 +1,7 @@
 import type { YtDlpConfig } from "~/config";
 import type { IBinaryResolver } from "~/dependencies";
 import type { IProcessSpawner } from "~/process";
-import { detectSource } from "~/source";
+import { capabilities, detectSource } from "~/source";
 import { MetadataError } from "../errors/MetadataError";
 import type {
   IMetadataFetcher,
@@ -101,8 +101,13 @@ export class YtDlpMetadataFetcher implements IMetadataFetcher {
     const thumbnail = asString(data.thumbnail);
     const durationSec =
       typeof data.duration === "number" ? data.duration : undefined;
-    const isAudioOnly = data.vcodec === "none" || data.vcodec === undefined;
     const source = detectSource(videoUrl)?.source;
+    // "no video codec" => audio. When vcodec is absent (some dumps omit the
+    // top-level codec), only infer audio-only for inherently-audio sources
+    // (SoundCloud/Bandcamp) — never flip a video source on missing data.
+    const sourceAudioOnly = source ? capabilities(source).audioOnly : false;
+    const isAudioOnly =
+      data.vcodec === "none" || (data.vcodec === undefined && sourceAudioOnly);
 
     return {
       title,
