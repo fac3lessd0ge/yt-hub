@@ -3,7 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
 import { useSettings } from "@/hooks/useSettings";
-import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
+import {
+  getUrlValidationError,
+  isSupportedMediaUrl,
+} from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import { getYoutubeThumbnailUrl } from "@/lib/youtubeThumbnail";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
@@ -81,7 +84,7 @@ export function DownloadForm({
 
   const handlePaste = async () => {
     const text = await window.electronAPI?.readClipboardText();
-    if (text && isValidYoutubeUrl(text.trim())) {
+    if (text && isSupportedMediaUrl(text.trim())) {
       setLink(text.trim());
       awaitingMetadataName.current = true;
     }

@@ -48,6 +48,11 @@ export class InputValidator {
         "URL is not from a supported source (YouTube, SoundCloud, VK, Bandcamp).",
       );
     }
+    if (detected.kind === "playlist") {
+      throw new ValidationError(
+        "Playlists/albums aren't supported yet — provide a single track or video URL.",
+      );
+    }
 
     const destination = resolve(raw.destination ?? DEFAULT_DESTINATION);
 

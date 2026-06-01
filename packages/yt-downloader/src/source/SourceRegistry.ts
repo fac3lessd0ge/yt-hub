@@ -6,8 +6,8 @@ import {
   type FormatCapability,
   type MediaKind,
   type MediaSource,
-  type SourceProvider,
   SOURCES,
+  type SourceProvider,
 } from "./sources";
 
 const MAX_URL_LENGTH = 2048;

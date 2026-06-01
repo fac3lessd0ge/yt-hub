@@ -104,7 +104,8 @@ export const SOURCES: readonly SourceProvider[] = [
       if (host !== "vk.com" && host !== "vkvideo.ru") return null;
       // /video-12345_67890, /clip-12345_67890, or /video?z=video...
       if (/^\/(video|clip)-?\d+_\d+/.test(url.pathname)) return "track";
-      if (url.pathname === "/video" && url.searchParams.has("z")) return "track";
+      if (url.pathname === "/video" && url.searchParams.has("z"))
+        return "track";
       return null;
     },
   },

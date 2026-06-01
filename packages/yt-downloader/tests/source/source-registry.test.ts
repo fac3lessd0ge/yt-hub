@@ -35,9 +35,10 @@ describe("detectSource — SoundCloud", () => {
     });
   });
   it("detects a set as playlist", () => {
-    expect(
-      detectSource("https://soundcloud.com/artist/sets/my-set"),
-    ).toEqual({ source: "soundcloud", kind: "playlist" });
+    expect(detectSource("https://soundcloud.com/artist/sets/my-set")).toEqual({
+      source: "soundcloud",
+      kind: "playlist",
+    });
   });
   it("rejects a bare profile", () => {
     expect(detectSource("https://soundcloud.com/artist")).toBeNull();

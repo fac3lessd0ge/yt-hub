@@ -1,15 +1,15 @@
 export {
   capabilities,
+  type DetectedSource,
   detectSource,
   getProvider,
   isSupportedUrl,
-  type DetectedSource,
   type SourceCapabilities,
 } from "./SourceRegistry";
 export {
-  SOURCES,
   type FormatCapability,
   type MediaKind,
   type MediaSource,
+  SOURCES,
   type SourceProvider,
 } from "./sources";
