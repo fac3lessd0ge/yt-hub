@@ -59,8 +59,22 @@ describe("DownloadService", () => {
 
     expect(result.metadata.title).toBe("Test Video");
     expect(result.metadata.authorName).toBe("Test Channel");
-    expect(result.outputPath).toMatch(/[a-f0-9]{32}\.mp3$/);
+    expect(result.outputPath).toMatch(/\/test-song\.mp3$/);
     expect(result.format.id).toBe("mp3");
+  });
+
+  it("names the output file after the sanitized human label, not a hash", async () => {
+    const service = createService();
+    const result = await service.download({
+      link: "https://www.youtube.com/watch?v=abc",
+      format: "mp3",
+      name: "AC/DC: Back in Black?",
+      destination: "/tmp/yt-test",
+    });
+
+    expect(result.outputPath).toContain("AC_DC_ Back in Black");
+    expect(result.outputPath).toMatch(/\.mp3$/);
+    expect(result.outputPath).not.toMatch(/[a-f0-9]{32}\.mp3$/);
   });
 
   it("getMetadata returns video metadata", async () => {
