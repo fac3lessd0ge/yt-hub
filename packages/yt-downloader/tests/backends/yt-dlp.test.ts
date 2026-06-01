@@ -76,6 +76,9 @@ describe("YtDlpBackend", () => {
     expect(args).toContain("--no-playlist");
     expect(args).toContain("-o");
     expect(args).toContain("/tmp/test.mp3");
+    // --newline forces one progress line per update so the line-based stdout
+    // reader can parse progress (otherwise yt-dlp uses \r and it sticks at 0%).
+    expect(args).toContain("--newline");
     expect(args[args.length - 1]).toBe("https://www.youtube.com/watch?v=abc");
   });
 

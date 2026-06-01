@@ -82,6 +82,11 @@ export class YtDlpBackend implements IDownloadBackend {
       "-o",
       outputPath,
       "--progress",
+      // Emit each progress update on its own line. Without this, yt-dlp uses
+      // carriage returns to redraw the progress line in place, and the
+      // line-based stdout reader only sees the final newline-terminated line —
+      // so progress appears stuck at 0% until the download completes.
+      "--newline",
     ];
 
     if (ffmpegPath) {
