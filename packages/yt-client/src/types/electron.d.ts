@@ -17,6 +17,7 @@ export interface HistoryEntry {
   link: string;
   localPath: string;
   downloadedAt: number;
+  source: string;
 }
 
 export interface Settings {

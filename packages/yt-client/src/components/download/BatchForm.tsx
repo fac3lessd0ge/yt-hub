@@ -1,7 +1,7 @@
 import { FileText, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
-import { isValidYoutubeUrl } from "@/lib/urlValidation";
+import { isSupportedMediaUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
 
@@ -36,7 +36,7 @@ export function BatchForm({
 
   const { validUrls, invalidCount } = useMemo(() => {
     const lines = parseUrls(text);
-    const valid = lines.filter(isValidYoutubeUrl);
+    const valid = lines.filter(isSupportedMediaUrl);
     const invalid = lines.length - valid.length;
     return { validUrls: valid, invalidCount: invalid };
   }, [text]);

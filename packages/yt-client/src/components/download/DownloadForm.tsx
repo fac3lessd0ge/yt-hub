@@ -1,9 +1,14 @@
 import { ClipboardPaste } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { capabilities } from "yt-downloader/source";
 import { useFormats } from "@/hooks/useFormats";
 import { useMetadata } from "@/hooks/useMetadata";
 import { useSettings } from "@/hooks/useSettings";
-import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
+import {
+  getMediaSource,
+  getUrlValidationError,
+  isSupportedMediaUrl,
+} from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import { getYoutubeThumbnailUrl } from "@/lib/youtubeThumbnail";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
@@ -44,6 +49,19 @@ export function DownloadForm({
   }, [tab]);
 
   const urlError = getUrlValidationError(link);
+  const detectedSource = getMediaSource(link);
+
+  // When a source is detected, restrict the format <select> to that source's
+  // capabilities (e.g. SoundCloud/Bandcamp → MP3 only). With no source, fall
+  // back to the full server-provided list.
+  const displayedFormats = useMemo(() => {
+    if (!detectedSource) return formats;
+    const allowedIds = new Set(
+      capabilities(detectedSource).formats.map((f) => f.id),
+    );
+    return formats.filter((f) => allowedIds.has(f.id));
+  }, [detectedSource, formats]);
+
   const {
     metadata,
     loading: metadataLoading,
@@ -69,19 +87,20 @@ export function DownloadForm({
   }, [metadataError]);
 
   useEffect(() => {
-    if (format) return;
-    if (formats.length === 0) return;
+    if (displayedFormats.length === 0) return;
+    // Keep the current choice only while it's still allowed for this source.
+    if (format && displayedFormats.some((f) => f.id === format)) return;
     const preferred = settings?.defaultFormat;
-    if (preferred && formats.some((f) => f.id === preferred)) {
+    if (preferred && displayedFormats.some((f) => f.id === preferred)) {
       setFormat(preferred);
       return;
     }
-    setFormat(formats[0].id);
-  }, [formats, format, settings?.defaultFormat]);
+    setFormat(displayedFormats[0].id);
+  }, [displayedFormats, format, settings?.defaultFormat]);
 
   const handlePaste = async () => {
     const text = await window.electronAPI?.readClipboardText();
-    if (text && isValidYoutubeUrl(text.trim())) {
+    if (text && isSupportedMediaUrl(text.trim())) {
       setLink(text.trim());
       awaitingMetadataName.current = true;
     }
@@ -139,9 +158,16 @@ export function DownloadForm({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Row 1: URL + Format + Paste */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="link" className="text-sm font-medium">
-              YouTube Link
-            </label>
+            <div className="flex items-center gap-2">
+              <label htmlFor="link" className="text-sm font-medium">
+                Media URL
+              </label>
+              {detectedSource && (
+                <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {capabilities(detectedSource).label}
+                </span>
+              )}
+            </div>
             <div className="flex items-stretch gap-2">
               <input
                 ref={linkRef}
@@ -149,7 +175,7 @@ export function DownloadForm({
                 type="text"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="Paste a YouTube, SoundCloud or Bandcamp link"
                 className={cn(
                   "min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
                   metadataError ? "border-destructive" : "border-input",
@@ -189,7 +215,7 @@ export function DownloadForm({
                   aria-label="Format"
                 >
                   {formatsLoading && <option>...</option>}
-                  {formats.map((f: FormatInfo) => (
+                  {displayedFormats.map((f: FormatInfo) => (
                     <option key={f.id} value={f.id}>
                       {f.label}
                     </option>
@@ -201,7 +227,7 @@ export function DownloadForm({
                 type="button"
                 onClick={handlePaste}
                 className="shrink-0 rounded-md border border-input bg-background px-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Paste YouTube URL from clipboard"
+                aria-label="Paste media URL from clipboard"
                 title="Paste from clipboard"
               >
                 <ClipboardPaste className="h-4 w-4" />
@@ -237,7 +263,7 @@ export function DownloadForm({
             <MetadataPreview
               title={metadata.title}
               author={metadata.author_name}
-              thumbnailUrl={getYoutubeThumbnailUrl(link)}
+              thumbnailUrl={metadata?.thumbnail ?? getYoutubeThumbnailUrl(link)}
               hasCoverArt={format === "mp3"}
             />
           )}

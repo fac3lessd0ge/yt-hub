@@ -13,7 +13,11 @@ import {
 } from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
-import { DownloadService, loadYtDlpConfig } from "yt-downloader";
+import {
+  DownloadService,
+  loadYtDlpConfig,
+  type YtDlpConfig,
+} from "yt-downloader";
 import { getProxyValidationError } from "./lib/proxyValidation";
 import { getUrlValidationError } from "./lib/urlValidation";
 import { BundledBinaryResolver } from "./main/BundledBinaryResolver";
@@ -64,6 +68,7 @@ interface HistoryEntry {
   link: string;
   localPath: string;
   downloadedAt: number;
+  source: string;
 }
 
 interface WindowBounds {
@@ -284,19 +289,19 @@ const binaryResolver = new BundledBinaryResolver({
 });
 
 /**
- * Build a DownloadService for the current settings. A configured proxy is
- * threaded into yt-dlp via YtDlpConfig so downloads can tunnel around DPI/geo
- * blocks (e.g. when youtube is reachable in the browser but yt-dlp's CDN
- * connection is throttled). The binary resolver is shared across instances.
+ * Build a DownloadService, optionally overriding the proxy. When a proxy is
+ * given it is layered onto the env-default yt-dlp config; otherwise the env
+ * defaults are used as-is. The binary resolver is shared across instances.
  */
 function createDownloadService(proxy?: string): DownloadService {
-  return new DownloadService({
-    binaryResolver,
-    ytDlpConfig: proxy ? { ...loadYtDlpConfig(), proxy } : undefined,
-  });
+  const ytDlpConfig: YtDlpConfig | undefined = proxy
+    ? { ...loadYtDlpConfig(), proxy }
+    : undefined;
+  return new DownloadService({ binaryResolver, ytDlpConfig });
 }
 
-// Metadata / formats / backends are proxy-independent — use a base instance.
+// Metadata / formats / backends listing is proxy-independent — use a base
+// instance. A proxy override (if set) is applied via createDownloadService.
 const downloadService = createDownloadService();
 
 const inFlightDownloads = new Map<string, AbortController>();
@@ -330,8 +335,8 @@ ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
   inFlightDownloads.set(downloadId, controller);
 
   // Read destination + proxy from the settings store — never trust a
-  // renderer-supplied path, and apply the user's proxy if configured.
-  const settings = store.get("settings", defaultSettings);
+  // renderer-supplied path.
+  const settings = loadSettings();
   const destination = settings.defaultDownloadDir ?? undefined;
   const proxy = settings.proxy?.trim() || undefined;
   const service = proxy ? createDownloadService(proxy) : downloadService;
@@ -368,6 +373,7 @@ ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
             author_name: result.metadata.authorName,
             format_id: result.format.id,
             format_label: result.format.label,
+            source: result.metadata.source,
           },
         });
       }
@@ -407,8 +413,15 @@ ipcMain.handle("metadata:get", async (_event, url: string) => {
   if (urlError) {
     throw new Error(urlError);
   }
-  const metadata = await downloadService.getMetadata(url);
-  return { title: metadata.title, author_name: metadata.authorName };
+  // Preview must use the same proxy as the download.
+  const proxy = loadSettings().proxy?.trim() || undefined;
+  const service = proxy ? createDownloadService(proxy) : downloadService;
+  const metadata = await service.getMetadata(url);
+  return {
+    title: metadata.title,
+    author_name: metadata.authorName,
+    thumbnail: metadata.thumbnail,
+  };
 });
 
 ipcMain.handle("formats:list", () => {
@@ -445,12 +458,24 @@ const defaultSettings: Settings = {
   proxy: "",
 };
 
+/**
+ * Read settings from the store, back-filling any field an older store never
+ * wrote so old installs don't crash.
+ */
+function loadSettings(): Settings {
+  const stored = store.get("settings", defaultSettings);
+  return {
+    ...defaultSettings,
+    ...stored,
+  };
+}
+
 ipcMain.handle("settings:getAll", () => {
-  return store.get("settings", defaultSettings);
+  return loadSettings();
 });
 
 ipcMain.handle("settings:get", (_event, key: string) => {
-  const settings = store.get("settings", defaultSettings);
+  const settings = loadSettings();
   if (!(key in settings)) {
     throw new Error(`Unknown setting key: ${key}`);
   }
@@ -458,7 +483,7 @@ ipcMain.handle("settings:get", (_event, key: string) => {
 });
 
 ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
-  const settings = store.get("settings", defaultSettings);
+  const settings = loadSettings();
   if (!(key in settings)) {
     throw new Error(`Unknown setting key: ${key}`);
   }
@@ -487,7 +512,10 @@ ipcMain.on("settings:getTheme", (event) => {
 // --- History IPC ---
 
 ipcMain.handle("history:getAll", () => {
-  return store.get("downloadHistory", []);
+  // Migrate legacy entries written before `source` existed: default to youtube.
+  return store
+    .get("downloadHistory", [])
+    .map((entry) => ({ ...entry, source: entry.source ?? "youtube" }));
 });
 
 ipcMain.handle("history:add", (_event, entry: Omit<HistoryEntry, "id">) => {

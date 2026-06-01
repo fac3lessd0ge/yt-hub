@@ -225,6 +225,7 @@ describe("useDownload", () => {
         formatType: "audio",
         link: "https://youtube.com/watch?v=abc",
         localPath: "/saved/test.mp3",
+        source: "youtube",
       }),
     );
   });

@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
+import {
+  getMediaSource,
+  getUrlValidationError,
+  isSupportedMediaUrl,
+} from "@/lib/urlValidation";
 
-describe("isValidYoutubeUrl", () => {
+describe("isSupportedMediaUrl", () => {
   it.each([
     "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "https://youtube.com/watch?v=abc123",
-    "https://www.youtube.com/watch?v=abc&t=10",
     "https://youtu.be/dQw4w9WgXcQ",
-    "http://youtu.be/abc123",
     "https://www.youtube.com/shorts/abc123",
-    "https://youtube.com/shorts/def-456",
     "https://m.youtube.com/watch?v=xyz",
-    "https://m.youtube.com/shorts/abc123",
-  ])("accepts valid URL: %s", (url) => {
-    expect(isValidYoutubeUrl(url)).toBe(true);
+    "https://soundcloud.com/artist/some-track",
+    "https://c418.bandcamp.com/track/excuse",
+  ])("accepts supported track URL: %s", (url) => {
+    expect(isSupportedMediaUrl(url)).toBe(true);
   });
 
   it.each([
@@ -23,18 +24,34 @@ describe("isValidYoutubeUrl", () => {
     "ftp://youtube.com/watch?v=abc",
     "https://youtube.com/",
     "https://youtube.com/watch",
-    "https://youtube.com/watch?list=abc",
-    "https://youtube.com/playlist?list=abc",
     "https://youtu.be/",
-    "https://youtube.com/shorts/",
+    "https://soundcloud.com/artist", // bare profile
     "",
-  ])("rejects invalid URL: %s", (url) => {
-    expect(isValidYoutubeUrl(url)).toBe(false);
+    // playlists/collections are not single downloadable tracks (yet)
+    "https://youtube.com/playlist?list=abc",
+    "https://soundcloud.com/artist/sets/my-set",
+    "https://c418.bandcamp.com/album/minecraft",
+  ])("rejects non-track URL: %s", (url) => {
+    expect(isSupportedMediaUrl(url)).toBe(false);
   });
 
   it("rejects URLs longer than the 2048 char cap", () => {
     const long = `https://youtube.com/watch?v=${"a".repeat(2048)}`;
-    expect(isValidYoutubeUrl(long)).toBe(false);
+    expect(isSupportedMediaUrl(long)).toBe(false);
+  });
+});
+
+describe("getMediaSource", () => {
+  it.each([
+    ["https://www.youtube.com/watch?v=abc", "youtube"],
+    ["https://soundcloud.com/artist/track", "soundcloud"],
+    ["https://c418.bandcamp.com/track/excuse", "bandcamp"],
+  ])("maps %s -> %s", (url, source) => {
+    expect(getMediaSource(url)).toBe(source);
+  });
+
+  it("returns null for unsupported", () => {
+    expect(getMediaSource("https://vimeo.com/1")).toBeNull();
   });
 });
 
@@ -43,10 +60,11 @@ describe("getUrlValidationError", () => {
     expect(getUrlValidationError("")).toBeNull();
   });
 
-  it("returns null for valid YouTube URL", () => {
+  it("returns null for a valid track from any source", () => {
     expect(
       getUrlValidationError("https://www.youtube.com/watch?v=abc"),
     ).toBeNull();
+    expect(getUrlValidationError("https://soundcloud.com/a/b")).toBeNull();
   });
 
   it("returns error for non-http URL", () => {
@@ -55,9 +73,15 @@ describe("getUrlValidationError", () => {
     );
   });
 
-  it("returns error for non-YouTube URL", () => {
+  it("returns error for an unsupported host", () => {
     expect(getUrlValidationError("https://vimeo.com/123")).toBe(
-      "Not a recognized YouTube URL",
+      "Not a supported URL (YouTube, SoundCloud, Bandcamp)",
+    );
+  });
+
+  it("returns a playlist-specific error for collection URLs", () => {
+    expect(getUrlValidationError("https://soundcloud.com/a/sets/x")).toBe(
+      "Playlists aren't supported yet — paste a single track or video URL",
     );
   });
 

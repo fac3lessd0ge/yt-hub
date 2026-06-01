@@ -325,6 +325,7 @@ describe("useQueue", () => {
         formatType: "audio",
         link: "https://youtube.com/watch?v=a",
         localPath: "/saved/a.mp3",
+        source: "youtube",
       }),
     );
   });

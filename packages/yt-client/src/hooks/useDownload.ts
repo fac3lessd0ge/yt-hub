@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getFormatType } from "@/lib/formatType";
+import { getMediaSource } from "@/lib/urlValidation";
 import type {
   DownloadComplete,
   DownloadError,
@@ -84,6 +85,9 @@ export function useDownload() {
             link: req.link,
             localPath: payload.filePath,
             downloadedAt: Date.now(),
+            // Prefer the engine-stamped source; fall back to URL detection.
+            source:
+              payload.result.source ?? getMediaSource(req.link) ?? "youtube",
           });
         }
         cleanup();

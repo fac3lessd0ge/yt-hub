@@ -13,6 +13,7 @@ export const DownloadCompleteSchema = z.object({
   author_name: z.string(),
   format_id: z.string(),
   format_label: z.string(),
+  source: z.string().optional(),
 });
 
 export const DownloadErrorSchema = z.object({
@@ -24,6 +25,10 @@ export const DownloadErrorSchema = z.object({
 export const VideoMetadataSchema = z.object({
   title: z.string(),
   authorName: z.string(),
+  thumbnail: z.string().optional(),
+  durationSec: z.number().optional(),
+  isAudioOnly: z.boolean().optional(),
+  source: z.string().optional(),
 });
 
 export const FormatInfoSchema = z.object({
@@ -53,6 +58,7 @@ export const DownloadRequestSchema = z.object({
     .min(1, "name is required"),
   destination: z.string().optional(),
   backend: z.string().optional(),
+  source: z.string().optional(),
 });
 
 export const MetadataResponseSchema = VideoMetadataSchema;
