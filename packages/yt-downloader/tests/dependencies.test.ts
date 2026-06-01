@@ -21,6 +21,24 @@ describe("DependencyChecker", () => {
     expect(() => checker.check(TEST_DEPS)).not.toThrow();
   });
 
+  it("returns a map of binary name to resolved absolute path", () => {
+    const checker = new DependencyChecker(
+      fakeResolver({
+        "yt-dlp": "/opt/bin/yt-dlp",
+        ffmpeg: "/opt/bin/ffmpeg",
+      }),
+    );
+    const resolved = checker.check(TEST_DEPS);
+    expect(resolved.get("yt-dlp")).toBe("/opt/bin/yt-dlp");
+    expect(resolved.get("ffmpeg")).toBe("/opt/bin/ffmpeg");
+    expect(resolved.size).toBe(2);
+  });
+
+  it("returns an empty map for an empty dependency list", () => {
+    const resolved = new DependencyChecker(fakeResolver({})).check([]);
+    expect(resolved.size).toBe(0);
+  });
+
   it("throws DependencyError when yt-dlp is missing", () => {
     const checker = new DependencyChecker(
       fakeResolver({ ffmpeg: "/usr/bin/ffmpeg" }),

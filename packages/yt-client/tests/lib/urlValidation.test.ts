@@ -10,6 +10,8 @@ describe("isValidYoutubeUrl", () => {
     "http://youtu.be/abc123",
     "https://www.youtube.com/shorts/abc123",
     "https://youtube.com/shorts/def-456",
+    "https://m.youtube.com/watch?v=xyz",
+    "https://m.youtube.com/shorts/abc123",
   ])("accepts valid URL: %s", (url) => {
     expect(isValidYoutubeUrl(url)).toBe(true);
   });
@@ -22,9 +24,17 @@ describe("isValidYoutubeUrl", () => {
     "https://youtube.com/",
     "https://youtube.com/watch",
     "https://youtube.com/watch?list=abc",
+    "https://youtube.com/playlist?list=abc",
+    "https://youtu.be/",
+    "https://youtube.com/shorts/",
     "",
   ])("rejects invalid URL: %s", (url) => {
     expect(isValidYoutubeUrl(url)).toBe(false);
+  });
+
+  it("rejects URLs longer than the 2048 char cap", () => {
+    const long = `https://youtube.com/watch?v=${"a".repeat(2048)}`;
+    expect(isValidYoutubeUrl(long)).toBe(false);
   });
 });
 

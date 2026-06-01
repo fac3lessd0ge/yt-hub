@@ -1,3 +1,4 @@
+export { SpawnError } from "./errors/SpawnError";
 export { NodeProcessSpawner } from "./implementations/NodeProcessSpawner";
 export type {
   IProcessSpawner,

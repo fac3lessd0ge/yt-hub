@@ -14,6 +14,7 @@ vi.mock("@/hooks/useSettings", () => ({
       theme: "system",
       defaultDownloadDir: null,
       defaultFormat: "mp4",
+      proxy: "",
     },
     updateSetting: vi.fn(),
   }),
@@ -150,15 +151,6 @@ describe("DownloadPage", () => {
     );
     render(<DownloadPage />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
-  });
-
-  it("saving state has aria-busy", () => {
-    mockUseDownload.mockReturnValue(makeHookReturn({ state: "saving" }));
-    render(<DownloadPage />);
-    expect(screen.getByText("Saving file...")).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
   });
 
   it("starts the download when re-download is requested in single-mode", () => {

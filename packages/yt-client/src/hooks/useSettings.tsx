@@ -20,6 +20,7 @@ const defaultSettings: Settings = {
   theme: "system",
   defaultDownloadDir: null,
   defaultFormat: "mp4",
+  proxy: "",
 };
 
 const SettingsContext = createContext<SettingsContextValue>({

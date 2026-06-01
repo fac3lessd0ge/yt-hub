@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CancellationError } from "~/download/errors/CancellationError";
 import { TimeoutError } from "~/download/errors/TimeoutError";
+import { SpawnError } from "~/process/errors/SpawnError";
 import { NodeProcessSpawner } from "~/process/implementations/NodeProcessSpawner";
 
 describe("NodeProcessSpawner", () => {
@@ -105,6 +106,31 @@ describe("NodeProcessSpawner", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(TimeoutError);
       expect((err as TimeoutError).message).toContain("150");
+    }
+  });
+
+  it("rejects with SpawnError when the binary path does not exist (ENOENT)", async () => {
+    await expect(
+      spawner.spawn(["/nonexistent/path/to/yt-dlp-xyz", "--version"], {
+        stdout: "pipe",
+        stderr: "pipe",
+      }),
+    ).rejects.toThrow(SpawnError);
+  });
+
+  it("SpawnError wraps the underlying spawn error", async () => {
+    try {
+      await spawner.spawn(["/nonexistent/path/to/yt-dlp-xyz"], {
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(SpawnError);
+      expect((err as SpawnError).message).toContain(
+        "/nonexistent/path/to/yt-dlp-xyz",
+      );
+      expect((err as SpawnError).cause).toBeInstanceOf(Error);
     }
   });
 

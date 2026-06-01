@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchFormats } from "@/lib/apiClient";
 import type { FormatInfo } from "@/types/api";
 
 export function useFormats() {
@@ -10,9 +9,18 @@ export function useFormats() {
   const refetch = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchFormats()
+    const api = window.electronAPI;
+    if (!api) {
+      setError("Electron bridge unavailable");
+      setLoading(false);
+      return;
+    }
+    api
+      .listFormats()
       .then((res) => setFormats(res.formats))
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Unknown error"),
+      )
       .finally(() => setLoading(false));
   }, []);
 

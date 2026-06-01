@@ -81,10 +81,6 @@ export function QueueItem({
           </>
         )}
 
-        {item.status === "saving" && (
-          <span className="text-xs text-muted-foreground">Saving...</span>
-        )}
-
         {item.status === "complete" && (
           <>
             <Check className="h-4 w-4 text-green-500" />

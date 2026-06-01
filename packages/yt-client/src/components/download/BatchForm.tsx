@@ -1,7 +1,6 @@
 import { FileText, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormats } from "@/hooks/useFormats";
-import { fetchMetadata } from "@/lib/apiClient";
 import { isValidYoutubeUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
@@ -54,9 +53,13 @@ export function BatchForm({
 
     setLoading(true);
 
-    // Fetch metadata for all URLs in parallel
+    // Fetch metadata for all URLs in parallel (in-process via IPC)
     const results = await Promise.allSettled(
-      validUrls.map((url) => fetchMetadata(url)),
+      validUrls.map((url) =>
+        window.electronAPI
+          ? window.electronAPI.getMetadata(url)
+          : Promise.reject(new Error("Electron bridge unavailable")),
+      ),
     );
 
     const items: DownloadRequest[] = validUrls.map((url, i) => {

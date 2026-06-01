@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchMetadata } from "@/lib/apiClient";
 import type { MetadataResponse } from "@/types/api";
 
 export function useMetadata(link: string) {
@@ -7,38 +6,37 @@ export function useMetadata(link: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setMetadata(null);
     setError(null);
 
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
+    // Invalidate any in-flight request.
+    requestIdRef.current += 1;
 
     if (!link) return;
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      const controller = new AbortController();
-      abortRef.current = controller;
+      requestIdRef.current += 1;
+      const requestId = requestIdRef.current;
 
       setLoading(true);
-      fetchMetadata(link, { signal: controller.signal })
+      window.electronAPI
+        ?.getMetadata(link)
         .then((data) => {
-          if (!controller.signal.aborted) {
+          if (requestId === requestIdRef.current) {
             setMetadata(data);
           }
         })
-        .catch((err) => {
-          if (!controller.signal.aborted) {
-            setError(err.message);
+        .catch((err: unknown) => {
+          if (requestId === requestIdRef.current) {
+            setError(err instanceof Error ? err.message : "Unknown error");
           }
         })
         .finally(() => {
-          if (!controller.signal.aborted) {
+          if (requestId === requestIdRef.current) {
             setLoading(false);
           }
         });
@@ -46,10 +44,8 @@ export function useMetadata(link: string) {
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (abortRef.current) {
-        abortRef.current.abort();
-        abortRef.current = null;
-      }
+      // Drop any pending/in-flight result for the previous link.
+      requestIdRef.current += 1;
     };
   }, [link]);
 

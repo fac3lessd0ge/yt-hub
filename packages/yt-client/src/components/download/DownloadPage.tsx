@@ -47,12 +47,6 @@ function SingleDownloadPage({ consumeRedownload }: ConsumeRedownloadProps) {
           <DownloadProgress progress={progress} onCancel={cancel} />
         )}
 
-        {state === "saving" && (
-          <p aria-busy="true" className="text-sm text-muted-foreground">
-            Saving file...
-          </p>
-        )}
-
         {state === "complete" && result && (
           <DownloadResult
             result={result}

@@ -92,7 +92,10 @@ export class OutputPathBuilder {
   }
 
   /**
-   * @deprecated Prefer `buildStorage` + `buildStorageStem` for downloads; kept for tests / tooling.
+   * Output path named after a human label, sanitized for the filesystem
+   * (`sanitizeFilename`) and guarded against path traversal. This is the path
+   * used for direct-to-user downloads; `buildStorage` is the opaque-hash variant
+   * kept for staging/tooling.
    */
   build(
     name: string,
