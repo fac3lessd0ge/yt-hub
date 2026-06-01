@@ -12,8 +12,8 @@
     "axios": ">=1.15.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "nx": "^22.6.3",
-    "tsx": "^4.19.0"
+    "@biomejs/biome": "^2.4.16",
+    "nx": "^22.7.5",
+    "tsx": "^4.22.4"
   }
 }
