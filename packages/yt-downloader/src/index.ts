@@ -19,6 +19,22 @@ export { ValidationError } from "./input";
 export type { VideoMetadata } from "./metadata";
 export { MetadataError } from "./metadata";
 export { SpawnError } from "./process";
+// Media-source registry (shared by client + downloader)
+export {
+  capabilities,
+  detectSource,
+  getProvider,
+  isSupportedUrl,
+  SOURCES,
+} from "./source";
+export type {
+  DetectedSource,
+  FormatCapability,
+  MediaKind,
+  MediaSource,
+  SourceCapabilities,
+  SourceProvider,
+} from "./source";
 
 // Zod schemas for runtime validation
 export {
