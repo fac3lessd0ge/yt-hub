@@ -3,6 +3,7 @@ import { DefaultFormatSetting } from "@/components/settings/DefaultFormatSetting
 import { DownloadLocationSetting } from "@/components/settings/DownloadLocationSetting";
 import { ProxySetting } from "@/components/settings/ProxySetting";
 import { ThemeToggle } from "@/components/settings/ThemeToggle";
+import { VkAccessSection } from "@/components/settings/VkAccessSection";
 import { useAppVersion } from "@/hooks/useAppVersion";
 import { useSettings } from "@/hooks/useSettings";
 import type { Settings as SettingsType } from "@/types/electron";
@@ -144,6 +145,20 @@ export function Settings() {
           <ProxySetting
             value={settings.proxy}
             onChange={(proxy) => updateSetting("proxy", proxy)}
+          />
+        </SettingsRow>
+      </SettingsSection>
+
+      <div className="h-px bg-border" />
+
+      <SettingsSection title="VK">
+        <SettingsRow
+          label="VK Access"
+          description="VK gates most videos behind a login. Reuse your browser session (or a cookies.txt file) so VK links resolve real content."
+        >
+          <VkAccessSection
+            value={settings.vkAccess}
+            onChange={(vkAccess) => updateSetting("vkAccess", vkAccess)}
           />
         </SettingsRow>
       </SettingsSection>

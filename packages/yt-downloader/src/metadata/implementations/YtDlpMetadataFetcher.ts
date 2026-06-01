@@ -52,6 +52,9 @@ export class YtDlpMetadataFetcher implements IMetadataFetcher {
     if (this.config?.cookiesFile) {
       args.push("--cookies", this.config.cookiesFile);
     }
+    if (this.config?.cookiesFromBrowser) {
+      args.push("--cookies-from-browser", this.config.cookiesFromBrowser);
+    }
     if (this.config?.socketTimeout !== undefined) {
       args.push("--socket-timeout", String(this.config.socketTimeout));
     }

@@ -8,7 +8,7 @@ import type {
   FormatsResponse,
   MetadataResponse,
 } from "./types/api";
-import type { HistoryEntry } from "./types/electron";
+import type { HistoryEntry, VkAccess, VkTestResult } from "./types/electron";
 
 // Read once during preload execution (before renderer event loop starts).
 // sendSync is acceptable here — it runs once, does not block the renderer.
@@ -67,12 +67,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("shell:openExternal", url),
   openTextFile: (): Promise<string | null> =>
     ipcRenderer.invoke("dialog:openTextFile"),
+  selectCookiesFile: (): Promise<string | null> =>
+    ipcRenderer.invoke("dialog:selectCookiesFile"),
 
   // --- Settings ---
   getSettings: () => ipcRenderer.invoke("settings:getAll"),
   getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
   setSetting: (key: string, value: unknown) =>
     ipcRenderer.invoke("settings:set", key, value),
+
+  // --- VK access ---
+  testVkAccess: (input: VkAccess): Promise<VkTestResult> =>
+    ipcRenderer.invoke("vk:testAccess", input),
 
   // --- Clipboard ---
   readClipboardText: (): Promise<string> =>

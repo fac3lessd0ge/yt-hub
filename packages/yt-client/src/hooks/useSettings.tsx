@@ -21,6 +21,7 @@ const defaultSettings: Settings = {
   defaultDownloadDir: null,
   defaultFormat: "mp4",
   proxy: "",
+  vkAccess: { mode: "off", browser: "firefox", cookiesFile: "" },
 };
 
 const SettingsContext = createContext<SettingsContextValue>({

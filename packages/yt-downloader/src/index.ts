@@ -1,7 +1,10 @@
 // Public library API
 
-export type { YtDlpConfig } from "./config";
-export { loadYtDlpConfig } from "./config";
+export type { SupportedCookieBrowser, YtDlpConfig } from "./config";
+export {
+  isSupportedCookieBrowser,
+  loadYtDlpConfig,
+} from "./config";
 export type { DownloadParams, DownloadResult } from "./DownloadService";
 export { DownloadService } from "./DownloadService";
 export type { IBinaryResolver } from "./dependencies";

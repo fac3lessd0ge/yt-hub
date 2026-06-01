@@ -117,6 +117,10 @@ export class YtDlpBackend implements IDownloadBackend {
       args.push("--cookies", this.config.cookiesFile);
     }
 
+    if (this.config?.cookiesFromBrowser) {
+      args.push("--cookies-from-browser", this.config.cookiesFromBrowser);
+    }
+
     if (this.config?.socketTimeout !== undefined) {
       args.push("--socket-timeout", String(this.config.socketTimeout));
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeCustomArgs } from "~/config";
+import { isSupportedCookieBrowser, sanitizeCustomArgs } from "~/config";
 import { DownloadError, YtDlpBackend } from "~/download";
 import type { IProcessSpawner, SpawnOptions, SpawnResult } from "~/process";
 
@@ -190,6 +190,7 @@ describe("YtDlpBackend", () => {
       customArgs: [],
       proxy: "socks5://127.0.0.1:2080",
       cookiesFile: undefined,
+      cookiesFromBrowser: undefined,
       socketTimeout: 30,
       processTimeout: 3600,
     });
@@ -203,6 +204,41 @@ describe("YtDlpBackend", () => {
     const idx = args.indexOf("--proxy");
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe("socks5://127.0.0.1:2080");
+  });
+
+  it("passes --cookies-from-browser when configured (VK case)", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner, {
+      audioQuality: "0",
+      customArgs: [],
+      proxy: undefined,
+      cookiesFile: undefined,
+      cookiesFromBrowser: "firefox",
+      socketTimeout: 30,
+      processTimeout: 3600,
+    });
+    await backend.download(
+      "https://vk.com/video-1_2",
+      "/tmp/test.mp4",
+      "mp4",
+      TEST_BINARIES,
+    );
+    const args = getCalls()[0].args;
+    const idx = args.indexOf("--cookies-from-browser");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("firefox");
+  });
+
+  it("omits --cookies-from-browser when not configured", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner);
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      TEST_BINARIES,
+    );
+    expect(getCalls()[0].args).not.toContain("--cookies-from-browser");
   });
 
   it("uses inherited stdout and stderr", async () => {
@@ -369,5 +405,31 @@ describe("sanitizeCustomArgs", () => {
     ];
     const result = sanitizeCustomArgs(dangerous);
     expect(result).toEqual([]);
+  });
+});
+
+describe("isSupportedCookieBrowser", () => {
+  it("accepts every allow-listed browser", () => {
+    for (const name of [
+      "firefox",
+      "chrome",
+      "chromium",
+      "brave",
+      "edge",
+      "vivaldi",
+      "opera",
+      "safari",
+      "whale",
+    ]) {
+      expect(isSupportedCookieBrowser(name)).toBe(true);
+    }
+  });
+
+  it("rejects junk / unknown / empty values", () => {
+    expect(isSupportedCookieBrowser("")).toBe(false);
+    expect(isSupportedCookieBrowser("netscape")).toBe(false);
+    expect(isSupportedCookieBrowser("firefox; rm -rf /")).toBe(false);
+    expect(isSupportedCookieBrowser("FIREFOX")).toBe(false);
+    expect(isSupportedCookieBrowser("../../etc")).toBe(false);
   });
 });

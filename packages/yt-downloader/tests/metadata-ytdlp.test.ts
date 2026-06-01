@@ -155,6 +155,7 @@ describe("YtDlpMetadataFetcher", () => {
         customArgs: [],
         proxy: "socks5://127.0.0.1:2080",
         cookiesFile: "/tmp/cookies.txt",
+        cookiesFromBrowser: undefined,
         socketTimeout: 30,
         processTimeout: 3600,
       },
@@ -164,6 +165,36 @@ describe("YtDlpMetadataFetcher", () => {
     expect(args[args.indexOf("--proxy") + 1]).toBe("socks5://127.0.0.1:2080");
     expect(args[args.indexOf("--cookies") + 1]).toBe("/tmp/cookies.txt");
     expect(args[args.indexOf("--socket-timeout") + 1]).toBe("30");
+  });
+
+  it("passes --cookies-from-browser when configured", async () => {
+    const { spawner, getCalls } = fakeSpawner({ title: "T", vcodec: "avc1" });
+    const fetcher = new YtDlpMetadataFetcher(
+      spawner,
+      fakeResolver("/bin/yt-dlp"),
+      {
+        audioQuality: "0",
+        customArgs: [],
+        proxy: undefined,
+        cookiesFile: undefined,
+        cookiesFromBrowser: "firefox",
+        socketTimeout: 30,
+        processTimeout: 3600,
+      },
+    );
+    await fetcher.fetch(YT_URL);
+    const args = getCalls()[0].args;
+    expect(args[args.indexOf("--cookies-from-browser") + 1]).toBe("firefox");
+  });
+
+  it("omits --cookies-from-browser when not configured", async () => {
+    const { spawner, getCalls } = fakeSpawner({ title: "T", vcodec: "avc1" });
+    const fetcher = new YtDlpMetadataFetcher(
+      spawner,
+      fakeResolver("/bin/yt-dlp"),
+    );
+    await fetcher.fetch(YT_URL);
+    expect(getCalls()[0].args).not.toContain("--cookies-from-browser");
   });
 
   it("throws MetadataError when the yt-dlp binary is missing", async () => {

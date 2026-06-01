@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -13,12 +14,17 @@ import {
 } from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
-import { DownloadService, loadYtDlpConfig } from "yt-downloader";
+import {
+  DownloadService,
+  loadYtDlpConfig,
+  type YtDlpConfig,
+} from "yt-downloader";
 import { getProxyValidationError } from "./lib/proxyValidation";
 import { getUrlValidationError } from "./lib/urlValidation";
 import { BundledBinaryResolver } from "./main/BundledBinaryResolver";
 import { openInFileManager } from "./main/fileManager";
 import { showItemInFolder as showItemInFolderImpl } from "./main/showItemInFolder";
+import { buildLinkConfigFields, type VkAccess } from "./main/vkCookies";
 
 if (started) {
   app.quit();
@@ -53,6 +59,7 @@ interface Settings {
   defaultDownloadDir: string | null;
   defaultFormat: string;
   proxy: string;
+  vkAccess: VkAccess;
 }
 
 interface HistoryEntry {
@@ -111,12 +118,34 @@ const store = new Store<StoreSchema>({
           type: "string",
           default: "",
         },
+        vkAccess: {
+          type: "object",
+          properties: {
+            mode: {
+              type: "string",
+              enum: ["off", "browser", "file"],
+              default: "off",
+            },
+            browser: { type: "string", default: "firefox" },
+            cookiesFile: { type: "string", default: "" },
+          },
+          default: {
+            mode: "off",
+            browser: "firefox",
+            cookiesFile: "",
+          },
+        },
       },
       default: {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
         proxy: "",
+        vkAccess: {
+          mode: "off",
+          browser: "firefox",
+          cookiesFile: "",
+        },
       },
     },
     downloadHistory: {
@@ -285,19 +314,27 @@ const binaryResolver = new BundledBinaryResolver({
 });
 
 /**
- * Build a DownloadService for the current settings. A configured proxy is
- * threaded into yt-dlp via YtDlpConfig so downloads can tunnel around DPI/geo
- * blocks (e.g. when youtube is reachable in the browser but yt-dlp's CDN
- * connection is throttled). The binary resolver is shared across instances.
+ * Build a DownloadService from an explicit yt-dlp config (or the env defaults
+ * when none is given). The binary resolver is shared across instances.
  */
-function createDownloadService(proxy?: string): DownloadService {
-  return new DownloadService({
-    binaryResolver,
-    ytDlpConfig: proxy ? { ...loadYtDlpConfig(), proxy } : undefined,
-  });
+function createDownloadService(ytDlpConfig?: YtDlpConfig): DownloadService {
+  return new DownloadService({ binaryResolver, ytDlpConfig });
 }
 
-// Metadata / formats / backends are proxy-independent — use a base instance.
+/**
+ * Build the yt-dlp config for a specific link. The proxy (if any) always
+ * applies; VK cookies are attached ONLY when the link is a VK URL. Non-VK links
+ * never receive cookies even if a VK source is configured.
+ */
+function ytDlpConfigForLink(link: string, settings: Settings): YtDlpConfig {
+  return {
+    ...loadYtDlpConfig(),
+    ...buildLinkConfigFields(link, settings.proxy, settings.vkAccess),
+  };
+}
+
+// Metadata / formats / backends listing is link-independent — use a base
+// instance. Per-link cookie/proxy config is applied via createDownloadService.
 const downloadService = createDownloadService();
 
 const inFlightDownloads = new Map<string, AbortController>();
@@ -330,12 +367,13 @@ ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
   const controller = new AbortController();
   inFlightDownloads.set(downloadId, controller);
 
-  // Read destination + proxy from the settings store — never trust a
-  // renderer-supplied path, and apply the user's proxy if configured.
-  const settings = store.get("settings", defaultSettings);
+  // Read destination + proxy + VK cookies from the settings store — never trust
+  // a renderer-supplied path. Cookies are applied per-link (VK only).
+  const settings = loadSettings();
   const destination = settings.defaultDownloadDir ?? undefined;
-  const proxy = settings.proxy?.trim() || undefined;
-  const service = proxy ? createDownloadService(proxy) : downloadService;
+  const service = createDownloadService(
+    ytDlpConfigForLink(params.link, settings),
+  );
 
   const { sender } = event;
 
@@ -409,13 +447,120 @@ ipcMain.handle("metadata:get", async (_event, url: string) => {
   if (urlError) {
     throw new Error(urlError);
   }
-  const metadata = await downloadService.getMetadata(url);
+  // Preview must use the same per-link config as the download (VK cookies +
+  // proxy), else VK resolves a promo/login page instead of the real video.
+  const service = createDownloadService(
+    ytDlpConfigForLink(url, loadSettings()),
+  );
+  const metadata = await service.getMetadata(url);
   return {
     title: metadata.title,
     author_name: metadata.authorName,
     thumbnail: metadata.thumbnail,
   };
 });
+
+// Representative public VK video used to probe whether the supplied cookies
+// resolve real content. If yt-dlp can dump its metadata, cookies work; without
+// login VK serves a promo/login page and yt-dlp fails.
+const VK_TEST_URL = "https://vk.com/video-22822305_165372104";
+
+/** Map raw yt-dlp stderr to a short, actionable message for the user. */
+function friendlyVkProbeError(stderr: string): string {
+  const s = stderr.toLowerCase();
+  if (s.includes("could not copy") || s.includes("database is locked")) {
+    return "Your browser is locked — close it fully and try again.";
+  }
+  if (
+    s.includes("permission denied") ||
+    s.includes("could not find") ||
+    s.includes("unable to") ||
+    s.includes("no such file")
+  ) {
+    return "Couldn't read cookies — try Firefox, or export a cookies.txt file.";
+  }
+  if (
+    s.includes("login") ||
+    s.includes("authorization") ||
+    s.includes("auth")
+  ) {
+    return "Not logged in to VK in that source. Log in, then test again.";
+  }
+  return "Couldn't verify VK access. Check the browser/file and try again.";
+}
+
+interface VkTestInput {
+  mode: "off" | "browser" | "file";
+  browser: string;
+  cookiesFile: string;
+}
+
+ipcMain.handle(
+  "vk:testAccess",
+  async (
+    _event,
+    input: VkTestInput,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    let candidate: VkAccess;
+    try {
+      candidate = validateVkAccess(input);
+    } catch {
+      return { ok: false, error: "Invalid VK access settings." };
+    }
+    if (candidate.mode === "off") {
+      return { ok: false, error: "Pick a login source first." };
+    }
+
+    const ytDlpPath = binaryResolver.resolve("yt-dlp");
+    if (!ytDlpPath) {
+      return {
+        ok: false,
+        error: "yt-dlp is not installed yet — restart the app and try again.",
+      };
+    }
+
+    const { cookiesFromBrowser, cookiesFile } = buildLinkConfigFields(
+      VK_TEST_URL,
+      undefined,
+      candidate,
+    );
+    if (!cookiesFromBrowser && !cookiesFile) {
+      return { ok: false, error: "No usable cookie source configured." };
+    }
+
+    const args = ["--skip-download", "--dump-single-json", "--no-playlist"];
+    if (cookiesFromBrowser)
+      args.push("--cookies-from-browser", cookiesFromBrowser);
+    if (cookiesFile) args.push("--cookies", cookiesFile);
+    args.push(VK_TEST_URL);
+
+    return new Promise((resolvePromise) => {
+      const child = spawn(ytDlpPath, args, {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let stderr = "";
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      const timer = setTimeout(() => child.kill(), 45000);
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolvePromise({
+          ok: false,
+          error: "Couldn't run yt-dlp to verify VK access.",
+        });
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) {
+          resolvePromise({ ok: true });
+        } else {
+          resolvePromise({ ok: false, error: friendlyVkProbeError(stderr) });
+        }
+      });
+    });
+  },
+);
 
 ipcMain.handle("formats:list", () => {
   return { formats: downloadService.listFormats() };
@@ -442,29 +587,78 @@ ipcMain.handle("dialog:openTextFile", async () => {
   return fs.readFile(result.filePaths[0], "utf-8");
 });
 
+// Returns the chosen cookies.txt path (not its contents) for VK file mode.
+ipcMain.handle("dialog:selectCookiesFile", async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [
+      { name: "Cookies", extensions: ["txt"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+    properties: ["openFile"],
+  });
+  return result.canceled ? null : (result.filePaths[0] ?? null);
+});
+
 // --- Settings IPC ---
+
+const DEFAULT_VK_ACCESS: VkAccess = {
+  mode: "off",
+  browser: "firefox",
+  cookiesFile: "",
+};
 
 const defaultSettings: Settings = {
   theme: "system",
   defaultDownloadDir: null,
   defaultFormat: "mp4",
   proxy: "",
+  vkAccess: { ...DEFAULT_VK_ACCESS },
 };
 
+/**
+ * Read settings from the store, back-filling any field a pre-vkAccess store
+ * never wrote so old installs don't crash and VK stays gated ("off") by default.
+ */
+function loadSettings(): Settings {
+  const stored = store.get("settings", defaultSettings);
+  return {
+    ...defaultSettings,
+    ...stored,
+    vkAccess: { ...DEFAULT_VK_ACCESS, ...stored.vkAccess },
+  };
+}
+
 ipcMain.handle("settings:getAll", () => {
-  return store.get("settings", defaultSettings);
+  return loadSettings();
 });
 
 ipcMain.handle("settings:get", (_event, key: string) => {
-  const settings = store.get("settings", defaultSettings);
+  const settings = loadSettings();
   if (!(key in settings)) {
     throw new Error(`Unknown setting key: ${key}`);
   }
   return settings[key as keyof Settings];
 });
 
+/** Reject a vkAccess value the UI gate would not have produced. */
+function validateVkAccess(value: unknown): VkAccess {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("vkAccess must be an object");
+  }
+  const v = value as Record<string, unknown>;
+  if (v.mode !== "off" && v.mode !== "browser" && v.mode !== "file") {
+    throw new Error("vkAccess.mode is invalid");
+  }
+  if (typeof v.browser !== "string" || typeof v.cookiesFile !== "string") {
+    throw new Error(
+      "vkAccess.browser and vkAccess.cookiesFile must be strings",
+    );
+  }
+  return { mode: v.mode, browser: v.browser, cookiesFile: v.cookiesFile };
+}
+
 ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
-  const settings = store.get("settings", defaultSettings);
+  const settings = loadSettings();
   if (!(key in settings)) {
     throw new Error(`Unknown setting key: ${key}`);
   }
@@ -479,7 +673,8 @@ ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
       throw new Error(proxyError);
     }
   }
-  const updated = { ...settings, [key]: value };
+  const nextValue = key === "vkAccess" ? validateVkAccess(value) : value;
+  const updated = { ...settings, [key]: nextValue };
   store.set("settings", updated);
   return updated[key as keyof Settings];
 });

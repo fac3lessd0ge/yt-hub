@@ -167,6 +167,12 @@ export function DownloadForm({
                   {capabilities(detectedSource).label}
                 </span>
               )}
+              {detectedSource === "vk" &&
+                settings?.vkAccess?.mode === "off" && (
+                  <span className="text-xs text-muted-foreground">
+                    VK needs login — set it up in Settings
+                  </span>
+                )}
             </div>
             <div className="flex items-stretch gap-2">
               <input
