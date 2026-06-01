@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Tiered binary resolution** (`BundledBinaryResolver`): `yt-dlp`/`ffmpeg` are located at `<userData>/bin` → `<resourcesPath>/bin` (bundled via electron-forge `extraResource`) → `PATH`. The bundled `bin/` folder is gitignored and added to `extraResource` only when present.
 - Installer builds for **Windows** (Squirrel `.exe`) and **Linux** (ZIP; the Linux maker requires the system `zip` binary). Installers are unsigned (Windows: SmartScreen "More info → Run anyway").
 - **Download proxy setting** (Settings → Network): route downloads through a SOCKS/HTTP proxy (e.g. a VPN) via yt-dlp's `--proxy`, for when YouTube's media servers are blocked or throttled on a direct connection.
-- **Embedded metadata + cover art**: downloads are tagged with the video title and channel as artist; mp3 files also embed the YouTube thumbnail as cover art (mp4 = tags only, since thumbnail embedding needs AtomicParsley). The download form shows a "Will be tagged as" preview (title, artist, cover thumbnail) before downloading.
+- **Embedded metadata + cover art**: downloads are tagged with the video title and channel as artist; mp3 files also embed the YouTube thumbnail as cover art (mp4 = tags only, since thumbnail embedding needs AtomicParsley). The download form shows a "Will be tagged as" preview (title, artist, cover thumbnail) before downloading, and the History list shows each item's thumbnail for faster scanning.
 
 ### Removed
 
