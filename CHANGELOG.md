@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-06-01
+
+**Multi-source downloads.** YT Hub now downloads from **SoundCloud** and **Bandcamp** in addition to YouTube. The underlying `yt-dlp` already supported them; this release removes the YouTube-only assumptions throughout the app.
+
+### Added
+
+- **Multi-source support** — paste a YouTube, SoundCloud, or Bandcamp URL and it just works. A shared `SourceRegistry` (`yt-downloader/source`) is the single source of truth for URL detection and per-source capabilities, used by both the engine and the renderer. The download form shows an auto-detected source badge, and the History list records each item's source.
+- **Universal metadata fetcher** — a `yt-dlp`-based fetcher (`--dump-single-json`) replaces the YouTube-only oEmbed path, so the title, uploader, real thumbnail, and duration are shown for every source.
+- **Per-source format gating** — audio-only sources (SoundCloud, Bandcamp) offer MP3; YouTube offers MP4 + MP3, and an incompatible selection is reset automatically.
+
+### Changed
+
+- URL validation is now source-aware (YouTube, SoundCloud, Bandcamp) on both the client and the downloader, sharing one registry. Playlist/album/collection URLs are rejected with a clear message (single tracks/videos only for now).
+- The download form's label and placeholder are now source-agnostic ("Media URL").
+
 ## [2.0.0] - 2026-06-01
 
 **Serverless desktop pivot.** YT Hub is no longer a multi-tier client/server system; it is a self-contained Electron desktop app. This is a breaking, architecture-level change. The previous fullstack architecture is preserved on the `legacy/server-architecture` branch and the `v1.3.5-server` tag.
