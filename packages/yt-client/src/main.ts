@@ -203,6 +203,14 @@ const createWindow = () => {
     },
   });
 
+  // Defense-in-depth: the renderer only ever loads local app content. Deny any
+  // attempt to open new windows or navigate away (external links go through the
+  // allowlisted shell:openExternal IPC instead).
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
+  });
+
   mainWindow.once("ready-to-show", () => {
     if (bounds.isMaximized) {
       mainWindow.maximize();
@@ -366,6 +374,11 @@ ipcMain.handle("download:cancel", (_event, downloadId: string) => {
 ipcMain.handle("metadata:get", async (_event, url: string) => {
   if (typeof url !== "string") {
     throw new Error("Invalid url");
+  }
+  // Same trusted-side gate as download:start — keep validation consistent.
+  const urlError = getUrlValidationError(url);
+  if (urlError) {
+    throw new Error(urlError);
   }
   const metadata = await downloadService.getMetadata(url);
   return { title: metadata.title, author_name: metadata.authorName };
