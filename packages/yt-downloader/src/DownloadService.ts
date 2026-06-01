@@ -15,7 +15,7 @@ import type { ILogger } from "~/infra/types/ILogger";
 import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
 import { HttpMetadataFetcher } from "~/metadata";
-import { buildStorageStem, OutputPathBuilder } from "~/output";
+import { OutputPathBuilder } from "~/output";
 import { NodeProcessSpawner } from "~/process";
 
 export interface DownloadParams {
@@ -78,7 +78,9 @@ export class DownloadService {
   ): Promise<DownloadResult> {
     this.validateParams(params);
 
-    this.dependencyChecker.check(this.activeBackend.requiredDependencies());
+    const binaries = this.dependencyChecker.check(
+      this.activeBackend.requiredDependencies(),
+    );
 
     const metadata = await this.metadataFetcher.fetch(params.link, signal);
 
@@ -90,13 +92,11 @@ export class DownloadService {
     const destination = resolve(params.destination ?? DEFAULT_DESTINATION);
     mkdirSync(destination, { recursive: true });
 
-    const stem = buildStorageStem(
-      params.link,
-      params.format.toLowerCase(),
+    // Name the file after the (sanitized) human label so it lands in the user's
+    // folder with a readable name, not an opaque storage hash. sanitizeFilename
+    // + the path-traversal guard inside build() keep it safe.
+    const outputPath = this.outputPathBuilder.build(
       params.name,
-    );
-    const outputPath = this.outputPathBuilder.buildStorage(
-      stem,
       params.format.toLowerCase(),
       destination,
       existsSync,
@@ -106,6 +106,7 @@ export class DownloadService {
       params.link,
       outputPath,
       params.format.toLowerCase(),
+      binaries,
       onProgress,
       signal,
     );
@@ -125,9 +126,9 @@ export class DownloadService {
     return this.backends.names();
   }
 
-  // URL validation is handled at the API gateway (yt-api/src/validation.rs).
-  // CLI path validates via InputValidator. DownloadService only checks
-  // required fields and format support.
+  // URL validation is handled in the Electron main process before a download
+  // is dispatched. CLI path validates via InputValidator. DownloadService only
+  // checks required fields and format support.
   private validateParams(params: DownloadParams): void {
     if (!params.link || !params.name) {
       throw new ValidationError("link and name are required.");

@@ -1,4 +1,6 @@
 import { FolderOpen, Music, RotateCcw, Trash2, Video } from "lucide-react";
+import { useState } from "react";
+import { getYoutubeThumbnailUrl } from "@/lib/youtubeThumbnail";
 
 interface HistoryItemProps {
   title: string;
@@ -19,12 +21,14 @@ export function HistoryItem({
   author,
   format,
   formatType,
+  link,
   downloadedAt,
   fileExists,
   onShow,
   onRedownload,
   onRemove,
 }: HistoryItemProps) {
+  const [imgFailed, setImgFailed] = useState(false);
   const time = new Date(downloadedAt).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -32,11 +36,23 @@ export function HistoryItem({
   });
 
   const FormatIcon = formatType === "audio" ? Music : Video;
+  const thumbnailUrl = getYoutubeThumbnailUrl(link);
+  const showThumbnail = thumbnailUrl !== null && !imgFailed;
 
   return (
     <div className="group flex items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent/50">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted">
-        <FormatIcon className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="mt-0.5 flex h-9 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+        {showThumbnail ? (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <FormatIcon className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
       </div>
 
       <div className="min-w-0 flex-1">

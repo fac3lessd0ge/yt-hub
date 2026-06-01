@@ -1,11 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { useSettings } from "@/hooks/useSettings";
-import {
-  resolveDownloadFetchUrl,
-  suggestedDownloadFilename,
-} from "@/lib/downloadArtifact";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getFormatType } from "@/lib/formatType";
-import { streamDownload } from "@/lib/sse";
 import type {
   DownloadComplete,
   DownloadError,
@@ -13,118 +7,138 @@ import type {
   DownloadRequest,
 } from "@/types/api";
 
-type DownloadState = "idle" | "downloading" | "saving" | "complete" | "error";
+type DownloadState = "idle" | "downloading" | "complete" | "error";
 
 export function useDownload() {
-  const { settings } = useSettings();
   const [state, setState] = useState<DownloadState>("idle");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [result, setResult] = useState<DownloadComplete | null>(null);
   const [localPath, setLocalPath] = useState<string | null>(null);
   const [error, setError] = useState<DownloadError | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+
+  // Active download id and its event unsubscribers.
+  const downloadIdRef = useRef<string | null>(null);
+  const unsubscribersRef = useRef<Array<() => void>>([]);
+  const requestRef = useRef<DownloadRequest | null>(null);
+
+  const cleanup = useCallback(() => {
+    for (const unsub of unsubscribersRef.current) unsub();
+    unsubscribersRef.current = [];
+  }, []);
+
+  useEffect(() => cleanup, [cleanup]);
 
   const start = useCallback(
     async (request: DownloadRequest) => {
-      abortRef.current?.abort();
+      const api = window.electronAPI;
+
+      // Generate the id NOW — before subscribing and before the IPC call —
+      // so events arriving before invoke resolves are never lost.
+      const downloadId = crypto.randomUUID();
+
+      // Cancel any previous in-flight download synchronously (id is always known).
+      cleanup();
+      if (downloadIdRef.current) {
+        api?.cancelDownload(downloadIdRef.current);
+      }
+      downloadIdRef.current = downloadId;
 
       setState("downloading");
       setProgress(null);
       setResult(null);
       setLocalPath(null);
       setError(null);
+      requestRef.current = request;
 
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      let completeData: DownloadComplete | null = null;
-
-      try {
-        await streamDownload(
-          request,
-          {
-            onProgress: (data) => {
-              setProgress(data);
-            },
-            onComplete: (data) => {
-              completeData = data;
-              setResult(data);
-            },
-            onError: (data) => {
-              setError(data);
-              setState("error");
-            },
-          },
-          controller.signal,
-        );
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          setState("idle");
-        } else {
-          setError({
-            code: "NETWORK_ERROR",
-            message: err instanceof Error ? err.message : "Unknown error",
-          });
-          setState("error");
-        }
-        return;
-      }
-
-      if (!completeData) return;
-
-      setState("saving");
-
-      const data = completeData as DownloadComplete;
-      const filename = suggestedDownloadFilename(data);
-      const fullUrl = resolveDownloadFetchUrl(data);
-
-      try {
-        const destDir = settings?.defaultDownloadDir ?? undefined;
-        const saveResult = await window.electronAPI?.saveDownload(
-          fullUrl,
-          filename,
-          destDir,
-        );
-        if (saveResult) {
-          setLocalPath(saveResult.filePath);
-          window.electronAPI?.addHistoryEntry({
-            title: request.name,
-            author: data.author_name ?? "",
-            format: request.format,
-            formatType: getFormatType(request.format),
-            link: request.link,
-            localPath: saveResult.filePath,
-            downloadedAt: Date.now(),
-          });
-        }
-      } catch (saveErr) {
+      if (!api) {
+        downloadIdRef.current = null;
         setError({
-          code: "SAVE_FAILED",
-          message:
-            saveErr instanceof Error
-              ? saveErr.message
-              : "Failed to save file to disk",
+          code: "NETWORK_ERROR",
+          message: "Electron bridge unavailable",
         });
         setState("error");
         return;
       }
 
-      setState("complete");
+      const offProgress = api.onDownloadProgress((payload) => {
+        if (payload.downloadId !== downloadIdRef.current) return;
+        setProgress({
+          percent: payload.percent,
+          speed: payload.speed,
+          eta: payload.eta,
+        });
+      });
+
+      const offComplete = api.onDownloadComplete((payload) => {
+        if (payload.downloadId !== downloadIdRef.current) return;
+        setResult(payload.result);
+        setLocalPath(payload.filePath);
+        setState("complete");
+        const req = requestRef.current;
+        if (req) {
+          api.addHistoryEntry({
+            title: payload.result.title || req.name,
+            author: payload.result.author_name,
+            format: req.format,
+            formatType: getFormatType(req.format),
+            link: req.link,
+            localPath: payload.filePath,
+            downloadedAt: Date.now(),
+          });
+        }
+        cleanup();
+        downloadIdRef.current = null;
+      });
+
+      const offError = api.onDownloadError((payload) => {
+        if (payload.downloadId !== downloadIdRef.current) return;
+        setError({ code: payload.code, message: payload.message });
+        setState("error");
+        cleanup();
+        downloadIdRef.current = null;
+      });
+
+      unsubscribersRef.current = [offProgress, offComplete, offError];
+
+      try {
+        // downloadId is sent to main so it emits events under the same id.
+        await api.startDownload({
+          downloadId,
+          link: request.link,
+          format: request.format,
+          name: request.name,
+        });
+      } catch (err) {
+        cleanup();
+        downloadIdRef.current = null;
+        setError({
+          code: "NETWORK_ERROR",
+          message: err instanceof Error ? err.message : "Unknown error",
+        });
+        setState("error");
+      }
     },
-    [settings?.defaultDownloadDir],
+    [cleanup],
   );
 
   const cancel = useCallback(() => {
-    abortRef.current?.abort();
-  }, []);
+    cleanup();
+    if (downloadIdRef.current) {
+      window.electronAPI?.cancelDownload(downloadIdRef.current);
+      downloadIdRef.current = null;
+    }
+    setState("idle");
+  }, [cleanup]);
 
   const reset = useCallback(() => {
+    cleanup();
+    downloadIdRef.current = null;
     setState("idle");
     setProgress(null);
     setResult(null);
     setLocalPath(null);
     setError(null);
-  }, []);
+  }, [cleanup]);
 
   return {
     state,

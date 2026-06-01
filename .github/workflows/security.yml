@@ -7,8 +7,6 @@ on:
     branches: [main, dev]
     paths:
       - 'package-lock.json'
-      - 'packages/yt-api/Cargo.lock'
-      - 'packages/yt-api/Cargo.toml'
 
 jobs:
   npm-audit:
@@ -20,46 +18,5 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: npm audit (critical/high)
+      - name: npm audit (critical)
         run: npm audit --audit-level=critical
-
-  cargo-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-      - name: Run cargo audit
-        run: cargo audit
-        working-directory: packages/yt-api
-
-  cargo-sbom:
-    name: Generate Rust SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-cyclonedx
-        run: cargo install cargo-cyclonedx --locked
-      - name: Generate SBOM
-        run: cargo cyclonedx --format json --override-filename bom
-        working-directory: packages/yt-api
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-sbom
-          path: packages/yt-api/bom.cdx.json
-          retention-days: 90
-
-  cargo-deny:
-    name: Cargo Deny (advisories + licenses)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
-      - name: Run cargo deny check
-        run: cargo deny check advisories licenses
-        working-directory: packages/yt-api

@@ -1,23 +1,14 @@
-// Shared contract types — single source of truth is yt-downloader Zod schemas.
-// Import from "yt-downloader/schemas" to avoid pulling in Node.js-only code.
+// Shared contract types. Pure-type re-exports from yt-downloader's Zod schemas
+// (import from "yt-downloader/schemas" to avoid pulling in Node.js-only code).
 export type {
   DownloadProgress,
   FormatInfo,
   VideoMetadata,
 } from "yt-downloader/schemas";
 
-// Re-export schemas for runtime validation
-export {
-  BackendsResponseSchema,
-  DownloadCompleteSchema,
-  DownloadErrorSchema,
-  DownloadProgressSchema,
-  FormatsResponseSchema,
-  MetadataResponseSchema,
-} from "yt-downloader/schemas";
+// --- yt-client UI-facing types ---
 
-// --- yt-client specific types (not in proto / yt-downloader) ---
-
+/** Metadata as surfaced to the renderer (snake_case for display components). */
 export interface MetadataResponse {
   title: string;
   author_name: string;
@@ -35,14 +26,15 @@ export interface DownloadRequest {
   link: string;
   format: string;
   name: string;
-  destination?: string;
-  backend?: string;
+  downloadId?: string;
 }
 
-// download_url is added by yt-api HTTP layer (not in proto)
+/**
+ * Completed-download summary rendered by DownloadResult. The file already
+ * exists on disk (no `download_url`); `localPath` carries the final path.
+ */
 export interface DownloadComplete {
   output_path: string;
-  download_url: string;
   title: string;
   author_name: string;
   format_id: string;
@@ -53,4 +45,25 @@ export interface DownloadError {
   code: string;
   message: string;
   retryable?: boolean;
+}
+
+// --- IPC event payloads (main → renderer) ---
+
+export interface DownloadProgressEvent {
+  downloadId: string;
+  percent: number;
+  speed: string;
+  eta: string;
+}
+
+export interface DownloadCompleteEvent {
+  downloadId: string;
+  filePath: string;
+  result: DownloadComplete;
+}
+
+export interface DownloadErrorEvent {
+  downloadId: string;
+  code: string;
+  message: string;
 }

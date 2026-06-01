@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface, type Interface } from "node:readline";
 import { CancellationError } from "~/download/errors/CancellationError";
 import { TimeoutError } from "~/download/errors/TimeoutError";
+import { SpawnError } from "../errors/SpawnError";
 import type {
   IProcessSpawner,
   SpawnOptions,
@@ -70,6 +71,16 @@ export class NodeProcessSpawner implements IProcessSpawner {
         rlStderr = createInterface({ input: proc.stderr });
         rlStderr.on("line", (line) => stderrLines.push(line));
       }
+
+      proc.on("error", (err) => {
+        rl?.close();
+        rlStderr?.close();
+        if (timeoutId) clearTimeout(timeoutId);
+        if (onAbort && options.signal) {
+          options.signal.removeEventListener("abort", onAbort);
+        }
+        settle(reject, new SpawnError(command, err));
+      });
 
       proc.on("close", (code) => {
         rl?.close();

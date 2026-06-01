@@ -5,8 +5,10 @@ import { useMetadata } from "@/hooks/useMetadata";
 import { useSettings } from "@/hooks/useSettings";
 import { getUrlValidationError, isValidYoutubeUrl } from "@/lib/urlValidation";
 import { cn } from "@/lib/utils";
+import { getYoutubeThumbnailUrl } from "@/lib/youtubeThumbnail";
 import type { DownloadRequest, FormatInfo } from "@/types/api";
 import { BatchForm } from "./BatchForm";
+import { MetadataPreview } from "./MetadataPreview";
 
 type Tab = "single" | "batch";
 
@@ -229,12 +231,16 @@ export function DownloadForm({
                 Fetching metadata...
               </p>
             )}
-            {metadata && (
-              <p className="text-xs text-muted-foreground">
-                {metadata.title} by {metadata.author_name}
-              </p>
-            )}
           </div>
+
+          {metadata && !metadataLoading && (
+            <MetadataPreview
+              title={metadata.title}
+              author={metadata.author_name}
+              thumbnailUrl={getYoutubeThumbnailUrl(link)}
+              hasCoverArt={format === "mp3"}
+            />
+          )}
 
           {/* Row 2: File Name */}
           <div className="flex flex-col gap-1.5">

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchBackends } from "@/lib/apiClient";
 
 export function useBackends() {
   const [backends, setBackends] = useState<string[]>([]);
@@ -9,9 +8,18 @@ export function useBackends() {
   const refetch = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchBackends()
+    const api = window.electronAPI;
+    if (!api) {
+      setError("Electron bridge unavailable");
+      setLoading(false);
+      return;
+    }
+    api
+      .listBackends()
       .then((res) => setBackends(res.backends))
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Unknown error"),
+      )
       .finally(() => setLoading(false));
   }, []);
 

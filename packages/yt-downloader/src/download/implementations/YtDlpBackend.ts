@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import type { YtDlpConfig } from "~/config";
 import type { Dependency } from "~/dependencies";
 import type { IProcessSpawner } from "~/process";
@@ -10,12 +11,28 @@ const DEFAULT_AUDIO_QUALITY = "0";
 
 function buildFormatArgs(audioQuality: string): Record<string, string[]> {
   return {
-    mp3: ["-x", "--audio-format", "mp3", "--audio-quality", audioQuality],
+    // mp3: embed title/artist tags + the YouTube thumbnail as cover art.
+    // Cover art for mp3 only needs ffmpeg (no AtomicParsley); convert the
+    // (often webp) thumbnail to jpg so every player shows it.
+    mp3: [
+      "-x",
+      "--audio-format",
+      "mp3",
+      "--audio-quality",
+      audioQuality,
+      "--embed-metadata",
+      "--embed-thumbnail",
+      "--convert-thumbnails",
+      "jpg",
+    ],
+    // mp4: embed title/artist tags. Thumbnail embedding for mp4/m4a needs
+    // AtomicParsley (not bundled), so it is intentionally omitted.
     mp4: [
       "-f",
       "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
       "--merge-output-format",
       "mp4",
+      "--embed-metadata",
     ],
   };
 }
@@ -52,6 +69,7 @@ export class YtDlpBackend implements IDownloadBackend {
     link: string,
     outputPath: string,
     formatId: string,
+    binaries: ReadonlyMap<string, string>,
     onProgress?: ProgressCallback,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -62,15 +80,34 @@ export class YtDlpBackend implements IDownloadBackend {
       throw new DownloadError(1);
     }
 
+    const ytDlpPath = binaries.get("yt-dlp");
+    if (!ytDlpPath) {
+      // Internal invariant: DependencyChecker resolves required binaries before
+      // download() is called, so this signals a wiring bug, not a yt-dlp failure.
+      throw new Error(
+        "yt-dlp binary path was not resolved; ensure DependencyChecker ran before download()",
+      );
+    }
+    const ffmpegPath = binaries.get("ffmpeg");
+
     const args = [
-      "yt-dlp",
+      ytDlpPath,
       ...formatArgs,
       "--no-playlist",
       "--continue",
       "-o",
       outputPath,
       "--progress",
+      // Emit each progress update on its own line. Without this, yt-dlp uses
+      // carriage returns to redraw the progress line in place, and the
+      // line-based stdout reader only sees the final newline-terminated line —
+      // so progress appears stuck at 0% until the download completes.
+      "--newline",
     ];
+
+    if (ffmpegPath) {
+      args.push("--ffmpeg-location", dirname(ffmpegPath));
+    }
 
     if (this.config?.proxy) {
       args.push("--proxy", this.config.proxy);
