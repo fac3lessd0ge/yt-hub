@@ -93,6 +93,7 @@ export function HistoryList({
                 link={entry.link}
                 localPath={entry.localPath}
                 downloadedAt={entry.downloadedAt}
+                source={entry.source}
                 fileExists={fileExists.get(entry.id) ?? true}
                 onShow={() => onShow(entry)}
                 onRedownload={() => onRedownload(entry)}

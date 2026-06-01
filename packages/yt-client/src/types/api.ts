@@ -12,6 +12,7 @@ export type {
 export interface MetadataResponse {
   title: string;
   author_name: string;
+  thumbnail?: string;
 }
 
 export interface FormatsResponse {
@@ -39,6 +40,7 @@ export interface DownloadComplete {
   author_name: string;
   format_id: string;
   format_label: string;
+  source?: string;
 }
 
 export interface DownloadError {

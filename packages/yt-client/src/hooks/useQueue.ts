@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { getFormatType } from "@/lib/formatType";
+import { getMediaSource } from "@/lib/urlValidation";
 import type { DownloadError, DownloadRequest } from "@/types/api";
 
 const MAX_CONCURRENT = 2;
@@ -152,6 +153,9 @@ export function useQueue() {
           link: req.link,
           localPath: payload.filePath,
           downloadedAt: Date.now(),
+          // Prefer the engine-stamped source; fall back to URL detection.
+          source:
+            payload.result.source ?? getMediaSource(req.link) ?? "youtube",
         });
       }
       release(itemId, payload.downloadId);

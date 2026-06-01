@@ -43,7 +43,7 @@ describe("DownloadForm", () => {
   it("renders the link input, format select, and name input", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
 
-    expect(screen.getByLabelText("YouTube Link")).toBeInTheDocument();
+    expect(screen.getByLabelText("Media URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Format")).toBeInTheDocument();
     expect(screen.getByLabelText("File Name")).toBeInTheDocument();
   });
@@ -77,7 +77,7 @@ describe("DownloadForm", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
 
     await user.type(
-      screen.getByLabelText("YouTube Link"),
+      screen.getByLabelText("Media URL"),
       "https://www.youtube.com/watch?v=abc",
     );
     await user.type(screen.getByLabelText("File Name"), "My Video");
@@ -88,7 +88,7 @@ describe("DownloadForm", () => {
 
   it("link input has aria-required", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText("YouTube Link")).toHaveAttribute(
+    expect(screen.getByLabelText("Media URL")).toHaveAttribute(
       "aria-required",
       "true",
     );
@@ -96,7 +96,7 @@ describe("DownloadForm", () => {
 
   it("link input gets autofocus", () => {
     render(<DownloadForm onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText("YouTube Link")).toHaveFocus();
+    expect(screen.getByLabelText("Media URL")).toHaveFocus();
   });
 
   it("calls onSubmit with link, format, and name when form is submitted", async () => {
@@ -105,7 +105,7 @@ describe("DownloadForm", () => {
     render(<DownloadForm onSubmit={onSubmit} />);
 
     await user.type(
-      screen.getByLabelText("YouTube Link"),
+      screen.getByLabelText("Media URL"),
       "https://www.youtube.com/watch?v=abc",
     );
     await user.type(screen.getByLabelText("File Name"), "My Video");

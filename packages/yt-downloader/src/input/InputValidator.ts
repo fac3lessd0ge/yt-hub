@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { IDownloadBackend } from "~/download";
+import { detectSource, type MediaSource } from "~/source";
 import { ValidationError } from "./errors/ValidationError";
 import type { RawInput } from "./types/IInputReader";
 
@@ -15,28 +16,7 @@ export interface ValidatedInput {
   name: string;
   formatId: string;
   destination: string;
-}
-
-function isValidYouTubeUrl(input: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(input);
-  } catch {
-    return false;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-  const host = url.hostname.replace(/^(www\.|m\.)/, "");
-  if (host === "youtube.com") {
-    if (url.pathname === "/watch" && url.searchParams.get("v")) return true;
-    if (
-      url.pathname.startsWith("/shorts/") &&
-      url.pathname.length > "/shorts/".length
-    )
-      return true;
-    return false;
-  }
-  if (host === "youtu.be") return url.pathname.length > 1;
-  return false;
+  source: MediaSource;
 }
 
 export class InputValidator {
@@ -62,12 +42,26 @@ export class InputValidator {
       );
     }
 
-    if (!isValidYouTubeUrl(raw.link)) {
-      throw new ValidationError("URL does not look like a YouTube link.");
+    const detected = detectSource(raw.link);
+    if (!detected) {
+      throw new ValidationError(
+        "URL is not from a supported source (YouTube, SoundCloud, Bandcamp).",
+      );
+    }
+    if (detected.kind === "playlist") {
+      throw new ValidationError(
+        "Playlists/albums aren't supported yet — provide a single track or video URL.",
+      );
     }
 
     const destination = resolve(raw.destination ?? DEFAULT_DESTINATION);
 
-    return { link: raw.link, name: raw.name, formatId, destination };
+    return {
+      link: raw.link,
+      name: raw.name,
+      formatId,
+      destination,
+      source: detected.source,
+    };
   }
 }

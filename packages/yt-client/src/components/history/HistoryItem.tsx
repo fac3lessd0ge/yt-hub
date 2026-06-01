@@ -1,5 +1,6 @@
 import { FolderOpen, Music, RotateCcw, Trash2, Video } from "lucide-react";
 import { useState } from "react";
+import { getSourceLabel } from "@/lib/sourceLabel";
 import { getYoutubeThumbnailUrl } from "@/lib/youtubeThumbnail";
 
 interface HistoryItemProps {
@@ -10,6 +11,7 @@ interface HistoryItemProps {
   link: string;
   localPath: string;
   downloadedAt: number;
+  source: string;
   fileExists: boolean;
   onShow: () => void;
   onRedownload: () => void;
@@ -23,6 +25,7 @@ export function HistoryItem({
   formatType,
   link,
   downloadedAt,
+  source,
   fileExists,
   onShow,
   onRedownload,
@@ -58,7 +61,8 @@ export function HistoryItem({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">
-          {format}
+          {getSourceLabel(source)}
+          {` · ${format}`}
           {author && ` · ${author}`}
           {` · ${time}`}
         </p>
