@@ -460,10 +460,28 @@ ipcMain.handle("metadata:get", async (_event, url: string) => {
   };
 });
 
-// Representative public VK video used to probe whether the supplied cookies
-// resolve real content. If yt-dlp can dump its metadata, cookies work; without
-// login VK serves a promo/login page and yt-dlp fails.
-const VK_TEST_URL = "https://vk.com/video-22822305_165372104";
+// Durable public VK videos used to probe whether the supplied cookies load.
+// We try them in order: any single VK video can be deleted over time (which is
+// exactly what broke an earlier hardcoded probe), so the test only fails when
+// EVERY sample is unreachable for the same reason. The first is from VK's own
+// official "VK Видео" account; the second is a long-standing public upload.
+const VK_TEST_URLS = [
+  "https://vk.com/video-220754053_456242580",
+  "https://vk.com/video-77521_162222515",
+];
+
+// A probe error that means "this sample video is gone", not "your cookies are
+// bad" — when we see it we move on to the next sample instead of failing.
+function isVideoUnavailable(stderr: string): boolean {
+  const s = stderr.toLowerCase();
+  return (
+    s.includes("deleted") ||
+    s.includes("no longer available") ||
+    s.includes("not available") ||
+    s.includes("removed") ||
+    s.includes("private")
+  );
+}
 
 /** Map raw yt-dlp stderr to a short, actionable message for the user. */
 function friendlyVkProbeError(stderr: string): string {
@@ -520,7 +538,7 @@ ipcMain.handle(
     }
 
     const { cookiesFromBrowser, cookiesFile } = buildLinkConfigFields(
-      VK_TEST_URL,
+      VK_TEST_URLS[0],
       undefined,
       candidate,
     );
@@ -528,37 +546,72 @@ ipcMain.handle(
       return { ok: false, error: "No usable cookie source configured." };
     }
 
-    const args = ["--skip-download", "--dump-single-json", "--no-playlist"];
+    const cookieArgs: string[] = [];
     if (cookiesFromBrowser)
-      args.push("--cookies-from-browser", cookiesFromBrowser);
-    if (cookiesFile) args.push("--cookies", cookiesFile);
-    args.push(VK_TEST_URL);
+      cookieArgs.push("--cookies-from-browser", cookiesFromBrowser);
+    if (cookiesFile) cookieArgs.push("--cookies", cookiesFile);
 
-    return new Promise((resolvePromise) => {
-      const child = spawn(ytDlpPath, args, {
-        stdio: ["ignore", "ignore", "pipe"],
-      });
-      let stderr = "";
-      child.stderr?.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-      const timer = setTimeout(() => child.kill(), 45000);
-      child.on("error", () => {
-        clearTimeout(timer);
-        resolvePromise({
-          ok: false,
-          error: "Couldn't run yt-dlp to verify VK access.",
+    // Probe one sample VK video with the candidate cookies.
+    const probe = (
+      url: string,
+    ): Promise<
+      { ok: true } | { ok: false; unavailable: boolean; stderr: string }
+    > =>
+      new Promise((resolveProbe) => {
+        const child = spawn(
+          ytDlpPath,
+          [
+            "--skip-download",
+            "--dump-single-json",
+            "--no-playlist",
+            ...cookieArgs,
+            url,
+          ],
+          { stdio: ["ignore", "ignore", "pipe"] },
+        );
+        let stderr = "";
+        child.stderr?.on("data", (chunk: Buffer) => {
+          stderr += chunk.toString();
+        });
+        const timer = setTimeout(() => child.kill(), 45000);
+        child.on("error", () => {
+          clearTimeout(timer);
+          resolveProbe({
+            ok: false,
+            unavailable: false,
+            stderr: "spawn-error",
+          });
+        });
+        child.on("close", (code) => {
+          clearTimeout(timer);
+          if (code === 0) resolveProbe({ ok: true });
+          else
+            resolveProbe({
+              ok: false,
+              unavailable: isVideoUnavailable(stderr),
+              stderr,
+            });
         });
       });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code === 0) {
-          resolvePromise({ ok: true });
-        } else {
-          resolvePromise({ ok: false, error: friendlyVkProbeError(stderr) });
-        }
-      });
-    });
+
+    // A deleted/unavailable sample says nothing about the cookies — try the
+    // next one. Any other non-zero exit is a real cookie/auth failure, so stop
+    // and report it. Success on any sample means the cookies load.
+    for (const url of VK_TEST_URLS) {
+      const result = await probe(url);
+      if (result.ok) return { ok: true };
+      if (result.stderr === "spawn-error") {
+        return { ok: false, error: "Couldn't run yt-dlp to verify VK access." };
+      }
+      if (!result.unavailable) {
+        return { ok: false, error: friendlyVkProbeError(result.stderr) };
+      }
+    }
+    return {
+      ok: false,
+      error:
+        "Couldn't confirm with the sample videos (they may be unavailable). Try pasting your VK link and downloading it directly.",
+    };
   },
 );
 
