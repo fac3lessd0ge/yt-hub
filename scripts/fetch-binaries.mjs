@@ -80,9 +80,12 @@ const YT_DLP_ASSET = IS_WINDOWS ? "yt-dlp.exe" : "yt-dlp_linux";
 const YT_DLP_OUT = IS_WINDOWS ? "yt-dlp.exe" : "yt-dlp";
 
 const FFMPEG_PLATFORM = IS_WINDOWS ? "win64" : "linux64";
+// LGPL variant: ~25% smaller than the GPL build and still ships libmp3lame,
+// the mp3/mp4 muxers, and native mjpeg — all yt-dlp needs (it stream-copies
+// video, never re-encodes, so the GPL-only x264/x265 encoders are unnecessary).
 const FFMPEG_ARCHIVE = IS_WINDOWS
-  ? `ffmpeg-${FFMPEG_BUILD}-${FFMPEG_PLATFORM}-gpl-7.1.zip`
-  : `ffmpeg-${FFMPEG_BUILD}-${FFMPEG_PLATFORM}-gpl-7.1.tar.xz`;
+  ? `ffmpeg-${FFMPEG_BUILD}-${FFMPEG_PLATFORM}-lgpl-7.1.zip`
+  : `ffmpeg-${FFMPEG_BUILD}-${FFMPEG_PLATFORM}-lgpl-7.1.tar.xz`;
 const FFMPEG_OUT = IS_WINDOWS ? "ffmpeg.exe" : "ffmpeg";
 const FFMPEG_INNER = IS_WINDOWS ? "ffmpeg.exe" : "ffmpeg";
 

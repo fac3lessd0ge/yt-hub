@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
@@ -24,6 +24,29 @@ const config: ForgeConfig = {
       ...(existsSync(BIN_DIR) ? [BIN_DIR] : []),
     ],
     asar: true,
+    // Strip Chromium's ~55 locale packs down to en-US (~45 MB saved). The app
+    // is English-only, so the rest are dead weight.
+    afterExtract: [
+      (
+        buildPath: string,
+        _v: string,
+        _p: string,
+        _a: string,
+        done: () => void,
+      ) => {
+        const localesDir = path.join(buildPath, "locales");
+        try {
+          for (const file of readdirSync(localesDir)) {
+            if (file !== "en-US.pak") {
+              rmSync(path.join(localesDir, file), { force: true });
+            }
+          }
+        } catch {
+          // No locales dir on this platform/layout — nothing to trim.
+        }
+        done();
+      },
+    ],
   },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ["linux"])],
   plugins: [
