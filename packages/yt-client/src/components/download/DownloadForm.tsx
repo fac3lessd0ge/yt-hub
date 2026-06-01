@@ -240,7 +240,7 @@ export function DownloadForm({
             <MetadataPreview
               title={metadata.title}
               author={metadata.author_name}
-              thumbnailUrl={getYoutubeThumbnailUrl(link)}
+              thumbnailUrl={metadata?.thumbnail ?? getYoutubeThumbnailUrl(link)}
               hasCoverArt={format === "mp3"}
             />
           )}

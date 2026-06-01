@@ -24,6 +24,10 @@ export const DownloadErrorSchema = z.object({
 export const VideoMetadataSchema = z.object({
   title: z.string(),
   authorName: z.string(),
+  thumbnail: z.string().optional(),
+  durationSec: z.number().optional(),
+  isAudioOnly: z.boolean().optional(),
+  source: z.string().optional(),
 });
 
 export const FormatInfoSchema = z.object({

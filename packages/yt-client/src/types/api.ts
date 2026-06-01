@@ -12,6 +12,7 @@ export type {
 export interface MetadataResponse {
   title: string;
   author_name: string;
+  thumbnail?: string;
 }
 
 export interface FormatsResponse {

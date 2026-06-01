@@ -408,7 +408,11 @@ ipcMain.handle("metadata:get", async (_event, url: string) => {
     throw new Error(urlError);
   }
   const metadata = await downloadService.getMetadata(url);
-  return { title: metadata.title, author_name: metadata.authorName };
+  return {
+    title: metadata.title,
+    author_name: metadata.authorName,
+    thumbnail: metadata.thumbnail,
+  };
 });
 
 ipcMain.handle("formats:list", () => {

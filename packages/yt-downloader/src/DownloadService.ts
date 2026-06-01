@@ -14,7 +14,7 @@ import { ConsoleLogger } from "~/infra/implementations/ConsoleLogger";
 import type { ILogger } from "~/infra/types/ILogger";
 import { ValidationError } from "~/input";
 import type { IMetadataFetcher, VideoMetadata } from "~/metadata";
-import { HttpMetadataFetcher } from "~/metadata";
+import { YtDlpMetadataFetcher } from "~/metadata";
 import { OutputPathBuilder } from "~/output";
 import { NodeProcessSpawner } from "~/process";
 
@@ -54,10 +54,15 @@ export class DownloadService {
   ) {
     this.backends =
       options.backends ?? DownloadService.defaultBackends(options.ytDlpConfig);
-    this.metadataFetcher = options.metadataFetcher ?? new HttpMetadataFetcher();
-    this.dependencyChecker = new DependencyChecker(
-      options.binaryResolver ?? new NodeBinaryResolver(),
-    );
+    const binaryResolver = options.binaryResolver ?? new NodeBinaryResolver();
+    this.metadataFetcher =
+      options.metadataFetcher ??
+      new YtDlpMetadataFetcher(
+        new NodeProcessSpawner(),
+        binaryResolver,
+        options.ytDlpConfig,
+      );
+    this.dependencyChecker = new DependencyChecker(binaryResolver);
     this.outputPathBuilder = new OutputPathBuilder();
     this.logger = options.logger ?? new ConsoleLogger();
 
