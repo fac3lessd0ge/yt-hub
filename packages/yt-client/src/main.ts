@@ -64,6 +64,7 @@ interface HistoryEntry {
   link: string;
   localPath: string;
   downloadedAt: number;
+  source: string;
 }
 
 interface WindowBounds {
@@ -368,6 +369,7 @@ ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
             author_name: result.metadata.authorName,
             format_id: result.format.id,
             format_label: result.format.label,
+            source: result.metadata.source,
           },
         });
       }
@@ -491,7 +493,10 @@ ipcMain.on("settings:getTheme", (event) => {
 // --- History IPC ---
 
 ipcMain.handle("history:getAll", () => {
-  return store.get("downloadHistory", []);
+  // Migrate legacy entries written before `source` existed: default to youtube.
+  return store
+    .get("downloadHistory", [])
+    .map((entry) => ({ ...entry, source: entry.source ?? "youtube" }));
 });
 
 ipcMain.handle("history:add", (_event, entry: Omit<HistoryEntry, "id">) => {

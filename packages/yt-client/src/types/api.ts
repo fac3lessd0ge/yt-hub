@@ -40,6 +40,7 @@ export interface DownloadComplete {
   author_name: string;
   format_id: string;
   format_label: string;
+  source?: string;
 }
 
 export interface DownloadError {

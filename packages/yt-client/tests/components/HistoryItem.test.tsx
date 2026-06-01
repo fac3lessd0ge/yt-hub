@@ -10,6 +10,7 @@ const baseProps = {
   link: "https://www.youtube.com/watch?v=DCC6w9pAn3k",
   localPath: "/tmp/Test Song.mp3",
   downloadedAt: 1717200000000,
+  source: "youtube",
   fileExists: true,
   onShow: vi.fn(),
   onRedownload: vi.fn(),
@@ -30,5 +31,12 @@ describe("HistoryItem", () => {
       <HistoryItem {...baseProps} link="not-a-youtube-url" />,
     );
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("renders the source provider label", () => {
+    const { getByText } = render(
+      <HistoryItem {...baseProps} source="soundcloud" />,
+    );
+    expect(getByText(/SoundCloud/)).toBeInTheDocument();
   });
 });
