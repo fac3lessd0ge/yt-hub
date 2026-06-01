@@ -13,8 +13,6 @@ describe("isSupportedMediaUrl", () => {
     "https://m.youtube.com/watch?v=xyz",
     "https://soundcloud.com/artist/some-track",
     "https://c418.bandcamp.com/track/excuse",
-    "https://vk.com/video-22822305_456241864",
-    "https://vkvideo.ru/video-22822305_456241864",
   ])("accepts supported track URL: %s", (url) => {
     expect(isSupportedMediaUrl(url)).toBe(true);
   });
@@ -48,7 +46,6 @@ describe("getMediaSource", () => {
     ["https://www.youtube.com/watch?v=abc", "youtube"],
     ["https://soundcloud.com/artist/track", "soundcloud"],
     ["https://c418.bandcamp.com/track/excuse", "bandcamp"],
-    ["https://vk.com/video-1_2", "vk"],
   ])("maps %s -> %s", (url, source) => {
     expect(getMediaSource(url)).toBe(source);
   });
@@ -78,7 +75,7 @@ describe("getUrlValidationError", () => {
 
   it("returns error for an unsupported host", () => {
     expect(getUrlValidationError("https://vimeo.com/123")).toBe(
-      "Not a supported URL (YouTube, SoundCloud, VK, Bandcamp)",
+      "Not a supported URL (YouTube, SoundCloud, Bandcamp)",
     );
   });
 

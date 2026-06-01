@@ -1,9 +1,9 @@
 // Provider declarations for every media source yt-hub supports.
 // A provider is pure data + a URL matcher — it carries NO download logic.
 // Downloading stays generic (`yt-dlp <link>`); these only gate which URLs are
-// accepted, which formats the UI offers, and whether auth (cookies) is needed.
+// accepted and which formats the UI offers.
 
-export type MediaSource = "youtube" | "soundcloud" | "vk" | "bandcamp";
+export type MediaSource = "youtube" | "soundcloud" | "bandcamp";
 
 /** A single track/video vs. a collection (playlist/album/set). */
 export type MediaKind = "track" | "playlist";
@@ -19,8 +19,6 @@ export interface SourceProvider {
   label: string;
   /** Audio-only source — the UI offers no video formats. */
   audioOnly: boolean;
-  /** Most content requires the user to be logged in (cookies). VK only. */
-  needsAuth: boolean;
   /** Download formats offered for this source, by backend format id. */
   formats: FormatCapability[];
   /**
@@ -40,7 +38,6 @@ export const SOURCES: readonly SourceProvider[] = [
     source: "youtube",
     label: "YouTube",
     audioOnly: false,
-    needsAuth: false,
     formats: [MP4, MP3],
     match(url, host) {
       if (host === "youtu.be") {
@@ -67,7 +64,6 @@ export const SOURCES: readonly SourceProvider[] = [
     source: "soundcloud",
     label: "SoundCloud",
     audioOnly: true,
-    needsAuth: false,
     formats: [MP3],
     match(url, host) {
       if (host !== "soundcloud.com") return null;
@@ -82,7 +78,6 @@ export const SOURCES: readonly SourceProvider[] = [
     source: "bandcamp",
     label: "Bandcamp",
     audioOnly: true,
-    needsAuth: false,
     formats: [MP3],
     match(url, host) {
       // Artist subdomains (artist.bandcamp.com) or the apex bandcamp.com.
@@ -91,21 +86,6 @@ export const SOURCES: readonly SourceProvider[] = [
       }
       if (url.pathname.startsWith("/album/")) return "playlist";
       if (url.pathname.startsWith("/track/")) return "track";
-      return null;
-    },
-  },
-  {
-    source: "vk",
-    label: "VK",
-    audioOnly: false,
-    needsAuth: true,
-    formats: [MP4, MP3],
-    match(url, host) {
-      if (host !== "vk.com" && host !== "vkvideo.ru") return null;
-      // /video-12345_67890, /clip-12345_67890, or /video?z=video...
-      if (/^\/(video|clip)-?\d+_\d+/.test(url.pathname)) return "track";
-      if (url.pathname === "/video" && url.searchParams.has("z"))
-        return "track";
       return null;
     },
   },

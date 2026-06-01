@@ -60,7 +60,6 @@ export function getProvider(source: MediaSource): SourceProvider {
 
 export interface SourceCapabilities {
   audioOnly: boolean;
-  needsAuth: boolean;
   formats: FormatCapability[];
   label: string;
 }
@@ -69,7 +68,6 @@ export function capabilities(source: MediaSource): SourceCapabilities {
   const p = getProvider(source);
   return {
     audioOnly: p.audioOnly,
-    needsAuth: p.needsAuth,
     formats: [...p.formats],
     label: p.label,
   };

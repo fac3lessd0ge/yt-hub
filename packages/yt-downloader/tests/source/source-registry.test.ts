@@ -62,19 +62,6 @@ describe("detectSource — Bandcamp", () => {
   });
 });
 
-describe("detectSource — VK", () => {
-  it.each([
-    "https://vk.com/video-22822305_456241864",
-    "https://vkvideo.ru/video-22822305_456241864",
-    "https://m.vk.com/clip-12345_67890",
-  ])("detects a video/clip: %s", (url) => {
-    expect(detectSource(url)).toEqual({ source: "vk", kind: "track" });
-  });
-  it("rejects a bare profile", () => {
-    expect(detectSource("https://vk.com/durov")).toBeNull();
-  });
-});
-
 describe("detectSource — rejection of junk", () => {
   it.each([
     "",
@@ -82,6 +69,7 @@ describe("detectSource — rejection of junk", () => {
     "ftp://youtube.com/watch?v=abc",
     "https://example.com/video",
     "https://vimeo.com/12345",
+    "https://dailymotion.com/video/x12345",
     `https://youtube.com/watch?v=${"a".repeat(3000)}`,
   ])("rejects %s", (url) => {
     expect(detectSource(url)).toBeNull();
@@ -94,15 +82,8 @@ describe("capabilities", () => {
     expect(capabilities("soundcloud").audioOnly).toBe(true);
     expect(capabilities("bandcamp").audioOnly).toBe(true);
   });
-  it("marks YouTube and VK as not audio-only", () => {
+  it("marks YouTube as not audio-only", () => {
     expect(capabilities("youtube").audioOnly).toBe(false);
-    expect(capabilities("vk").audioOnly).toBe(false);
-  });
-  it("flags VK (and only VK) as needing auth", () => {
-    expect(capabilities("vk").needsAuth).toBe(true);
-    expect(capabilities("youtube").needsAuth).toBe(false);
-    expect(capabilities("soundcloud").needsAuth).toBe(false);
-    expect(capabilities("bandcamp").needsAuth).toBe(false);
   });
   it("offers only mp3 for audio-only sources", () => {
     expect(capabilities("soundcloud").formats.map((f) => f.id)).toEqual([

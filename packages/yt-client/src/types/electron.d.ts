@@ -20,28 +20,12 @@ export interface HistoryEntry {
   source: string;
 }
 
-/**
- * How (if at all) the user authorizes VK downloads. Cookies are applied ONLY to
- * VK links in the main process. "off" leaves VK gated.
- */
-export interface VkAccess {
-  mode: "off" | "browser" | "file";
-  /** Browser to read cookies from (must be a yt-dlp-supported browser). */
-  browser: string;
-  /** Path to an exported cookies.txt file. */
-  cookiesFile: string;
-}
-
-export type VkTestResult = { ok: true } | { ok: false; error: string };
-
 export interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
   defaultFormat: string;
   /** Optional proxy for downloads (e.g. socks5://127.0.0.1:2080). Empty = direct. */
   proxy: string;
-  /** VK login source — cookies applied to VK links only. */
-  vkAccess: VkAccess;
 }
 
 export interface ElectronAPI {
@@ -71,7 +55,6 @@ export interface ElectronAPI {
   showItemInFolder: (filePath: string) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openTextFile: () => Promise<string | null>;
-  selectCookiesFile: () => Promise<string | null>;
 
   // Settings
   getSettings: () => Promise<Settings>;
@@ -80,9 +63,6 @@ export interface ElectronAPI {
     key: K,
     value: Settings[K],
   ) => Promise<Settings[K]>;
-
-  // VK access
-  testVkAccess: (input: VkAccess) => Promise<VkTestResult>;
 
   // Clipboard
   readClipboardText: () => Promise<string>;

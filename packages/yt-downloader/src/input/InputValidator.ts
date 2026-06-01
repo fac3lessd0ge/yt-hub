@@ -45,7 +45,7 @@ export class InputValidator {
     const detected = detectSource(raw.link);
     if (!detected) {
       throw new ValidationError(
-        "URL is not from a supported source (YouTube, SoundCloud, VK, Bandcamp).",
+        "URL is not from a supported source (YouTube, SoundCloud, Bandcamp).",
       );
     }
     if (detected.kind === "playlist") {

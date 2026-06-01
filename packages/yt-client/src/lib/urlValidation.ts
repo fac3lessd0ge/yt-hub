@@ -31,7 +31,7 @@ export function getUrlValidationError(url: string): string | null {
 
   const detected = detectSource(url);
   if (!detected) {
-    return "Not a supported URL (YouTube, SoundCloud, VK, Bandcamp)";
+    return "Not a supported URL (YouTube, SoundCloud, Bandcamp)";
   }
   if (detected.kind === "playlist") {
     return "Playlists aren't supported yet — paste a single track or video URL";
