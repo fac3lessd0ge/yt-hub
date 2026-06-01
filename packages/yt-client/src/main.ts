@@ -17,6 +17,7 @@ import { DownloadService, loadYtDlpConfig } from "yt-downloader";
 import { getProxyValidationError } from "./lib/proxyValidation";
 import { getUrlValidationError } from "./lib/urlValidation";
 import { BundledBinaryResolver } from "./main/BundledBinaryResolver";
+import { openInFileManager } from "./main/fileManager";
 import { showItemInFolder as showItemInFolderImpl } from "./main/showItemInFolder";
 
 if (started) {
@@ -248,6 +249,8 @@ ipcMain.handle("dialog:selectFolder", async () => {
 ipcMain.handle("shell:showItemInFolder", (_event, filePath: unknown) => {
   return showItemInFolderImpl(filePath, {
     access: (p) => fs.access(p),
+    revealItem: (p) => openInFileManager("ShowItems", p),
+    revealFolder: (p) => openInFileManager("ShowFolders", p),
     showItemInFolder: (p) => shell.showItemInFolder(p),
     openPath: (p) => shell.openPath(p),
   });
