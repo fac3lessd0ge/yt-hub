@@ -34,6 +34,7 @@ describe("DownloadForm", () => {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
+        proxy: "",
       },
       updateSetting: vi.fn(),
     });
@@ -123,6 +124,7 @@ describe("DownloadForm", () => {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
+        proxy: "",
       },
       updateSetting: vi.fn(),
     });
@@ -138,6 +140,7 @@ describe("DownloadForm", () => {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "flac",
+        proxy: "",
       },
       updateSetting: vi.fn(),
     });
@@ -154,6 +157,7 @@ describe("DownloadForm", () => {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
+        proxy: "",
       },
       updateSetting: vi.fn(),
     });
@@ -168,6 +172,7 @@ describe("DownloadForm", () => {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
+        proxy: "",
       },
       updateSetting: vi.fn(),
     });

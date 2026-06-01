@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { DefaultFormatSetting } from "@/components/settings/DefaultFormatSetting";
 import { DownloadLocationSetting } from "@/components/settings/DownloadLocationSetting";
+import { ProxySetting } from "@/components/settings/ProxySetting";
 import { ThemeToggle } from "@/components/settings/ThemeToggle";
 import { useAppVersion } from "@/hooks/useAppVersion";
 import { useSettings } from "@/hooks/useSettings";
@@ -129,6 +130,20 @@ export function Settings() {
           <DefaultFormatSetting
             value={settings.defaultFormat}
             onChange={(fmt) => updateSetting("defaultFormat", fmt)}
+          />
+        </SettingsRow>
+      </SettingsSection>
+
+      <div className="h-px bg-border" />
+
+      <SettingsSection title="Network">
+        <SettingsRow
+          label="Download Proxy"
+          description="Send downloads through a proxy if YouTube's media servers are blocked or throttled on a direct connection."
+        >
+          <ProxySetting
+            value={settings.proxy}
+            onChange={(proxy) => updateSetting("proxy", proxy)}
           />
         </SettingsRow>
       </SettingsSection>

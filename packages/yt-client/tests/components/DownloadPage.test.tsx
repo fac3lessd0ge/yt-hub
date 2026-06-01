@@ -14,6 +14,7 @@ vi.mock("@/hooks/useSettings", () => ({
       theme: "system",
       defaultDownloadDir: null,
       defaultFormat: "mp4",
+      proxy: "",
     },
     updateSetting: vi.fn(),
   }),

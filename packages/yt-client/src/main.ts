@@ -13,7 +13,8 @@ import {
 } from "electron";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
-import { DownloadService } from "yt-downloader";
+import { DownloadService, loadYtDlpConfig } from "yt-downloader";
+import { getProxyValidationError } from "./lib/proxyValidation";
 import { getUrlValidationError } from "./lib/urlValidation";
 import { BundledBinaryResolver } from "./main/BundledBinaryResolver";
 import { showItemInFolder as showItemInFolderImpl } from "./main/showItemInFolder";
@@ -50,6 +51,7 @@ interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
   defaultFormat: string;
+  proxy: string;
 }
 
 interface HistoryEntry {
@@ -103,11 +105,16 @@ const store = new Store<StoreSchema>({
           type: "string",
           default: "mp4",
         },
+        proxy: {
+          type: "string",
+          default: "",
+        },
       },
       default: {
         theme: "system",
         defaultDownloadDir: null,
         defaultFormat: "mp4",
+        proxy: "",
       },
     },
     downloadHistory: {
@@ -268,12 +275,26 @@ ipcMain.handle("shell:openExternal", async (_event, url: string) => {
 
 // --- Download IPC (in-process via yt-downloader DownloadService) ---
 
-const downloadService = new DownloadService({
-  binaryResolver: new BundledBinaryResolver({
-    userBinDir: path.join(app.getPath("userData"), "bin"),
-    resourcesBinDir: path.join(process.resourcesPath, "bin"),
-  }),
+const binaryResolver = new BundledBinaryResolver({
+  userBinDir: path.join(app.getPath("userData"), "bin"),
+  resourcesBinDir: path.join(process.resourcesPath, "bin"),
 });
+
+/**
+ * Build a DownloadService for the current settings. A configured proxy is
+ * threaded into yt-dlp via YtDlpConfig so downloads can tunnel around DPI/geo
+ * blocks (e.g. when youtube is reachable in the browser but yt-dlp's CDN
+ * connection is throttled). The binary resolver is shared across instances.
+ */
+function createDownloadService(proxy?: string): DownloadService {
+  return new DownloadService({
+    binaryResolver,
+    ytDlpConfig: proxy ? { ...loadYtDlpConfig(), proxy } : undefined,
+  });
+}
+
+// Metadata / formats / backends are proxy-independent — use a base instance.
+const downloadService = createDownloadService();
 
 const inFlightDownloads = new Map<string, AbortController>();
 
@@ -305,13 +326,16 @@ ipcMain.handle("download:start", (event, params: DownloadStartParams): void => {
   const controller = new AbortController();
   inFlightDownloads.set(downloadId, controller);
 
-  // Read destination from the settings store — never trust a renderer-supplied path.
-  const destination =
-    store.get("settings", defaultSettings).defaultDownloadDir ?? undefined;
+  // Read destination + proxy from the settings store — never trust a
+  // renderer-supplied path, and apply the user's proxy if configured.
+  const settings = store.get("settings", defaultSettings);
+  const destination = settings.defaultDownloadDir ?? undefined;
+  const proxy = settings.proxy?.trim() || undefined;
+  const service = proxy ? createDownloadService(proxy) : downloadService;
 
   const { sender } = event;
 
-  downloadService
+  service
     .download(
       {
         link: params.link,
@@ -415,6 +439,7 @@ const defaultSettings: Settings = {
   theme: "system",
   defaultDownloadDir: null,
   defaultFormat: "mp4",
+  proxy: "",
 };
 
 ipcMain.handle("settings:getAll", () => {
@@ -433,6 +458,17 @@ ipcMain.handle("settings:set", (_event, key: string, value: unknown) => {
   const settings = store.get("settings", defaultSettings);
   if (!(key in settings)) {
     throw new Error(`Unknown setting key: ${key}`);
+  }
+  // Trusted-side validation for the proxy (the renderer also validates, but the
+  // main process should not persist a value the UI gate would have rejected).
+  if (key === "proxy") {
+    if (typeof value !== "string") {
+      throw new Error("Proxy must be a string");
+    }
+    const proxyError = getProxyValidationError(value);
+    if (proxyError) {
+      throw new Error(proxyError);
+    }
   }
   const updated = { ...settings, [key]: value };
   store.set("settings", updated);

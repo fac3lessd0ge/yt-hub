@@ -82,6 +82,10 @@ Builds are **not code-signed**. On Windows, SmartScreen will warn the first time
 
 Files are written straight to the user's selected folder — there is no server-side staging directory and no HTTP file transfer.
 
+### Proxy
+
+If YouTube's media servers (`googlevideo.com`) are blocked or throttled on a direct connection — common with DPI/geo restrictions, even when the site loads in a browser — set a proxy under **Settings → Network**. The value (e.g. `socks5://127.0.0.1:2080`) is passed to yt-dlp via `--proxy`, so downloads tunnel through your VPN/proxy. Leave it empty for a direct connection.
+
 ## The Binary Story
 
 `yt-dlp` and `ffmpeg` are located at runtime by a tiered resolver (`BundledBinaryResolver`), in this order:

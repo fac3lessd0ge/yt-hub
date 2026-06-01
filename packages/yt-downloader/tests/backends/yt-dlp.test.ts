@@ -152,6 +152,28 @@ describe("YtDlpBackend", () => {
     expect(args).toContain("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b");
   });
 
+  it("passes --proxy when a proxy is configured", async () => {
+    const { spawner, getCalls } = fakeSpawner(0);
+    const backend = new YtDlpBackend(spawner, {
+      audioQuality: "0",
+      customArgs: [],
+      proxy: "socks5://127.0.0.1:2080",
+      cookiesFile: undefined,
+      socketTimeout: 30,
+      processTimeout: 3600,
+    });
+    await backend.download(
+      "https://www.youtube.com/watch?v=abc",
+      "/tmp/test.mp3",
+      "mp3",
+      TEST_BINARIES,
+    );
+    const args = getCalls()[0].args;
+    const idx = args.indexOf("--proxy");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe("socks5://127.0.0.1:2080");
+  });
+
   it("uses inherited stdout and stderr", async () => {
     const { spawner, getCalls } = fakeSpawner(0);
     const backend = new YtDlpBackend(spawner);

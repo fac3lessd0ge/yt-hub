@@ -23,6 +23,8 @@ export interface Settings {
   theme: "system" | "light" | "dark";
   defaultDownloadDir: string | null;
   defaultFormat: string;
+  /** Optional proxy for downloads (e.g. socks5://127.0.0.1:2080). Empty = direct. */
+  proxy: string;
 }
 
 export interface ElectronAPI {
