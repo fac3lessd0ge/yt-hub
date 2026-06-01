@@ -249,9 +249,9 @@ ipcMain.handle("dialog:selectFolder", async () => {
 ipcMain.handle("shell:showItemInFolder", (_event, filePath: unknown) => {
   return showItemInFolderImpl(filePath, {
     access: (p) => fs.access(p),
-    revealItem: (p) => openInFileManager("ShowItems", p),
-    revealFolder: (p) => openInFileManager("ShowFolders", p),
-    showItemInFolder: (p) => shell.showItemInFolder(p),
+    openFolderInFileManager: (folder) =>
+      openInFileManager("ShowFolders", folder),
+    showItemNative: (p) => shell.showItemInFolder(p),
     openPath: (p) => shell.openPath(p),
   });
 });
