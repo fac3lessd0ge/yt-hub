@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Fetch base branch
         run: git fetch origin ${{ github.event.pull_request.base.ref }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
