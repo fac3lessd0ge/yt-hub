@@ -1,6 +1,17 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import type { IDownloadBackend, ProgressCallback } from "~/download";
 import { BackendRegistry } from "~/download";
 import { ValidationError } from "~/input";
@@ -14,6 +25,11 @@ const server = setupServer(
   ),
 );
 
+let destination: string;
+beforeEach(() => {
+  destination = mkdtempSync(join(tmpdir(), "yt-hub-test-"));
+});
+afterEach(() => rmSync(destination, { recursive: true, force: true }));
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
@@ -54,12 +70,12 @@ describe("DownloadService", () => {
       link: "https://www.youtube.com/watch?v=abc",
       format: "mp3",
       name: "test-song",
-      destination: "/tmp/yt-test",
+      destination,
     });
 
     expect(result.metadata.title).toBe("Test Video");
     expect(result.metadata.authorName).toBe("Test Channel");
-    expect(result.outputPath).toMatch(/\/test-song\.mp3$/);
+    expect(result.outputPath).toBe(join(destination, "test-song.mp3"));
     expect(result.format.id).toBe("mp3");
   });
 
@@ -69,7 +85,7 @@ describe("DownloadService", () => {
       link: "https://www.youtube.com/watch?v=abc",
       format: "mp3",
       name: "AC/DC: Back in Black?",
-      destination: "/tmp/yt-test",
+      destination,
     });
 
     expect(result.outputPath).toContain("AC_DC_ Back in Black");
@@ -140,7 +156,7 @@ describe("DownloadService", () => {
         link: "https://www.youtube.com/watch?v=abc",
         format: "mp3",
         name: "test-song",
-        destination: "/tmp/yt-test",
+        destination,
       },
       progressFn,
     );
@@ -159,7 +175,7 @@ describe("DownloadService", () => {
       link: "https://www.youtube.com/watch?v=abc",
       format: "mp3",
       name: "test-song",
-      destination: "/tmp/yt-test",
+      destination,
     });
 
     expect(receivedCallback).toBeUndefined();

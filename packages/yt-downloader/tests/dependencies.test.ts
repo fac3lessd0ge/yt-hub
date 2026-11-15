@@ -14,6 +14,17 @@ const TEST_DEPS = [
 ];
 
 describe("DependencyChecker", () => {
+  it("resolves optional runtimes when present and skips them when absent", () => {
+    const deps = [
+      { binary: "deno", installHint: "https://deno.com", optional: true },
+    ];
+    expect(new DependencyChecker(fakeResolver({})).check(deps).size).toBe(0);
+    expect(
+      new DependencyChecker(fakeResolver({ deno: "/app/bin/deno" }))
+        .check(deps)
+        .get("deno"),
+    ).toBe("/app/bin/deno");
+  });
   it("passes when all dependencies are found", () => {
     const checker = new DependencyChecker(
       fakeResolver({ "yt-dlp": "/usr/bin/yt-dlp", ffmpeg: "/usr/bin/ffmpeg" }),

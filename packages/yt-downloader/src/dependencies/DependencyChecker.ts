@@ -16,6 +16,7 @@ export class DependencyChecker {
     for (const dep of dependencies) {
       const path = this.resolver.resolve(dep.binary);
       if (!path) {
+        if (dep.optional) continue;
         throw new DependencyError(dep.binary, dep.installHint);
       }
       resolved.set(dep.binary, path);

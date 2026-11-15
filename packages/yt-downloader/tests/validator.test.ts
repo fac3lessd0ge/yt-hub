@@ -111,7 +111,7 @@ describe("InputValidator", () => {
       format: "mp3",
       destination: "/tmp/downloads",
     });
-    expect(result.destination).toBe("/tmp/downloads");
+    expect(result.destination).toBe(resolve("/tmp/downloads"));
   });
 
   it("resolves relative destination to absolute path", () => {

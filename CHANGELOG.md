@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.1] - 2026-11-15
+
+### Fixed
+
+- Bundle Deno and explicitly select it for YouTube JavaScript challenges; update yt-dlp to 2026.10.26.
+- Restore binary provisioning with pinned FFmpeg 8.1 and Deno 2.9.8 releases, SHA256 verification, and a packaging check for missing executables.
+- Show the actual yt-dlp error instead of truncating it behind introductory warnings.
+- Make path, temporary-directory, and subprocess tests portable to Windows.
+
+### Changed
+
+- Update Electron to 45.3.2, Forge to 8, Nx to 24, Vitest to 4, and compatible dependencies. Development and CI now use Node.js 24 LTS.
+- Run tests and packaging on Windows and Linux in CI.
+
 ## [2.1.0] - 2026-06-01
 
 **Multi-source downloads.** YT Hub now downloads from **SoundCloud** and **Bandcamp** in addition to YouTube. The underlying `yt-dlp` already supported them; this release removes the YouTube-only assumptions throughout the app.

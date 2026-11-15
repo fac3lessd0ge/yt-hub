@@ -8,16 +8,19 @@ describe("NodeProcessSpawner", () => {
   const spawner = new NodeProcessSpawner();
 
   it("resolves with exit code on normal completion", async () => {
-    const result = await spawner.spawn(["echo", "hello"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const result = await spawner.spawn(
+      [process.execPath, "-e", "console.log('hello')"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
     expect(result.exitCode).toBe(0);
   });
 
   it("captures stdout lines via onStdout callback", async () => {
     const lines: string[] = [];
-    await spawner.spawn(["echo", "line1"], {
+    await spawner.spawn([process.execPath, "-e", "console.log('line1')"], {
       stdout: "pipe",
       stderr: "pipe",
       onStdout: (line) => lines.push(line),
@@ -27,7 +30,7 @@ describe("NodeProcessSpawner", () => {
 
   it("captures stderr output", async () => {
     const result = await spawner.spawn(
-      ["node", "-e", "process.stderr.write('err\\n')"],
+      [process.execPath, "-e", "process.stderr.write('err\\n')"],
       { stdout: "pipe", stderr: "pipe" },
     );
     expect(result.stderr).toBe("err");
@@ -37,7 +40,7 @@ describe("NodeProcessSpawner", () => {
     const ac = new AbortController();
     ac.abort();
     await expect(
-      spawner.spawn(["echo", "hello"], {
+      spawner.spawn([process.execPath, "-e", "console.log('hello')"], {
         stdout: "pipe",
         stderr: "pipe",
         signal: ac.signal,
@@ -48,11 +51,14 @@ describe("NodeProcessSpawner", () => {
   it("rejects with CancellationError when signal fires during execution", async () => {
     const ac = new AbortController();
     // sleep long enough so we can abort mid-execution
-    const promise = spawner.spawn(["sleep", "10"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      signal: ac.signal,
-    });
+    const promise = spawner.spawn(
+      [process.execPath, "-e", "setTimeout(() => {}, 10000)"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        signal: ac.signal,
+      },
+    );
     // abort after a small delay
     setTimeout(() => ac.abort(), 50);
     await expect(promise).rejects.toThrow(CancellationError);
@@ -60,11 +66,14 @@ describe("NodeProcessSpawner", () => {
 
   it("does not double-settle: abort during execution resolves only once", async () => {
     const ac = new AbortController();
-    const promise = spawner.spawn(["sleep", "10"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      signal: ac.signal,
-    });
+    const promise = spawner.spawn(
+      [process.execPath, "-e", "setTimeout(() => {}, 10000)"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        signal: ac.signal,
+      },
+    );
     setTimeout(() => ac.abort(), 50);
     // If double-settle occurred, this would either throw an unhandled rejection
     // or the promise would resolve after rejecting. We verify it rejects exactly once.
@@ -74,11 +83,14 @@ describe("NodeProcessSpawner", () => {
 
   it("removes abort listener after normal completion", async () => {
     const ac = new AbortController();
-    const result = await spawner.spawn(["echo", "done"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      signal: ac.signal,
-    });
+    const result = await spawner.spawn(
+      [process.execPath, "-e", "console.log('done')"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        signal: ac.signal,
+      },
+    );
     expect(result.exitCode).toBe(0);
     // Aborting after completion should not cause any issues
     ac.abort();
@@ -87,7 +99,7 @@ describe("NodeProcessSpawner", () => {
 
   it("rejects with TimeoutError when process exceeds timeout", async () => {
     await expect(
-      spawner.spawn(["sleep", "10"], {
+      spawner.spawn([process.execPath, "-e", "setTimeout(() => {}, 10000)"], {
         stdout: "pipe",
         stderr: "pipe",
         timeout: 100,
@@ -97,11 +109,14 @@ describe("NodeProcessSpawner", () => {
 
   it("TimeoutError contains the timeout duration", async () => {
     try {
-      await spawner.spawn(["sleep", "10"], {
-        stdout: "pipe",
-        stderr: "pipe",
-        timeout: 150,
-      });
+      await spawner.spawn(
+        [process.execPath, "-e", "setTimeout(() => {}, 10000)"],
+        {
+          stdout: "pipe",
+          stderr: "pipe",
+          timeout: 150,
+        },
+      );
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(TimeoutError);
@@ -135,11 +150,14 @@ describe("NodeProcessSpawner", () => {
   });
 
   it("does not reject with timeout when process completes in time", async () => {
-    const result = await spawner.spawn(["echo", "fast"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 5000,
-    });
+    const result = await spawner.spawn(
+      [process.execPath, "-e", "console.log('fast')"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: 5000,
+      },
+    );
     expect(result.exitCode).toBe(0);
   });
 });

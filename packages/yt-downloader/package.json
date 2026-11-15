@@ -35,13 +35,14 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.19.2",
     "@types/prompt-sync": "^4.2.3",
     "@types/which": "^3.0.4",
     "msw": "^2.12.14",
     "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.12",
+    "vite": "^7.3.8"
   }
 }
