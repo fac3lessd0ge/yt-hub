@@ -36,6 +36,22 @@ function fakeSpawnerWithProgress(lines: string[], exitCode: number = 0) {
 }
 
 describe("YtDlpBackend", () => {
+  it("uses the resolved Deno runtime outside PATH without splitting its path", async () => {
+    const { spawner, getCalls } = fakeSpawner();
+    const binaries = new Map(TEST_BINARIES);
+    binaries.set("deno", "C:\\Program Files\\YT Hub\\bin\\deno.exe");
+    await new YtDlpBackend(spawner).download(
+      "https://youtu.be/abc",
+      "/tmp/test.mp4",
+      "mp4",
+      binaries,
+    );
+    const args = getCalls()[0].args;
+    expect(args[args.indexOf("--js-runtimes") + 1]).toBe(
+      "deno:C:\\Program Files\\YT Hub\\bin\\deno.exe",
+    );
+  });
+
   it("name is yt-dlp", () => {
     const { spawner } = fakeSpawner();
     expect(new YtDlpBackend(spawner).name).toBe("yt-dlp");

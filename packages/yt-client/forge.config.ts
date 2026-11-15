@@ -7,33 +7,26 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 
-// Bundled yt-dlp/ffmpeg live here, fetched via `npm run binaries:fetch`.
+// Bundled executables live here, fetched via `npm run binaries:fetch`.
 // The folder is literally named `bin` so electron-forge `extraResource`
 // copies it to `<resourcesPath>/bin`, which is exactly where
 // BundledBinaryResolver looks (`path.join(process.resourcesPath, "bin")`).
-// These binaries are gitignored, so the dir is absent in CI/fresh clones;
-// forge errors on a missing extraResource path, so we add it only when present.
+// prePackage rejects incomplete bundles with a setup hint for fresh clones.
 const BIN_DIR = path.join(__dirname, "resources", "bin");
 
 const config: ForgeConfig = {
   packagerConfig: {
     name: "YT Hub",
-    icon: "./assets/icon",
+    icon: path.join(__dirname, "assets/icon"),
     extraResource: [
-      "./assets/icon.png",
+      path.join(__dirname, "assets/icon.png"),
       ...(existsSync(BIN_DIR) ? [BIN_DIR] : []),
     ],
     asar: true,
     // Strip Chromium's ~55 locale packs down to en-US (~45 MB saved). The app
     // is English-only, so the rest are dead weight.
     afterExtract: [
-      (
-        buildPath: string,
-        _v: string,
-        _p: string,
-        _a: string,
-        done: () => void,
-      ) => {
+      ({ buildPath }) => {
         const localesDir = path.join(buildPath, "locales");
         try {
           for (const file of readdirSync(localesDir)) {
@@ -44,9 +37,20 @@ const config: ForgeConfig = {
         } catch {
           // No locales dir on this platform/layout — nothing to trim.
         }
-        done();
       },
     ],
+  },
+  hooks: {
+    prePackage: async () => {
+      const suffix = process.platform === "win32" ? ".exe" : "";
+      for (const binary of ["yt-dlp", "ffmpeg", "ffprobe", "deno"]) {
+        if (!existsSync(path.join(BIN_DIR, `${binary}${suffix}`))) {
+          throw new Error(
+            `Missing bundled ${binary}. Run npm run binaries:fetch before packaging.`,
+          );
+        }
+      }
+    },
   },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ["linux"])],
   plugins: [

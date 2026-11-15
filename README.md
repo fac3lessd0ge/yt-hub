@@ -43,27 +43,31 @@ The [yt-client](packages/yt-client) Electron app provides:
 
 ## Prerequisites
 
-- **Node.js 20+** and npm
-- **yt-dlp** — on `PATH` for development, or bundled for packaged builds (see [The binary story](#the-binary-story))
-- **ffmpeg** — same as yt-dlp
+- **Node.js 24 LTS** (24.15+) and npm
+- **yt-dlp, ffmpeg, ffprobe, Deno** — fetched by the command below, or installed on `PATH` for development
+- **Linux:** `tar`, `xz`, and `unzip` for fetching binaries; `zip` for building an archive
 
 ## Quick Start
 
 ```bash
-npm install
+npm ci
+npm run binaries:fetch
 npm run dev
 ```
 
-`npm run dev` checks that `yt-dlp` and `ffmpeg` are on `PATH`, builds `yt-downloader`, then launches the Electron app. Output is color-coded by package. Press `Ctrl+C` to shut everything down.
+`npm run dev` adds the fetched binaries to `PATH`, checks prerequisites, builds `yt-downloader`, then launches the Electron app. Electron downloads its development executable on first launch. Output is color-coded by package. Press `Ctrl+C` to shut everything down.
+
+If Nx reports a socket path error on Windows, set `NX_DAEMON=false` and `NX_ISOLATE_PLUGINS=false` in the shell. In PowerShell: `$env:NX_DAEMON='false'; $env:NX_ISOLATE_PLUGINS='false'`.
 
 ## Building Installers
 
 Build a distributable installer for the current platform:
 
 ```bash
+npm run binaries:fetch      # required on a fresh checkout
+npx nx build yt-downloader
 npx nx package yt-client     # unpacked app in packages/yt-client/out/
-# or, from the package directory:
-npm run make                 # full installer via electron-forge
+npm run make --workspace=yt-client # full installer via electron-forge
 ```
 
 - **Windows** — a Squirrel `.exe` installer.
@@ -88,13 +92,15 @@ If YouTube's media servers (`googlevideo.com`) are blocked or throttled on a dir
 
 ## The Binary Story
 
-`yt-dlp` and `ffmpeg` are located at runtime by a tiered resolver (`BundledBinaryResolver`), in this order:
+`yt-dlp`, `ffmpeg`, `ffprobe`, and `Deno` are located at runtime by a tiered resolver (`BundledBinaryResolver`), in this order:
 
 1. `<userData>/bin/<binary>` — a per-user override you can drop in.
 2. `<resourcesPath>/bin/<binary>` — binaries bundled into the packaged app.
 3. `PATH` via `which`.
 
-For **development**, having `yt-dlp` and `ffmpeg` on `PATH` is enough. For **distribution**, run `npm run binaries:fetch` to download pinned, checksum-verified `yt-dlp` + `ffmpeg` for the host platform into `packages/yt-client/resources/bin/` before packaging; electron-forge copies that `bin/` folder to `<resourcesPath>/bin` via `extraResource`, which is exactly where the resolver looks (on Windows the bundled `.exe` names are resolved too). The folder is gitignored, so it is absent in fresh clones and CI — the forge config adds it to `extraResource` only when present.
+Run `npm run binaries:fetch` to populate `packages/yt-client/resources/bin/` for Windows or Linux x64. Versions, release URLs, and SHA256 hashes for both platforms are pinned in `scripts/binaries.json`. All downloads are verified before existing binaries are replaced. FFmpeg uses a retained month-end release instead of an expiring daily asset. When updating the manifest, obtain hashes from the upstream releases and run `npm run test:binaries`.
+
+Packaging requires all four executables and copies them to `<resourcesPath>/bin`. Deno is explicitly passed to yt-dlp for YouTube JavaScript challenges, so users do not need to install a runtime separately. The standalone library treats Deno as optional for other sources. Packaged binaries are fixed at build time; rebuilding is necessary to distribute updated extractors.
 
 ## Platform Support
 
@@ -132,6 +138,7 @@ npx nx build <package>     # Build
 
 ```bash
 # Run all tests across the monorepo
+npm run test:binaries
 npx nx run-many -t test
 
 # Per-package

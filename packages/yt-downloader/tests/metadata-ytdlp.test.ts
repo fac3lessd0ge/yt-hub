@@ -7,7 +7,7 @@ const YT_URL = "https://www.youtube.com/watch?v=abc";
 const SC_URL = "https://soundcloud.com/artist/track";
 
 function fakeResolver(path: string | null): IBinaryResolver {
-  return { resolve: () => path };
+  return { resolve: (binary) => (binary === "yt-dlp" ? path : null) };
 }
 
 /**
@@ -43,6 +43,17 @@ function rawSpawner(lines: string[], exitCode = 0) {
 }
 
 describe("YtDlpMetadataFetcher", () => {
+  it("passes the bundled Deno path as a single argument, including spaces", async () => {
+    const { spawner, getCalls } = fakeSpawner({ title: "Video" });
+    const deno = "C:\\Program Files\\YT Hub\\bin\\deno.exe";
+    const fetcher = new YtDlpMetadataFetcher(spawner, {
+      resolve: (name) => (name === "deno" ? deno : "/bin/yt-dlp"),
+    });
+    await fetcher.fetch(YT_URL);
+    const args = getCalls()[0].args;
+    expect(args[args.indexOf("--js-runtimes") + 1]).toBe(`deno:${deno}`);
+  });
+
   it("maps title, author, thumbnail, and duration", async () => {
     const { spawner } = fakeSpawner({
       title: "Some Video",

@@ -62,6 +62,7 @@ export class YtDlpBackend implements IDownloadBackend {
     return [
       { binary: "yt-dlp", installHint: "brew install yt-dlp" },
       { binary: "ffmpeg", installHint: "brew install ffmpeg" },
+      { binary: "deno", installHint: "https://deno.com/", optional: true },
     ];
   }
 
@@ -107,6 +108,11 @@ export class YtDlpBackend implements IDownloadBackend {
 
     if (ffmpegPath) {
       args.push("--ffmpeg-location", dirname(ffmpegPath));
+    }
+
+    const denoPath = binaries.get("deno");
+    if (denoPath) {
+      args.push("--js-runtimes", `deno:${denoPath}`);
     }
 
     if (this.config?.proxy) {

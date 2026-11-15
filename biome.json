@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
   "assist": {
     "actions": {
       "source": {
@@ -10,7 +10,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "off"
       },
@@ -29,6 +29,7 @@
     "includes": [
       "**/*.ts",
       "**/*.tsx",
+      "**/*.mjs",
       "**/*.json",
       "!**/dist",
       "!**/.vite",

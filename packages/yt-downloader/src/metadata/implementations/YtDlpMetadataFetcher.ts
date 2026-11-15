@@ -46,6 +46,11 @@ export class YtDlpMetadataFetcher implements IMetadataFetcher {
       "--no-playlist",
     ];
 
+    const denoPath = this.binaryResolver.resolve("deno");
+    if (denoPath) {
+      args.push("--js-runtimes", `deno:${denoPath}`);
+    }
+
     if (this.config?.proxy) {
       args.push("--proxy", this.config.proxy);
     }

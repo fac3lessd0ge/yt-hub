@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { showItemInFolder } from "@/main/showItemInFolder";
 
@@ -20,7 +21,7 @@ describe("showItemInFolder", () => {
     });
     await showItemInFolder("/home/u/Downloads/yt-hub/song.mp3", deps);
     expect(deps.openFolderInFileManager).toHaveBeenCalledWith(
-      "/home/u/Downloads/yt-hub",
+      resolve("/home/u/Downloads/yt-hub"),
     );
     expect(deps.showItemNative).not.toHaveBeenCalled();
     expect(deps.openPath).not.toHaveBeenCalled();

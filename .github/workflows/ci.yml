@@ -5,20 +5,39 @@ on:
     branches: [main, dev]
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NX_DAEMON: 'false'
+      NX_ISOLATE_PLUGINS: 'false'
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Fetch base branch
-        run: git fetch origin ${{ github.event.pull_request.base.ref }}
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run test:binaries
       - name: Build yt-downloader (prerequisite for yt-client)
         run: npx nx build yt-downloader
-      - name: Nx affected lint, test, typecheck
-        run: npx nx affected -t lint,test,typecheck --base=origin/${{ github.event.pull_request.base.ref }} --head=HEAD
+      - name: Lint, test and typecheck both packages
+        run: npx nx run-many -t lint,test,typecheck
+      - name: Fetch verified binaries
+        run: npm run binaries:fetch
+      - name: Package desktop app
+        run: npx nx package yt-client
+
+  # Preserve the required check named "ci" in the repository's branch rules.
+  ci:
+    if: always()
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both platforms to pass
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECKS_RESULT" = success

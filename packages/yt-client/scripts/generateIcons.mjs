@@ -20,4 +20,7 @@ const ico = png2icons.createICO(png, png2icons.BICUBIC, 0, false, true);
 if (!ico) throw new Error("Failed to generate icon.ico");
 await writeFile(resolve(assetsDir, "icon.ico"), ico);
 
-console.log("Generated icon.png (1024x1024), icon.icns, icon.ico in", assetsDir);
+console.log(
+  "Generated icon.png (1024x1024), icon.icns, icon.ico in",
+  assetsDir,
+);

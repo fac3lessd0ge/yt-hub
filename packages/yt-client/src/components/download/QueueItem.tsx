@@ -33,7 +33,7 @@ export function QueueItem({
         <p className="text-xs text-muted-foreground">
           {item.format}
           {item.status === "error" && item.error && (
-            <span className="text-destructive-foreground">
+            <span className="whitespace-pre-wrap break-words text-destructive-foreground">
               {" — "}
               {friendlyError(item.error.code, item.error.message)}
             </span>

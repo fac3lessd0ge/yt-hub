@@ -15,14 +15,17 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      NX_DAEMON: "false"
+      NX_ISOLATE_PLUGINS: "false"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
-      - name: Fetch bundled yt-dlp + ffmpeg (this platform)
+      - name: Fetch bundled yt-dlp + ffmpeg + Deno (this platform)
         run: npm run binaries:fetch
       - name: Build yt-downloader (prerequisite)
         run: npx nx build yt-downloader
@@ -58,7 +61,7 @@ jobs:
           body: |
             ## YT Hub ${{ github.ref_name }}
 
-            Desktop YouTube downloader — yt-dlp + ffmpeg are bundled, no setup required.
+            Desktop YouTube downloader — yt-dlp + ffmpeg + Deno are bundled, no setup required.
 
             ### Install
             - **Windows:** run the `.exe`. The installers are **unsigned**, so SmartScreen will warn — click **More info → Run anyway**.
